@@ -1,0 +1,1 @@
+<x-layouts.admin title="Create FAQ | Azraq Bridal"><div class="space-y-6"><h2 class="text-3xl font-semibold text-[var(--color-secondary-900)]">Create FAQ</h2>@include('admin.content.faqs._form')</div></x-layouts.admin>

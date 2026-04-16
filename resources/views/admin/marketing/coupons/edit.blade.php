@@ -1,0 +1,1 @@
+<x-layouts.admin title="Edit Coupon | Azraq Bridal"><div class="space-y-6"><h2 class="text-3xl font-semibold text-[var(--color-secondary-900)]">Edit coupon</h2>@include('admin.marketing.coupons._form')</div></x-layouts.admin>

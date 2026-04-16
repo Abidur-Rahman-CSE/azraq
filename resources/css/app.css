@@ -1,0 +1,58 @@
+@import './tokens.css';
+@import 'tailwindcss';
+@import './components.css';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../**/*.blade.php';
+@source '../**/*.js';
+
+@theme {
+    --font-sans: 'Poppins', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+    --color-brand-primary-900: var(--color-primary-900);
+    --color-brand-primary-700: var(--color-primary-700);
+    --color-brand-surface-cream: var(--color-surface-cream);
+    --color-brand-secondary-900: var(--color-secondary-900);
+    --color-brand-secondary-500: var(--color-secondary-500);
+}
+
+@layer base {
+    html {
+        scroll-behavior: smooth;
+    }
+
+    body {
+        background-color: var(--color-surface-base);
+        color: var(--text-main);
+        font: var(--text-body);
+    }
+
+    a {
+        text-decoration: none;
+    }
+
+    h1 {
+        font: var(--text-h1);
+        color: var(--text-main);
+    }
+
+    h2 {
+        font: var(--text-h2);
+        color: var(--text-main);
+    }
+
+    h3 {
+        font: var(--text-h3);
+        color: var(--text-main);
+    }
+
+    p {
+        color: var(--text-muted);
+    }
+
+    *:focus-visible {
+        outline: none;
+        box-shadow: var(--shadow-focus-ring);
+    }
+}

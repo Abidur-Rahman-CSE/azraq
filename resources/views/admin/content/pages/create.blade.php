@@ -1,0 +1,1 @@
+<x-layouts.admin title="Create Page | Azraq Bridal"><div class="space-y-6"><h2 class="text-3xl font-semibold text-[var(--color-secondary-900)]">Create page</h2>@include('admin.content.pages._form')</div></x-layouts.admin>
