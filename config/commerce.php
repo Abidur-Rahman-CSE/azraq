@@ -22,33 +22,30 @@ return [
     ],
     'storefront' => [
         'nav' => [
-            ['label' => 'Home', 'href' => '/'],
             ['label' => 'Shop', 'href' => '/shop'],
             ['label' => 'Nikah Collection', 'href' => '/categories/nikah-collection'],
             ['label' => 'Bridal Wear', 'href' => '/categories/customized-bridal-wear'],
-            ['label' => 'Accessories', 'href' => '/categories/bridal-accessories'],
-            ['label' => 'Packages / Combos', 'href' => '/categories/packages-combos'],
-            ['label' => 'Mehendi & Event', 'href' => '/categories/mehendi-event'],
             ['label' => 'Bookings', 'href' => '/shop?type=service'],
-            ['label' => 'About', 'href' => '/pages/about'],
         ],
         'mobile_nav_groups' => [
             [
-                'label' => 'Browse',
+                'label' => 'Primary',
                 'items' => [
                     ['label' => 'Home', 'href' => '/'],
-                    ['label' => 'All Products', 'href' => '/shop'],
-                    ['label' => 'Best Sellers', 'href' => '/collections/best-sellers'],
-                ],
-            ],
-            [
-                'label' => 'Collections',
-                'items' => [
+                    ['label' => 'Shop', 'href' => '/shop'],
                     ['label' => 'Nikah Collection', 'href' => '/categories/nikah-collection'],
                     ['label' => 'Bridal Wear', 'href' => '/categories/customized-bridal-wear'],
                     ['label' => 'Accessories', 'href' => '/categories/bridal-accessories'],
+                    ['label' => 'Bookings', 'href' => '/shop?type=service'],
+                ],
+            ],
+            [
+                'label' => 'More',
+                'items' => [
                     ['label' => 'Packages / Combos', 'href' => '/categories/packages-combos'],
                     ['label' => 'Mehendi & Event', 'href' => '/categories/mehendi-event'],
+                    ['label' => 'Best Sellers', 'href' => '/collections/best-sellers'],
+                    ['label' => 'About', 'href' => '/pages/about'],
                 ],
             ],
             [

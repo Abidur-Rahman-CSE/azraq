@@ -8,7 +8,7 @@
 <header class="site-header" x-data="{ mobileOpen: false }">
     <div class="container-shell header-shell flex items-center justify-between gap-4 py-4 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-6">
         <div class="flex items-center gap-3">
-            <button type="button" class="header-icon-button lg:hidden" x-on:click="mobileOpen = true" aria-label="Open menu">
+            <button type="button" class="header-icon-button header-menu-toggle" x-on:click="mobileOpen = true" aria-label="Open menu">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
@@ -25,7 +25,7 @@
             </a>
         </div>
 
-        <nav class="hidden items-center justify-center gap-5 xl:flex" aria-label="Primary">
+        <nav class="header-primary-nav items-center justify-center gap-6" aria-label="Primary">
             @foreach ($navItems as $item)
                 @php($href = str_starts_with($item['href'], '/') ? url($item['href']) : $item['href'])
                 <a
@@ -89,10 +89,15 @@
             </div>
 
             <div class="space-y-8 px-5 py-6">
+                <div class="grid gap-3">
+                    <a href="{{ route('shop.index') }}" class="button-primary w-full">Shop all products</a>
+                    <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-secondary w-full">Book a Consultation</a>
+                </div>
+
                 @foreach ($mobileGroups as $group)
                     <section class="space-y-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">{{ $group['label'] }}</p>
-                        <div class="space-y-2">
+                        <div class="grid gap-2">
                             @foreach ($group['items'] as $item)
                                 <a href="{{ url($item['href']) }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
                                     <span>{{ $item['label'] }}</span>
@@ -103,9 +108,10 @@
                     </section>
                 @endforeach
 
-                <div class="space-y-3 border-t border-[var(--border-soft)] pt-6">
-                    <a href="{{ route('cart.index') }}" class="button-secondary w-full">Open Cart</a>
-                    <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-primary w-full">Book a Consultation</a>
+                <div class="grid gap-3 border-t border-[var(--border-soft)] pt-6">
+                    <a href="{{ route('search.index') }}" class="button-ghost w-full">Search the catalog</a>
+                    <a href="{{ route('cart.index') }}" class="button-ghost w-full">Open Cart</a>
+                    <a href="{{ route('account.index') }}" class="button-ghost w-full">Account</a>
                 </div>
             </div>
         </div>

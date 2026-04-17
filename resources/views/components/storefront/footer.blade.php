@@ -4,11 +4,11 @@
     <div class="container-shell py-16 lg:py-20">
         <div class="footer-grid lg:grid-cols-[1.2fr_0.8fr_0.8fr_0.9fr]">
             <div class="space-y-5">
-                <div class="brand-lockup">
-                    <span class="brand-mark footer-brand-mark">
+                <div class="footer-brand-stack">
+                    <span class="brand-mark footer-brand-mark footer-brand-mark-vertical">
                         <img src="{{ $logoSrc }}" alt="" class="h-full w-full object-contain">
                     </span>
-                    <span class="brand-wordmark">
+                    <span class="brand-wordmark footer-brand-wordmark">
                         <span class="brand-wordmark-top footer-brand-top">AZRAQ</span>
                         <span class="brand-wordmark-bottom footer-brand-bottom">Bridal Collection</span>
                     </span>
