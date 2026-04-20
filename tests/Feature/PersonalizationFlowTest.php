@@ -482,6 +482,112 @@ it('persists shrink-only fitting rules for template fields', function () {
         ->and($updatedField->font_size_max)->toBe(18);
 });
 
+it('persists rich typography preset metadata for a template', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $template = PersonalizationTemplate::with(['fields', 'fonts'])->firstOrFail();
+
+    $response = $this->put(route('admin.personalization.templates.update', $template), [
+        'product_id' => $template->product_id,
+        'name' => $template->name,
+        'save_mode' => 'template',
+        'is_active' => 1,
+        'base_template_url' => $template->base_template_url,
+        'preview_image_url' => $template->preview_image_url,
+        'mask_image_url' => $template->mask_image_url,
+        'preview_data_presets' => [
+            'bride_name' => 'Amena',
+            'groom_name' => 'Hassan',
+            'ceremony_date' => '12 December 2026',
+            'venue' => 'Dhaka',
+        ],
+        'fields_payload' => json_encode($template->fields->map(fn ($field) => [
+            'label' => $field->label,
+            'field_key' => $field->field_key,
+            'placeholder' => $field->placeholder,
+            'help_text' => $field->help_text,
+            'default_value' => $field->default_value,
+            'preview_sample_value' => $field->preview_sample_value,
+            'is_required' => $field->is_required ? 1 : 0,
+            'max_length' => $field->max_length,
+            'min_length' => $field->min_length,
+            'font_size_min' => $field->font_size_min,
+            'font_size_max' => $field->font_size_max,
+            'line_height' => $field->line_height,
+            'letter_spacing' => $field->letter_spacing,
+            'text_align' => $field->text_align,
+            'text_color' => $field->text_color,
+            'position_x' => $field->position_x,
+            'position_y' => $field->position_y,
+            'width' => $field->width,
+            'height' => $field->height,
+            'rotation' => $field->rotation,
+            'z_index' => $field->z_index,
+            'settings' => $field->settings,
+        ])->values()->all(), JSON_THROW_ON_ERROR),
+        'fonts_payload' => json_encode([
+            [
+                'name' => 'Royal Script',
+                'internal_name' => 'royal_script',
+                'preview_label' => 'Royal Script',
+                'css_font_family' => '"Allura", cursive',
+                'font_family' => '"Allura", cursive',
+                'font_source_type' => 'google',
+                'font_source_value' => 'https://fonts.googleapis.com/css2?family=Allura&display=swap',
+                'category' => 'Signature Script',
+                'style_type' => 'Luxury Calligraphy',
+                'supported_use' => 'all',
+                'preview_sample_text' => 'Amena & Hassan',
+                'font_weight_default' => '600',
+                'font_style_default' => 'normal',
+                'letter_spacing_default' => 0.2,
+                'line_height_default' => 1.25,
+                'text_transform_default' => 'none',
+                'recommended_for' => 'bride_name,groom_name',
+                'is_default' => 1,
+                'is_active' => 1,
+                'sort_order' => 0,
+            ],
+            [
+                'name' => 'Formal Roman',
+                'internal_name' => 'formal_roman',
+                'preview_label' => 'Formal Roman',
+                'css_font_family' => '"Cinzel", serif',
+                'font_family' => '"Cinzel", serif',
+                'font_source_type' => 'google',
+                'font_source_value' => 'https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&display=swap',
+                'category' => 'Formal Roman',
+                'style_type' => 'Formal Roman',
+                'supported_use' => 'all',
+                'preview_sample_text' => 'Nikah Nama',
+                'font_weight_default' => '700',
+                'font_style_default' => 'normal',
+                'letter_spacing_default' => 0.8,
+                'line_height_default' => 1.2,
+                'text_transform_default' => 'uppercase',
+                'recommended_for' => 'date,venue,all',
+                'is_default' => 0,
+                'is_active' => 0,
+                'sort_order' => 10,
+            ],
+        ], JSON_THROW_ON_ERROR),
+    ]);
+
+    $response->assertRedirect(route('admin.personalization.templates.edit', $template));
+
+    $template->refresh()->load('fonts');
+    $font = $template->fonts->firstWhere('internal_name', 'royal_script');
+    $inactive = $template->fonts->firstWhere('internal_name', 'formal_roman');
+
+    expect($font)->not->toBeNull()
+        ->and($font->font_source_type)->toBe('google')
+        ->and($font->category)->toBe('Signature Script')
+        ->and($font->recommended_for)->toBe('bride_name,groom_name')
+        ->and($font->is_active)->toBeTrue()
+        ->and($inactive)->not->toBeNull()
+        ->and($inactive->is_active)->toBeFalse();
+});
+
 it('saves a draft without unpublishing an active personalization template', function () {
     $this->seed(CatalogSeeder::class);
 

@@ -1,3 +1,27 @@
+@php
+    $activeFonts = $template->fonts
+        ->where('is_active', true)
+        ->sortBy('sort_order')
+        ->values();
+
+    if ($activeFonts->isEmpty()) {
+        $activeFonts = $template->fonts->sortBy('sort_order')->values();
+    }
+
+    $fontStylesheetUrls = $activeFonts
+        ->where('font_source_type', 'google')
+        ->pluck('font_source_value')
+        ->filter()
+        ->unique()
+        ->values();
+
+    $defaultFontId = old('font_id', $activeFonts->firstWhere('is_default', true)?->id ?? $activeFonts->first()?->id);
+@endphp
+
+@foreach ($fontStylesheetUrls as $fontStylesheetUrl)
+    <link rel="stylesheet" href="{{ $fontStylesheetUrl }}">
+@endforeach
+
 <x-layouts.product-detail
     :title="$product->name.' | '.config('brand.name')"
     :description="$product->meta_description ?: ($product->excerpt ?: $product->description)"
@@ -26,11 +50,24 @@
         x-data="{
             galleryItems: @js($galleryItems->values()->all()),
             activeSlideId: @js($galleryItems->first()['id'] ?? 'template-flat'),
-            selectedFont: @js(old('font_id', $template->fonts->firstWhere('is_default', true)?->id ?? $template->fonts->first()?->id)),
-            sceneFont: @js(old('font_id', $template->fonts->firstWhere('is_default', true)?->id ?? $template->fonts->first()?->id)),
+            selectedFont: @js($defaultFontId),
+            sceneFont: @js($defaultFontId),
             fields: @js($template->fields->mapWithKeys(fn ($field) => [$field->field_key => old('personalization.'.$field->field_key, $field->default_value ?? $field->preview_sample_value ?? '')])->all()),
             sceneFields: @js($template->fields->mapWithKeys(fn ($field) => [$field->field_key => old('personalization.'.$field->field_key, $field->default_value ?? $field->preview_sample_value ?? '')])->all()),
-            fonts: @js($template->fonts->map(fn ($font) => ['id' => $font->id, 'css_font_family' => $font->css_font_family])->values()),
+            fonts: @js($activeFonts->map(fn ($font) => [
+                'id' => $font->id,
+                'name' => $font->name,
+                'preview_label' => $font->preview_label,
+                'category' => $font->category,
+                'font_family' => $font->font_family ?: $font->css_font_family,
+                'preview_sample_text' => $font->preview_sample_text,
+                'font_weight_default' => $font->font_weight_default,
+                'font_style_default' => $font->font_style_default,
+                'letter_spacing_default' => $font->letter_spacing_default,
+                'line_height_default' => $font->line_height_default,
+                'text_transform_default' => $font->text_transform_default,
+                'recommended_for' => $font->recommended_for,
+            ])->values()),
             sceneRefreshTimer: null,
             activeSlide() {
                 return this.galleryItems.find((item) => item.id === this.activeSlideId) ?? this.galleryItems[0];
@@ -39,7 +76,7 @@
                 this.activeSlideId = id;
             },
             fontFamily(id) {
-                return this.fonts.find((item) => item.id == id)?.css_font_family ?? 'Poppins, sans-serif';
+                return this.fonts.find((item) => item.id == id)?.font_family ?? 'Poppins, sans-serif';
             },
             polygon(map) {
                 return `${map.top_left_x * 100}% ${map.top_left_y * 100}%, ${map.top_right_x * 100}% ${map.top_right_y * 100}%, ${map.bottom_right_x * 100}% ${map.bottom_right_y * 100}%, ${map.bottom_left_x * 100}% ${map.bottom_left_y * 100}%`;
@@ -266,7 +303,7 @@
                             <span class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Curated presets</span>
                         </div>
                         <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                            @foreach ($template->fonts as $font)
+                            @foreach ($activeFonts as $font)
                                 <label class="cursor-pointer">
                                     <input
                                         type="radio"
@@ -275,15 +312,22 @@
                                         class="peer sr-only"
                                         x-model="selectedFont"
                                         @change="flushSceneRefresh()"
-                                        @checked(old('font_id', $template->fonts->firstWhere('is_default', true)?->id ?? $template->fonts->first()?->id) == $font->id)
+                                        @checked($defaultFontId == $font->id)
                                     >
-                                    <span class="flex min-h-28 flex-col justify-between rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white px-4 py-4 text-sm transition peer-checked:border-[var(--color-primary-900)] peer-checked:bg-[var(--color-surface-cream)] peer-checked:shadow-[0_18px_35px_rgba(120,0,0,0.12)]">
-                                        <span class="font-medium text-[var(--color-secondary-900)]">{{ $font->name }}</span>
-                                        <span style="font-family: {{ $font->css_font_family }};" class="mt-4 text-lg text-[var(--color-primary-900)]">{{ $font->preview_label ?: $font->name }}</span>
+                                    <span class="relative flex min-h-40 flex-col justify-between rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white px-4 py-4 text-sm transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(15,46,60,0.08)] peer-checked:border-[var(--color-primary-900)] peer-checked:bg-[var(--color-surface-cream)] peer-checked:shadow-[0_18px_35px_rgba(120,0,0,0.12)]">
+                                        <span class="rounded-full bg-[rgba(253,240,213,0.95)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]">{{ $font->category }}</span>
+                                        <span
+                                            style="font-family: {{ $font->font_family ?: $font->css_font_family }}; font-weight: {{ $font->font_weight_default ?? '600' }}; font-style: {{ $font->font_style_default ?? 'normal' }}; letter-spacing: {{ $font->letter_spacing_default ?? 0 }}px; line-height: {{ $font->line_height_default ?? 1.2 }}; text-transform: {{ $font->text_transform_default ?? 'none' }};"
+                                            class="mt-5 flex min-h-16 items-center justify-center text-center text-2xl text-[var(--color-primary-900)]"
+                                        >{{ $font->preview_sample_text ?: ($font->preview_label ?: $font->name) }}</span>
+                                        <span class="mt-4 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-secondary-900)]">{{ $font->preview_label ?: $font->name }}</span>
+                                        <span class="mt-1 text-xs text-[var(--color-text-soft)]">{{ $font->recommended_for === 'all' ? 'Works across all lines' : str($font->recommended_for)->replace('_', ' ')->headline() }}</span>
+                                        <span class="pointer-events-none absolute bottom-3 right-3 hidden h-8 w-8 items-center justify-center rounded-full bg-[var(--color-primary-900)] text-sm font-bold text-white peer-checked:flex">✓</span>
                                     </span>
                                 </label>
                             @endforeach
                         </div>
+                        <p class="mt-4 text-sm text-[var(--color-text-soft)]">Typography updates live in the certificate preview.</p>
                     </div>
 
                     <div class="surface-configurator p-5">

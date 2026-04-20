@@ -100,21 +100,61 @@
         ))
         ->all();
 
+    $starterFontPresets = \App\Models\PersonalizationFont::starterPresets();
+
     $initialFonts = collect(old('fonts', $template->fonts->map(fn ($font) => $font->toArray())->all()))
         ->values()
         ->map(fn ($font, $index) => [
             'id' => $font['id'] ?? ($index + 1),
             'name' => $font['name'] ?? '',
+            'internal_name' => $font['internal_name'] ?? str($font['name'] ?? 'preset_'.$index)->snake()->toString(),
             'css_font_family' => $font['css_font_family'] ?? '',
+            'font_family' => $font['font_family'] ?? ($font['css_font_family'] ?? ''),
+            'font_source_type' => $font['font_source_type'] ?? 'local',
+            'font_source_value' => $font['font_source_value'] ?? null,
+            'category' => $font['category'] ?? 'Minimal Sans',
+            'style_type' => $font['style_type'] ?? ($font['category'] ?? 'Minimal Sans'),
+            'supported_use' => $font['supported_use'] ?? 'all',
             'preview_label' => $font['preview_label'] ?? '',
+            'preview_sample_text' => $font['preview_sample_text'] ?? ($font['preview_label'] ?? 'Amena & Hassan'),
+            'font_weight_default' => (string) ($font['font_weight_default'] ?? '600'),
+            'font_style_default' => $font['font_style_default'] ?? 'normal',
+            'letter_spacing_default' => (float) ($font['letter_spacing_default'] ?? 0),
+            'line_height_default' => (float) ($font['line_height_default'] ?? 1.2),
+            'text_transform_default' => $font['text_transform_default'] ?? 'none',
+            'recommended_for' => $font['recommended_for'] ?? 'all',
             'is_default' => (bool) ($font['is_default'] ?? false),
+            'is_active' => (bool) ($font['is_active'] ?? true),
+            'sort_order' => (int) ($font['sort_order'] ?? ($font['position'] ?? $index)),
         ])
-        ->whenEmpty(fn ($collection) => $collection->push(
-            ['id' => 1, 'name' => 'Classic Serif', 'css_font_family' => '"Cormorant Garamond", serif', 'preview_label' => 'Classic ceremony', 'is_default' => true],
-            ['id' => 2, 'name' => 'Modern Sans', 'css_font_family' => '"Poppins", sans-serif', 'preview_label' => 'Modern keepsake', 'is_default' => false],
-        ))
+        ->pipe(function ($collection) use ($starterFontPresets) {
+            $existing = $collection->pluck('internal_name')->filter()->all();
+
+            foreach ($starterFontPresets as $index => $preset) {
+                if (in_array($preset['internal_name'], $existing, true)) {
+                    continue;
+                }
+
+                $collection->push([
+                    'id' => 'starter-'.$preset['internal_name'],
+                    ...$preset,
+                ]);
+            }
+
+            return $collection;
+        })
         ->all();
+
+    $fontStylesheetUrls = collect($initialFonts)
+        ->filter(fn ($font) => ($font['font_source_type'] ?? 'local') === 'google' && filled($font['font_source_value'] ?? null))
+        ->pluck('font_source_value')
+        ->unique()
+        ->values();
 @endphp
+
+@foreach ($fontStylesheetUrls as $fontStylesheetUrl)
+    <link rel="stylesheet" href="{{ $fontStylesheetUrl }}">
+@endforeach
 
 <form
     id="template-editor-form"
@@ -843,45 +883,165 @@
             <div>
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Typography presets</p>
                 <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Font presets</h3>
-                <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Keep typography lighter than the field editor. Use these presets as the approved ceremony styles available to the storefront.</p>
+                <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Manage curated Nikah Nama styles that appear as elegant font cards on the storefront.</p>
             </div>
             <button type="button" class="button-ghost" @click="addFont()">Add font preset</button>
         </div>
 
         <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            <template x-for="(font, index) in fonts" :key="font.id">
+            <template x-for="(font, index) in sortedFonts()" :key="font.id">
                 <div class="rounded-[28px] border border-[var(--color-border-soft)] bg-white/90 p-5 shadow-[0_16px_40px_rgba(0,48,73,0.05)]">
                     <div class="flex items-start justify-between gap-3">
                         <div>
-                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="font.name || 'Untitled preset'"></p>
-                            <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]" x-text="font.preview_label || 'Preview label'"></p>
+                            <div class="flex flex-wrap items-center gap-2">
+                                <p class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="font.name || 'Untitled preset'"></p>
+                                <span class="rounded-full bg-[rgba(253,240,213,0.95)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]" x-text="font.category || 'Preset'"></span>
+                            </div>
+                            <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]" x-text="font.internal_name || 'internal_name'"></p>
                         </div>
-                        <button type="button" class="button-ghost !px-3 !py-2" @click="confirmDeleteFont(font.id)">Delete</button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="button-ghost !px-2.5 !py-1.5 text-xs" @click="duplicateFont(font.id)">Duplicate</button>
+                            <button type="button" class="button-ghost !px-2.5 !py-1.5 text-xs" @click="confirmDeleteFont(font.id)">Delete</button>
+                        </div>
                     </div>
 
-                    <div class="mt-4 rounded-[22px] border border-[rgba(0,48,73,0.08)] bg-[rgba(253,240,213,0.42)] px-4 py-5 text-center text-lg text-[var(--color-secondary-900)]" :style="`font-family:${font.css_font_family || 'Poppins, sans-serif'}`">
-                        <span x-text="font.preview_label || 'Nikah ceremony preview'"></span>
+                    <div class="mt-4 rounded-[24px] border border-[rgba(0,48,73,0.08)] bg-[rgba(253,240,213,0.52)] px-4 py-6 text-center text-[var(--color-secondary-900)]">
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]" x-text="font.preview_label || 'Preview label'"></p>
+                        <div
+                            class="mt-4 min-h-24 content-center text-center text-3xl"
+                            :style="`font-family:${font.font_family || font.css_font_family || 'Poppins, sans-serif'}; font-weight:${font.font_weight_default || '600'}; font-style:${font.font_style_default || 'normal'}; letter-spacing:${Number(font.letter_spacing_default || 0)}px; line-height:${Number(font.line_height_default || 1.2)}; text-transform:${font.text_transform_default || 'none'};`"
+                            x-text="font.preview_sample_text || font.preview_label || 'Amena & Hassan'"
+                        ></div>
                     </div>
 
                     <div class="mt-4 grid gap-3">
                         <label class="field-shell">
-                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Internal name</span>
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Preset name</span>
                             <input class="field-input" x-model="font.name">
+                        </label>
+                        <label class="field-shell">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Internal name</span>
+                            <input class="field-input" x-model="font.internal_name">
                         </label>
                         <label class="field-shell">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Preview label</span>
                             <input class="field-input" x-model="font.preview_label">
                         </label>
                         <label class="field-shell">
-                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font sample / family</span>
-                            <input class="field-input" x-model="font.css_font_family">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font family</span>
+                            <input class="field-input" x-model="font.font_family">
                         </label>
-                        <label class="inline-flex items-center justify-between gap-4 rounded-[22px] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
-                            <span>Default preset</span>
-                            <div class="flex items-center gap-3">
-                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)] text-[var(--color-primary-900)]" :checked="font.is_default" @change="setDefaultFont(font.id)">
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="field-shell">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Category</span>
+                                <select class="field-select" x-model="font.category">
+                                    <option>Signature Script</option>
+                                    <option>Classic Script</option>
+                                    <option>Elegant Serif</option>
+                                    <option>Modern Serif</option>
+                                    <option>Minimal Sans</option>
+                                    <option>Luxury Calligraphy</option>
+                                    <option>Formal Roman</option>
+                                    <option>Arabic Companion</option>
+                                </select>
+                            </label>
+                            <label class="field-shell">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Recommended for</span>
+                                <select class="field-select" x-model="font.recommended_for">
+                                    <option value="all">All</option>
+                                    <option value="bride_name">Bride name</option>
+                                    <option value="groom_name">Groom name</option>
+                                    <option value="date">Date</option>
+                                    <option value="venue">Venue</option>
+                                    <option value="bride_name,groom_name">Bride & groom</option>
+                                </select>
+                            </label>
+                        </div>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="field-shell">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Source type</span>
+                                <select class="field-select" x-model="font.font_source_type">
+                                    <option value="google">Google</option>
+                                    <option value="local">Local</option>
+                                    <option value="uploaded">Uploaded</option>
+                                </select>
+                            </label>
+                            <label class="field-shell">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Sort order</span>
+                                <input type="number" min="0" class="field-input" x-model.number="font.sort_order">
+                            </label>
+                        </div>
+                        <label class="field-shell">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font source value</span>
+                            <input class="field-input" x-model="font.font_source_value" placeholder="Google CSS URL or local font path">
+                        </label>
+                        <label class="field-shell">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Preview sample text</span>
+                            <input class="field-input" x-model="font.preview_sample_text">
+                        </label>
+                        <label class="field-shell">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Supported use</span>
+                            <input class="field-input" x-model="font.supported_use">
+                        </label>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            <label class="inline-flex items-center justify-between gap-4 rounded-[22px] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                                <span>Default preset</span>
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)] text-[var(--color-primary-900)]" :checked="font.is_default" @change="setDefaultFont(font.id)">
+                                </div>
+                            </label>
+                            <label class="inline-flex items-center justify-between gap-4 rounded-[22px] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                                <span>Active preset</span>
+                                <div class="flex items-center gap-3">
+                                    <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)] text-[var(--color-primary-900)]" x-model="font.is_active">
+                                </div>
+                            </label>
+                        </div>
+
+                        <div class="rounded-[22px] border border-[var(--color-border-soft)] bg-[rgba(253,240,213,0.28)]">
+                            <button type="button" class="flex w-full items-center justify-between gap-3 px-4 py-3 text-left" @click="toggleFontAdvanced(font.id)">
+                                <span class="text-sm font-semibold text-[var(--color-secondary-900)]">Advanced typography</span>
+                                <span class="text-xs uppercase tracking-[0.16em] text-[var(--color-primary-900)]" x-text="fontAdvancedOpen[font.id] ? 'Hide' : 'Show'"></span>
+                            </button>
+                            <div x-cloak x-show="fontAdvancedOpen[font.id]" x-transition.opacity.duration.150ms class="border-t border-[var(--color-border-soft)] px-4 py-4">
+                                <div class="grid gap-3 sm:grid-cols-2">
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Default weight</span>
+                                        <select class="field-select" x-model="font.font_weight_default">
+                                            <option value="400">Regular</option>
+                                            <option value="500">Medium</option>
+                                            <option value="600">Semibold</option>
+                                            <option value="700">Bold</option>
+                                            <option value="800">Extra bold</option>
+                                        </select>
+                                    </label>
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Default style</span>
+                                        <select class="field-select" x-model="font.font_style_default">
+                                            <option value="normal">Normal</option>
+                                            <option value="italic">Italic</option>
+                                        </select>
+                                    </label>
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Letter spacing</span>
+                                        <input type="number" step="0.01" class="field-input" x-model.number="font.letter_spacing_default">
+                                    </label>
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Line height</span>
+                                        <input type="number" step="0.01" class="field-input" x-model.number="font.line_height_default">
+                                    </label>
+                                    <label class="field-shell sm:col-span-2">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Text transform</span>
+                                        <select class="field-select" x-model="font.text_transform_default">
+                                            <option value="none">None</option>
+                                            <option value="uppercase">Uppercase</option>
+                                            <option value="lowercase">Lowercase</option>
+                                            <option value="capitalize">Capitalize</option>
+                                        </select>
+                                    </label>
+                                </div>
                             </div>
-                        </label>
+                        </div>
                     </div>
                 </div>
             </template>
@@ -920,6 +1080,7 @@ document.addEventListener('alpine:init', () => {
             { key: 'tools', label: 'Tools' },
         ],
         activeTabs: {},
+        fontAdvancedOpen: {},
         selectedPreset: '',
         draggingContext: null,
         measureContext: null,
@@ -982,10 +1143,29 @@ document.addEventListener('alpine:init', () => {
             return {
                 id: font.id ?? this.nextFontId + index,
                 name: font.name ?? '',
+                internal_name: font.internal_name ?? '',
                 css_font_family: font.css_font_family ?? '',
+                font_family: font.font_family ?? font.css_font_family ?? '',
+                font_source_type: font.font_source_type ?? 'local',
+                font_source_value: font.font_source_value ?? '',
+                category: font.category ?? 'Minimal Sans',
+                style_type: font.style_type ?? font.category ?? 'Minimal Sans',
+                supported_use: font.supported_use ?? 'all',
                 preview_label: font.preview_label ?? '',
+                preview_sample_text: font.preview_sample_text ?? font.preview_label ?? 'Amena & Hassan',
+                font_weight_default: String(font.font_weight_default ?? '600'),
+                font_style_default: font.font_style_default ?? 'normal',
+                letter_spacing_default: Number(font.letter_spacing_default ?? 0),
+                line_height_default: Number(font.line_height_default ?? 1.2),
+                text_transform_default: font.text_transform_default ?? 'none',
+                recommended_for: font.recommended_for ?? 'all',
                 is_default: Boolean(font.is_default ?? index === 0),
+                is_active: Boolean(font.is_active ?? true),
+                sort_order: Number(font.sort_order ?? index),
             };
+        },
+        sortedFonts() {
+            return [...this.fonts].sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
         },
         stageStyle() {
             const width = Math.max(1, Number(this.exportRatioWidth) || 9);
@@ -1241,10 +1421,39 @@ document.addEventListener('alpine:init', () => {
             this.fonts.push(this.normalizedFont({
                 id: this.nextFontId++,
                 name: `Font preset ${this.fonts.length + 1}`,
+                internal_name: `font_preset_${this.fonts.length + 1}`,
                 css_font_family: '"Poppins", sans-serif',
+                font_family: '"Poppins", sans-serif',
+                font_source_type: 'local',
+                font_source_value: '',
+                category: 'Minimal Sans',
+                style_type: 'Minimal Sans',
+                supported_use: 'all',
                 preview_label: 'Ceremony preview',
+                preview_sample_text: 'Amena & Hassan',
+                font_weight_default: '600',
+                font_style_default: 'normal',
+                letter_spacing_default: 0,
+                line_height_default: 1.2,
+                text_transform_default: 'none',
+                recommended_for: 'all',
                 is_default: this.fonts.length === 0,
+                is_active: true,
+                sort_order: this.fonts.length,
             }, this.fonts.length));
+        },
+        duplicateFont(fontId) {
+            const font = this.fonts.find((item) => item.id === fontId);
+            if (! font) return;
+
+            const copy = JSON.parse(JSON.stringify(font));
+            copy.id = this.nextFontId++;
+            copy.name = `${font.name || 'Font preset'} Copy`;
+            copy.internal_name = `${font.internal_name || 'font_preset'}_copy_${copy.id}`;
+            copy.is_default = false;
+            copy.sort_order = this.fonts.length;
+
+            this.fonts.push(copy);
         },
         confirmDeleteFont(fontId) {
             const font = this.fonts.find((item) => item.id === fontId);
@@ -1259,6 +1468,11 @@ document.addEventListener('alpine:init', () => {
         deleteFont(fontId) {
             if (this.fonts.length === 1) return;
             this.fonts = this.fonts.filter((font) => font.id !== fontId);
+            this.fonts.forEach((font, index) => {
+                if (! Number.isFinite(Number(font.sort_order))) {
+                    font.sort_order = index;
+                }
+            });
             if (! this.fonts.some((font) => font.is_default) && this.fonts[0]) {
                 this.fonts[0].is_default = true;
             }
@@ -1267,6 +1481,9 @@ document.addEventListener('alpine:init', () => {
             this.fonts.forEach((font) => {
                 font.is_default = font.id === fontId;
             });
+        },
+        toggleFontAdvanced(fontId) {
+            this.fontAdvancedOpen[fontId] = ! this.fontAdvancedOpen[fontId];
         },
         applyAllAlignment(value) {
             this.fields.forEach((field) => {
@@ -1351,11 +1568,27 @@ document.addEventListener('alpine:init', () => {
             }));
         },
         serializableFonts() {
-            return this.fonts.map((font) => ({
+            return this.sortedFonts().map((font, index) => ({
                 name: font.name ?? '',
+                internal_name: font.internal_name ?? '',
                 preview_label: font.preview_label ?? '',
-                css_font_family: font.css_font_family ?? '',
+                css_font_family: font.css_font_family ?? font.font_family ?? '',
+                font_family: font.font_family ?? font.css_font_family ?? '',
+                font_source_type: font.font_source_type ?? 'local',
+                font_source_value: font.font_source_value ?? '',
+                category: font.category ?? 'Minimal Sans',
+                style_type: font.style_type ?? (font.category ?? 'Minimal Sans'),
+                supported_use: font.supported_use ?? 'all',
+                preview_sample_text: font.preview_sample_text ?? font.preview_label ?? font.name ?? '',
+                font_weight_default: font.font_weight_default ?? '600',
+                font_style_default: font.font_style_default ?? 'normal',
+                letter_spacing_default: Number(font.letter_spacing_default ?? 0),
+                line_height_default: Number(font.line_height_default ?? 1.2),
+                text_transform_default: font.text_transform_default ?? 'none',
+                recommended_for: font.recommended_for ?? 'all',
                 is_default: font.is_default ? 1 : 0,
+                is_active: font.is_active ? 1 : 0,
+                sort_order: Number(font.sort_order ?? index),
             }));
         },
         fieldName(index, key) {

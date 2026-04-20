@@ -9,6 +9,7 @@ use App\Models\Faq;
 use App\Models\HomepageSection;
 use App\Models\Collection;
 use App\Models\Page;
+use App\Models\PersonalizationFont;
 use App\Models\PersonalizationMockup;
 use App\Models\Product;
 use App\Models\ProductImage;
@@ -478,14 +479,11 @@ class CatalogSeeder extends Seeder
         );
 
         $template->fonts()->delete();
-        foreach ([
-            ['name' => 'Classic Script', 'css_font_family' => '"Times New Roman", serif', 'preview_label' => 'Classic Script', 'is_default' => true],
-            ['name' => 'Modern Serif', 'css_font_family' => 'Georgia, serif', 'preview_label' => 'Modern Serif', 'is_default' => false],
-            ['name' => 'Elegant Sans', 'css_font_family' => '"Poppins", sans-serif', 'preview_label' => 'Elegant Sans', 'is_default' => false],
-        ] as $index => $font) {
+        foreach (PersonalizationFont::starterPresets() as $index => $font) {
             $template->fonts()->create([
                 ...$font,
                 'position' => $index,
+                'sort_order' => $font['sort_order'] ?? $index,
             ]);
         }
 

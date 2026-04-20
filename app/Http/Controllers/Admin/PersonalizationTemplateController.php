@@ -177,14 +177,31 @@ class PersonalizationTemplateController extends Controller
 
         $template->fonts()->delete();
         collect($data['fonts'] ?? [])
-            ->filter(fn (array $font) => filled($font['name'] ?? null) && filled($font['css_font_family'] ?? null))
+            ->filter(fn (array $font) => filled($font['name'] ?? null) && filled($font['font_family'] ?? ($font['css_font_family'] ?? null)))
+            ->sortBy(fn (array $font, int $index) => (int) ($font['sort_order'] ?? $index))
             ->values()
             ->each(fn (array $font, int $index) => $template->fonts()->create([
                 'name' => $font['name'],
-                'css_font_family' => $font['css_font_family'],
+                'internal_name' => $font['internal_name'] ?? str($font['name'])->snake()->toString(),
+                'css_font_family' => $font['css_font_family'] ?? $font['font_family'],
                 'preview_label' => $font['preview_label'] ?? $font['name'],
+                'font_family' => $font['font_family'] ?? $font['css_font_family'],
+                'font_source_type' => $font['font_source_type'] ?? 'local',
+                'font_source_value' => $font['font_source_value'] ?? null,
+                'category' => $font['category'] ?? 'Minimal Sans',
+                'style_type' => $font['style_type'] ?? ($font['category'] ?? 'Minimal Sans'),
+                'supported_use' => $font['supported_use'] ?? 'all',
+                'preview_sample_text' => $font['preview_sample_text'] ?? ($font['preview_label'] ?? $font['name']),
+                'font_weight_default' => $font['font_weight_default'] ?? '600',
+                'font_style_default' => $font['font_style_default'] ?? 'normal',
+                'letter_spacing_default' => $font['letter_spacing_default'] ?? 0,
+                'line_height_default' => $font['line_height_default'] ?? 1.2,
+                'text_transform_default' => $font['text_transform_default'] ?? 'none',
+                'recommended_for' => $font['recommended_for'] ?? 'all',
                 'position' => $index,
+                'sort_order' => (int) ($font['sort_order'] ?? $index),
                 'is_default' => (bool) ($font['is_default'] ?? false),
+                'is_active' => (bool) ($font['is_active'] ?? true),
             ]));
     }
 

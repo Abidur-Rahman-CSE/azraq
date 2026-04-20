@@ -50,7 +50,7 @@ class AddToCartRequest extends FormRequest
                 $font = PersonalizationFont::query()->find($this->integer('font_id'));
                 $templateId = $product->personalizationTemplate?->id;
 
-                if (! $font || ! $templateId || $font->personalization_template_id !== $templateId) {
+                if (! $font || ! $templateId || $font->personalization_template_id !== $templateId || ! $font->is_active) {
                     $validator->errors()->add('font_id', 'The selected font is not available for this product.');
                 }
             }
