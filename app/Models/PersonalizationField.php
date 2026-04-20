@@ -17,6 +17,7 @@ class PersonalizationField extends Model
         'placeholder',
         'help_text',
         'default_value',
+        'is_required',
         'max_length',
         'min_length',
         'font_size_min',
@@ -29,18 +30,26 @@ class PersonalizationField extends Model
         'position_y',
         'width',
         'height',
+        'rotation',
+        'z_index',
+        'preview_sample_value',
+        'settings',
         'position',
     ];
 
     protected function casts(): array
     {
         return [
+            'is_required' => 'boolean',
             'line_height' => 'decimal:2',
             'letter_spacing' => 'decimal:2',
             'position_x' => 'decimal:2',
             'position_y' => 'decimal:2',
             'width' => 'decimal:2',
             'height' => 'decimal:2',
+            'rotation' => 'decimal:2',
+            'z_index' => 'integer',
+            'settings' => 'array',
         ];
     }
 

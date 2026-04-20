@@ -14,10 +14,16 @@ class PersonalizationTemplate extends Model
     protected $fillable = [
         'product_id',
         'name',
+        'base_template_url',
         'preview_image_url',
+        'mask_image_url',
+        'export_ratio_width',
+        'export_ratio_height',
         'preview_rules',
         'render_rules',
+        'preview_data_presets',
         'instructions',
+        'safe_zone_notes',
         'proof_note_label',
         'is_active',
     ];
@@ -27,6 +33,9 @@ class PersonalizationTemplate extends Model
         return [
             'preview_rules' => 'array',
             'render_rules' => 'array',
+            'preview_data_presets' => 'array',
+            'export_ratio_width' => 'integer',
+            'export_ratio_height' => 'integer',
             'is_active' => 'boolean',
         ];
     }
@@ -44,5 +53,10 @@ class PersonalizationTemplate extends Model
     public function fonts(): HasMany
     {
         return $this->hasMany(PersonalizationFont::class)->orderBy('position');
+    }
+
+    public function mockups(): HasMany
+    {
+        return $this->hasMany(PersonalizationMockup::class)->orderBy('sort_order');
     }
 }

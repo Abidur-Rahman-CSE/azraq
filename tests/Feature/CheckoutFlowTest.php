@@ -3,8 +3,10 @@
 use App\Models\Order;
 use App\Models\PersonalizationTemplate;
 use App\Models\Product;
+use App\Support\NikahRenderPreview;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\URL;
 
 uses(RefreshDatabase::class);
 
@@ -65,6 +67,8 @@ it('creates an order from the cart and clears the cart session', function () {
     expect($order)->not->toBeNull()
         ->and($order->items)->toHaveCount(1)
         ->and($order->items->first()->personalization_status)->toBe('awaiting_proof')
+        ->and(data_get($order->items->first()->line_item_meta, 'render_preview.template.name'))->toBe($template->name)
+        ->and(data_get($order->items->first()->line_item_meta, 'render_preview.mockup.title'))->toBe('Signature table setting')
         ->and(session('cart.items'))->toBeNull();
 });
 
@@ -108,6 +112,161 @@ it('tracks an order by order number and email', function () {
         ->assertOk()
         ->assertSee('Tracking result')
         ->assertSee('AZR-TRACK01');
+});
+
+it('allows the customer to approve a generated proof from the tracked order page', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')->firstOrFail();
+    $template = PersonalizationTemplate::whereBelongsTo($product)->firstOrFail();
+    $font = $template->fonts()->firstOrFail();
+    $mockup = $product->personalizationMockups()->firstOrFail();
+
+    $order = Order::create([
+        'order_number' => 'AZR-PROOF01',
+        'customer_name' => 'Proof Customer',
+        'customer_email' => 'proof-customer@example.com',
+        'customer_phone' => '01700000005',
+        'shipping_method' => 'standard',
+        'payment_method' => 'cod',
+        'payment_status' => 'unpaid',
+        'fulfillment_status' => 'pending',
+        'shipping_status' => 'not_shipped',
+        'currency' => 'BDT',
+        'subtotal_amount' => 2500,
+        'shipping_amount' => 120,
+        'discount_amount' => 0,
+        'total_amount' => 2620,
+        'shipping_address' => ['line_1' => 'Road 1', 'city' => 'Dhaka', 'area' => 'Dhaka', 'country' => 'Bangladesh'],
+        'billing_address' => ['line_1' => 'Road 1', 'city' => 'Dhaka', 'area' => 'Dhaka', 'country' => 'Bangladesh'],
+    ]);
+
+    $item = $order->items()->create([
+        'product_id' => $product->id,
+        'product_name' => $product->name,
+        'product_type' => $product->type?->value,
+        'sku' => $product->sku,
+        'quantity' => 1,
+        'unit_price' => 2500,
+        'subtotal_amount' => 2500,
+        'payment_status' => 'unpaid',
+        'fulfillment_status' => 'pending',
+        'personalization_status' => 'awaiting_proof',
+        'line_item_meta' => [
+            'font' => $font->name,
+            'personalization' => [
+                'bride_name' => 'Amena',
+                'groom_name' => 'Hassan',
+                'ceremony_date' => '12 December 2026',
+                'venue' => 'Dhaka',
+            ],
+            'generated_proofs' => [
+                'flat' => [
+                    'svg' => [
+                        'latest' => ['url' => '/storage/proofs/example-flat.svg'],
+                        'history' => [],
+                    ],
+                ],
+            ],
+            'render_preview' => NikahRenderPreview::buildForProduct($product, [
+                'bride_name' => 'Amena',
+                'groom_name' => 'Hassan',
+                'ceremony_date' => '12 December 2026',
+                'venue' => 'Dhaka',
+            ], $font, $template, $mockup),
+        ],
+    ]);
+
+    $this->post(route('orders.proof.update', [$order, $item]), [
+        'customer_email' => 'proof-customer@example.com',
+        'decision' => 'approve',
+        'note' => 'Looks good to me.',
+    ])->assertOk()
+        ->assertSee('Your proof response has been recorded.');
+
+    $item->refresh();
+
+    expect($item->personalization_status)->toBe('proof_approved')
+        ->and(data_get($item->line_item_meta, 'customer_proof_decision'))->toBe('approve')
+        ->and(data_get($item->line_item_meta, 'customer_proof_note'))->toBe('Looks good to me.');
+});
+
+it('allows the customer to review and approve proof from a signed link', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')->firstOrFail();
+    $template = PersonalizationTemplate::whereBelongsTo($product)->firstOrFail();
+    $font = $template->fonts()->firstOrFail();
+    $mockup = $product->personalizationMockups()->firstOrFail();
+
+    $order = Order::create([
+        'order_number' => 'AZR-SIGNED01',
+        'customer_name' => 'Signed Customer',
+        'customer_email' => 'signed@example.com',
+        'customer_phone' => '01700000006',
+        'shipping_method' => 'standard',
+        'payment_method' => 'cod',
+        'payment_status' => 'unpaid',
+        'fulfillment_status' => 'pending',
+        'shipping_status' => 'not_shipped',
+        'currency' => 'BDT',
+        'subtotal_amount' => 2500,
+        'shipping_amount' => 120,
+        'discount_amount' => 0,
+        'total_amount' => 2620,
+        'shipping_address' => ['line_1' => 'Road 1', 'city' => 'Dhaka', 'area' => 'Dhaka', 'country' => 'Bangladesh'],
+        'billing_address' => ['line_1' => 'Road 1', 'city' => 'Dhaka', 'area' => 'Dhaka', 'country' => 'Bangladesh'],
+    ]);
+
+    $item = $order->items()->create([
+        'product_id' => $product->id,
+        'product_name' => $product->name,
+        'product_type' => $product->type?->value,
+        'sku' => $product->sku,
+        'quantity' => 1,
+        'unit_price' => 2500,
+        'subtotal_amount' => 2500,
+        'payment_status' => 'unpaid',
+        'fulfillment_status' => 'pending',
+        'personalization_status' => 'awaiting_proof',
+        'line_item_meta' => [
+            'font' => $font->name,
+            'personalization' => [
+                'bride_name' => 'Amena',
+                'groom_name' => 'Hassan',
+            ],
+            'generated_proofs' => [
+                'flat' => [
+                    'svg' => [
+                        'latest' => ['url' => '/storage/proofs/example-flat.svg'],
+                        'history' => [],
+                    ],
+                ],
+            ],
+            'render_preview' => NikahRenderPreview::buildForProduct($product, [
+                'bride_name' => 'Amena',
+                'groom_name' => 'Hassan',
+            ], $font, $template, $mockup),
+        ],
+    ]);
+
+    $signedUrl = URL::temporarySignedRoute('orders.proof.review', now()->addDay(), [$order, $item]);
+
+    $this->get($signedUrl)
+        ->assertOk()
+        ->assertSee('Proof review')
+        ->assertSee('Approve proof');
+
+    $this->post($signedUrl, [
+        'decision' => 'changes_requested',
+        'note' => 'Please reduce spacing.',
+    ])->assertOk()
+        ->assertSee('Your proof response has been recorded.');
+
+    $item->refresh();
+
+    expect($item->personalization_status)->toBe('changes_requested')
+        ->and(data_get($item->line_item_meta, 'customer_proof_decision'))->toBe('changes_requested');
 });
 
 it('requires billing address details when billing differs from shipping', function () {

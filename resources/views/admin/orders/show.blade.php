@@ -23,6 +23,7 @@
                                 <th class="px-6 py-4 font-medium">Qty</th>
                                 <th class="px-6 py-4 font-medium">Personalization</th>
                                 <th class="px-6 py-4 font-medium">Subtotal</th>
+                                <th class="px-6 py-4 font-medium">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -38,6 +39,11 @@
                                     <td class="px-6 py-4">{{ $item->quantity }}</td>
                                     <td class="px-6 py-4">{{ ucfirst(str_replace('_', ' ', $item->personalization_status)) }}</td>
                                     <td class="px-6 py-4">BDT {{ number_format((float) $item->subtotal_amount, 0) }}</td>
+                                    <td class="px-6 py-4">
+                                        @if (($item->line_item_meta['personalization'] ?? []) !== [])
+                                            <a href="{{ route('admin.orders.personalization.show', [$order, $item]) }}" class="button-ghost">Review proof</a>
+                                        @endif
+                                    </td>
                                 </tr>
                             @endforeach
                         </tbody>

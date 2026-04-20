@@ -14,7 +14,9 @@ class ProductImage extends Model
         'product_id',
         'label',
         'image_url',
+        'alt_text',
         'is_primary',
+        'status',
         'position',
     ];
 

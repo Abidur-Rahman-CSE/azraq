@@ -9,6 +9,7 @@ use App\Models\Faq;
 use App\Models\HomepageSection;
 use App\Models\Collection;
 use App\Models\Page;
+use App\Models\PersonalizationMockup;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\PersonalizationTemplate;
@@ -324,7 +325,9 @@ class CatalogSeeder extends Seeder
             'product_id' => $advanced->id,
         ], [
             'name' => 'Signature Nikah Template',
-            'preview_image_url' => 'https://images.unsplash.com/photo-1516542076529-1ea3854896e1?auto=format&fit=crop&w=1400&q=80',
+            'base_template_url' => '/images/nikahnama/Mockup-1.png',
+            'preview_image_url' => '/images/nikahnama/Mockup-1.png',
+            'mask_image_url' => '/images/nikahnama/Mockup-2.png',
             'preview_rules' => [
                 'safe_scale' => true,
                 'allow_multiline' => true,
@@ -332,6 +335,12 @@ class CatalogSeeder extends Seeder
             'render_rules' => [
                 'export_format' => 'png',
                 'proof_required' => true,
+            ],
+            'preview_data_presets' => [
+                'bride_name' => 'Amena Rahman',
+                'groom_name' => 'Hassan Karim',
+                'ceremony_date' => '12 December 2026',
+                'venue' => 'Dhaka, Bangladesh',
             ],
             'instructions' => 'Provide the bride and groom names, ceremony date, and venue details. Preview scaling is safe, but final proof will still be reviewed before fulfillment.',
             'proof_note_label' => 'Proof notes for the designer',
@@ -355,6 +364,118 @@ class CatalogSeeder extends Seeder
                 'position' => $index,
             ]);
         }
+
+        $template->mockups()->delete();
+
+        $createdMockups = collect();
+
+        foreach ([
+            [
+                'title' => 'Signature table setting',
+                'slug' => 'signature-table-setting',
+                'base_image_url' => '/images/nikahnama/Mockup-1.png',
+                'overlay_image_url' => null,
+                'mask_image_url' => '/images/nikahnama/Mockup-1.png',
+                'thumb_image_url' => '/images/nikahnama/Mockup-1.png',
+                'render_mode' => 'flat_fit',
+                'sort_order' => 0,
+                'notes' => 'Clean top-down layout for product-first previewing.',
+                'map' => [
+                    'map_type' => 'quad',
+                    'fit_mode' => 'contain',
+                    'top_left_x' => 0.17,
+                    'top_left_y' => 0.16,
+                    'top_right_x' => 0.83,
+                    'top_right_y' => 0.16,
+                    'bottom_right_x' => 0.83,
+                    'bottom_right_y' => 0.84,
+                    'bottom_left_x' => 0.17,
+                    'bottom_left_y' => 0.84,
+                    'normalized_coordinates' => true,
+                    'manual_rotation' => 0,
+                    'shadow_strength' => 0.18,
+                    'highlight_strength' => 0.10,
+                    'opacity' => 1,
+                ],
+            ],
+            [
+                'title' => 'Ceremony desk lifestyle',
+                'slug' => 'ceremony-desk-lifestyle',
+                'base_image_url' => '/images/nikahnama/Mockup-2.png',
+                'overlay_image_url' => null,
+                'mask_image_url' => null,
+                'thumb_image_url' => '/images/nikahnama/Mockup-2.png',
+                'render_mode' => 'perspective_quad',
+                'sort_order' => 1,
+                'notes' => 'Useful for a more atmospheric approval preview.',
+                'map' => null,
+            ],
+            [
+                'title' => 'Framed gift presentation',
+                'slug' => 'framed-gift-presentation',
+                'base_image_url' => '/images/nikahnama/Mockup-3.png',
+                'overlay_image_url' => '/images/nikahnama/Mockup-3.png',
+                'mask_image_url' => '/images/nikahnama/Mockup-3.png',
+                'thumb_image_url' => '/images/nikahnama/Mockup-3.png',
+                'render_mode' => 'masked_perspective',
+                'sort_order' => 2,
+                'notes' => 'Giftable frame composition for marketing and order review.',
+                'map' => [
+                    'map_type' => 'quad',
+                    'fit_mode' => 'cover',
+                    'top_left_x' => 0.24,
+                    'top_left_y' => 0.20,
+                    'top_right_x' => 0.77,
+                    'top_right_y' => 0.18,
+                    'bottom_right_x' => 0.79,
+                    'bottom_right_y' => 0.81,
+                    'bottom_left_x' => 0.22,
+                    'bottom_left_y' => 0.83,
+                    'normalized_coordinates' => true,
+                    'manual_rotation' => -1.5,
+                    'shadow_strength' => 0.22,
+                    'highlight_strength' => 0.12,
+                    'opacity' => 0.98,
+                ],
+            ],
+        ] as $mockupData) {
+            $map = $mockupData['map'];
+            unset($mockupData['map']);
+
+            $mockup = $template->mockups()->create([
+                ...$mockupData,
+                'is_active' => true,
+            ]);
+
+            if (is_array($map)) {
+                $mockup->map()->create($map);
+            }
+
+            $createdMockups->push($mockup);
+        }
+
+        $advanced->update([
+            'show_flat_preview_first' => true,
+            'include_mockup_gallery' => true,
+            'live_preview_enabled' => true,
+            'proof_notes_enabled' => true,
+            'font_presets_enabled' => true,
+            'gallery_default_source' => 'template_preview',
+            'personalization_help_text' => 'Use the structured fields for the main Nikah wording. Scene previews follow the same certificate artwork with throttled refresh.',
+        ]);
+
+        $advanced->personalizationMockups()->sync(
+            $createdMockups
+                ->take(3)
+                ->values()
+                ->mapWithKeys(fn ($mockup, $index) => [
+                    $mockup->id => [
+                        'sort_order' => $index,
+                        'is_default' => $index === 0,
+                    ],
+                ])
+                ->all()
+        );
 
         $template->fonts()->delete();
         foreach ([

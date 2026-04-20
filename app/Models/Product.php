@@ -32,6 +32,15 @@ class Product extends Model
         'stock_quantity',
         'low_stock_threshold',
         'is_featured',
+        'featured_image_url',
+        'gallery_default_source',
+        'show_flat_preview_first',
+        'include_mockup_gallery',
+        'live_preview_enabled',
+        'video_url',
+        'proof_notes_enabled',
+        'font_presets_enabled',
+        'personalization_help_text',
         'meta_title',
         'meta_description',
     ];
@@ -44,6 +53,11 @@ class Product extends Model
             'compare_at_price' => 'decimal:2',
             'manage_stock' => 'boolean',
             'is_featured' => 'boolean',
+            'show_flat_preview_first' => 'boolean',
+            'include_mockup_gallery' => 'boolean',
+            'live_preview_enabled' => 'boolean',
+            'proof_notes_enabled' => 'boolean',
+            'font_presets_enabled' => 'boolean',
         ];
     }
 
@@ -77,6 +91,11 @@ class Product extends Model
         return $this->belongsToMany(self::class, 'product_related', 'product_id', 'related_product_id')->withTimestamps();
     }
 
+    public function relatedCategories(): BelongsToMany
+    {
+        return $this->belongsToMany(Category::class, 'product_related_categories')->withTimestamps();
+    }
+
     public function bundleItems(): HasMany
     {
         return $this->hasMany(BundleItem::class, 'bundle_product_id')->orderBy('position');
@@ -95,5 +114,13 @@ class Product extends Model
     public function personalizationTemplate(): HasOne
     {
         return $this->hasOne(PersonalizationTemplate::class);
+    }
+
+    public function personalizationMockups(): BelongsToMany
+    {
+        return $this->belongsToMany(PersonalizationMockup::class, 'product_personalization_mockup')
+            ->withPivot(['sort_order', 'is_default'])
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
     }
 }

@@ -55,4 +55,8 @@
         outline: none;
         box-shadow: var(--shadow-focus-ring);
     }
+
+    [x-cloak] {
+        display: none !important;
+    }
 }

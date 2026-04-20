@@ -16,8 +16,12 @@ class Collection extends Model
         'name',
         'slug',
         'description',
+        'cover_image_url',
+        'collection_mode',
         'is_active',
         'sort_order',
+        'is_featured',
+        'cta_label',
         'meta_title',
         'meta_description',
     ];
@@ -26,6 +30,7 @@ class Collection extends Model
     {
         return [
             'is_active' => 'boolean',
+            'is_featured' => 'boolean',
         ];
     }
 

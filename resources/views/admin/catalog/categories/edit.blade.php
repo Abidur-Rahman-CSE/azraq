@@ -1,9 +1,24 @@
-<x-layouts.admin title="Edit Category | Azraq Bridal">
-    <div class="space-y-6">
-        <div>
-            <p class="text-xs font-medium uppercase tracking-[0.24em] text-[var(--color-primary-900)]">Catalog</p>
-            <h2 class="mt-2 text-3xl font-semibold text-[var(--color-secondary-900)]">Edit category</h2>
-        </div>
+<x-layouts.admin
+    title="Edit Category | Azraq Bridal"
+    page-title="Edit category"
+    page-subtitle="Catalog workspace"
+    :breadcrumbs="[
+        ['label' => 'Admin', 'href' => route('admin.dashboard')],
+        ['label' => 'Catalog'],
+        ['label' => 'Categories', 'href' => route('admin.catalog.categories.index')],
+        ['label' => $category->name],
+    ]"
+>
+    <div class="space-y-8">
+        <x-admin.page-header
+            eyebrow="Category edit"
+            :title="'Refine '.$category->name.' across imagery, homepage flags, and SEO.'"
+            description="Use this editor to keep category presentation, banners, and related-category structure aligned with the storefront and homepage merchandising system."
+        >
+            <x-slot:actions>
+                <a href="{{ route('admin.catalog.categories.index') }}" class="button-primary">Back to categories</a>
+            </x-slot:actions>
+        </x-admin.page-header>
 
         @include('admin.catalog.categories._form')
     </div>

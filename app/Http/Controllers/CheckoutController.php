@@ -7,6 +7,7 @@ use App\Models\Coupon;
 use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Support\CartSession;
+use App\Support\NikahRenderPreview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -82,6 +83,19 @@ class CheckoutController extends Controller
             foreach ($items as $item) {
                 $product = $item['product'];
                 $variant = $item['variant'];
+                $product->loadMissing([
+                    'personalizationTemplate.fields',
+                    'personalizationTemplate.fonts',
+                    'personalizationMockups.map',
+                ]);
+
+                $renderPreview = ! empty($item['personalization'])
+                    ? NikahRenderPreview::buildForProduct(
+                        $product,
+                        $item['personalization'] ?? [],
+                        $item['font'],
+                    )
+                    : null;
 
                 $order->items()->create([
                     'product_id' => $product->id,
@@ -102,6 +116,7 @@ class CheckoutController extends Controller
                         'proof_note' => $item['proof_note'] ?? null,
                         'personalization' => $item['personalization'] ?? [],
                         'category' => $product->category?->name,
+                        'render_preview' => $renderPreview,
                     ],
                 ]);
 
