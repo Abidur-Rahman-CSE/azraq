@@ -61,6 +61,117 @@ it('loads the admin personalization template manager', function () {
         ->assertSee('Signature Nikah Template');
 });
 
+it('duplicates a personalization template with its fields and fonts', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $template = PersonalizationTemplate::with(['fields', 'fonts'])->firstOrFail();
+
+    $response = $this->post(route('admin.personalization.templates.duplicate', $template));
+
+    $duplicate = PersonalizationTemplate::where('name', $template->name.' Copy')->latest('id')->first();
+
+    $response->assertRedirect(route('admin.personalization.templates.edit', $duplicate));
+
+    expect($duplicate)->not->toBeNull()
+        ->and($duplicate->id)->not->toBe($template->id)
+        ->and($duplicate->product_id)->toBeNull()
+        ->and($duplicate->base_template_url)->toBe($template->base_template_url)
+        ->and($duplicate->preview_image_url)->toBe($template->preview_image_url)
+        ->and($duplicate->mask_image_url)->toBe($template->mask_image_url)
+        ->and($duplicate->is_active)->toBeFalse()
+        ->and($duplicate->thumbnail_image_url)->toContain('/storage/personalization/templates/snapshots/');
+
+    $duplicate->load(['fields', 'fonts']);
+
+    expect($duplicate->fields)->toHaveCount($template->fields->count())
+        ->and($duplicate->fonts)->toHaveCount($template->fonts->count())
+        ->and($duplicate->fields->first()->field_key)->toBe($template->fields->first()->field_key)
+        ->and($duplicate->fonts->first()->name)->toBe($template->fonts->first()->name);
+});
+
+it('updates a duplicated personalization template without requiring an assigned product', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $template = PersonalizationTemplate::with(['fields', 'fonts'])->firstOrFail();
+
+    $this->post(route('admin.personalization.templates.duplicate', $template));
+
+    $duplicate = PersonalizationTemplate::with(['fields', 'fonts'])
+        ->where('name', $template->name.' Copy')
+        ->latest('id')
+        ->firstOrFail();
+
+    $response = $this->put(route('admin.personalization.templates.update', $duplicate), [
+        'product_id' => '',
+        'name' => 'Signature Nikah Template Copy Revised',
+        'base_template_url' => $duplicate->base_template_url,
+        'preview_image_url' => $duplicate->preview_image_url,
+        'mask_image_url' => $duplicate->mask_image_url,
+        'export_ratio_width' => $duplicate->export_ratio_width,
+        'export_ratio_height' => $duplicate->export_ratio_height,
+        'instructions' => $duplicate->instructions,
+        'safe_zone_notes' => $duplicate->safe_zone_notes,
+        'proof_note_label' => $duplicate->proof_note_label,
+        'is_active' => 0,
+        'preview_rules' => $duplicate->preview_rules,
+        'render_rules' => $duplicate->render_rules,
+        'preview_data_presets' => $duplicate->preview_data_presets,
+        'fields_payload' => json_encode($duplicate->fields->map(fn ($field) => [
+            'label' => $field->label,
+            'field_key' => $field->field_key,
+            'placeholder' => $field->placeholder,
+            'help_text' => $field->help_text,
+            'default_value' => $field->default_value,
+            'preview_sample_value' => $field->preview_sample_value,
+            'is_required' => $field->is_required ? 1 : 0,
+            'min_length' => $field->min_length,
+            'max_length' => $field->max_length,
+            'font_size_min' => $field->font_size_min,
+            'font_size_max' => $field->font_size_max,
+            'line_height' => $field->line_height,
+            'letter_spacing' => $field->letter_spacing,
+            'text_align' => $field->text_align,
+            'text_color' => $field->text_color,
+            'position_x' => $field->position_x,
+            'position_y' => $field->position_y,
+            'width' => $field->width,
+            'height' => $field->height,
+            'rotation' => $field->rotation,
+            'z_index' => $field->z_index,
+            'settings' => $field->settings,
+        ])->values()->all()),
+        'fonts_payload' => json_encode($duplicate->fonts->map(fn ($font) => [
+            'name' => $font->name,
+            'internal_name' => $font->internal_name,
+            'preview_label' => $font->preview_label,
+            'css_font_family' => $font->css_font_family,
+            'font_family' => $font->font_family,
+            'font_source_type' => $font->font_source_type,
+            'font_source_value' => $font->font_source_value,
+            'category' => $font->category,
+            'style_type' => $font->style_type,
+            'supported_use' => $font->supported_use,
+            'preview_sample_text' => $font->preview_sample_text,
+            'font_weight_default' => $font->font_weight_default,
+            'font_style_default' => $font->font_style_default,
+            'letter_spacing_default' => $font->letter_spacing_default,
+            'line_height_default' => $font->line_height_default,
+            'text_transform_default' => $font->text_transform_default,
+            'recommended_for' => $font->recommended_for,
+            'is_default' => $font->is_default ? 1 : 0,
+            'is_active' => $font->is_active ? 1 : 0,
+            'sort_order' => $font->sort_order,
+        ])->values()->all()),
+    ]);
+
+    $response->assertRedirect(route('admin.personalization.templates.edit', $duplicate));
+
+    $duplicate->refresh();
+
+    expect($duplicate->product_id)->toBeNull()
+        ->and($duplicate->name)->toBe('Signature Nikah Template Copy Revised');
+});
+
 it('loads the admin mockup manager with seeded Nikah mockups', function () {
     $this->seed(CatalogSeeder::class);
 
@@ -71,6 +182,20 @@ it('loads the admin mockup manager with seeded Nikah mockups', function () {
         ->assertSee('Ceremony desk lifestyle');
 
     expect(PersonalizationMockup::count())->toBe(3);
+});
+
+it('hydrates existing mockup assets and saved map coordinates on the edit page', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $mockup = PersonalizationMockup::with('map')->where('slug', 'signature-table-setting')->firstOrFail();
+
+    $this->get(route('admin.mockups.edit', $mockup))
+        ->assertOk()
+        ->assertSee($mockup->base_image_url, false)
+        ->assertSee((string) $mockup->map->top_left_x, false)
+        ->assertSee((string) $mockup->map->top_right_y, false)
+        ->assertSee((string) $mockup->map->bottom_right_y, false)
+        ->assertSee((string) $mockup->map->bottom_left_x, false);
 });
 
 it('creates a mockup from the admin editor and saves normalized map data', function () {
@@ -333,7 +458,230 @@ it('updates an existing personalization template with a newly uploaded base imag
 
     expect($template->base_template_url)
         ->not->toBe($originalBaseUrl)
-        ->and($template->base_template_url)->toContain('/storage/personalization/templates/');
+        ->and($template->base_template_url)->toContain('/storage/personalization/templates/')
+        ->and($template->thumbnail_image_url)->toContain('/storage/personalization/templates/snapshots/');
+});
+
+it('generates a clean snapshot thumbnail for the personalization template list', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $template = PersonalizationTemplate::with(['fields', 'fonts'])->firstOrFail();
+
+    $response = $this->put(route('admin.personalization.templates.update', $template), [
+        'product_id' => $template->product_id,
+        'name' => $template->name,
+        'save_mode' => 'template',
+        'is_active' => 1,
+        'base_template_url' => $template->base_template_url,
+        'preview_image_url' => $template->preview_image_url,
+        'mask_image_url' => $template->mask_image_url,
+        'preview_data_presets' => $template->preview_data_presets,
+        'fields_payload' => json_encode($template->fields->map(fn ($field) => [
+            'label' => $field->label,
+            'field_key' => $field->field_key,
+            'placeholder' => $field->placeholder,
+            'help_text' => $field->help_text,
+            'default_value' => $field->default_value,
+            'preview_sample_value' => $field->preview_sample_value,
+            'is_required' => $field->is_required ? 1 : 0,
+            'max_length' => $field->max_length,
+            'min_length' => $field->min_length,
+            'font_size_min' => $field->font_size_min,
+            'font_size_max' => $field->font_size_max,
+            'line_height' => $field->line_height,
+            'letter_spacing' => $field->letter_spacing,
+            'text_align' => $field->text_align,
+            'text_color' => $field->text_color,
+            'position_x' => $field->position_x,
+            'position_y' => $field->position_y,
+            'width' => $field->width,
+            'height' => $field->height,
+            'rotation' => $field->rotation,
+            'z_index' => $field->z_index,
+            'settings' => $field->settings,
+        ])->values()->all(), JSON_THROW_ON_ERROR),
+        'fonts_payload' => json_encode($template->fonts->map(fn ($font) => [
+            'name' => $font->name,
+            'internal_name' => $font->internal_name,
+            'preview_label' => $font->preview_label,
+            'css_font_family' => $font->css_font_family,
+            'font_family' => $font->font_family,
+            'font_source_type' => $font->font_source_type,
+            'font_source_value' => $font->font_source_value,
+            'category' => $font->category,
+            'style_type' => $font->style_type,
+            'supported_use' => $font->supported_use,
+            'preview_sample_text' => $font->preview_sample_text,
+            'font_weight_default' => $font->font_weight_default,
+            'font_style_default' => $font->font_style_default,
+            'letter_spacing_default' => $font->letter_spacing_default,
+            'line_height_default' => $font->line_height_default,
+            'text_transform_default' => $font->text_transform_default,
+            'recommended_for' => $font->recommended_for,
+            'is_default' => $font->is_default ? 1 : 0,
+            'is_active' => $font->is_active ? 1 : 0,
+            'sort_order' => $font->sort_order,
+        ])->values()->all(), JSON_THROW_ON_ERROR),
+    ]);
+
+    $response->assertRedirect(route('admin.personalization.templates.edit', $template));
+
+    $template->refresh();
+
+    expect($template->thumbnail_image_url)
+        ->not->toBeNull()
+        ->and($template->thumbnail_image_url)->toContain('/storage/personalization/templates/snapshots/');
+
+    $snapshotPath = str($template->thumbnail_image_url)->after('/storage/')->toString();
+    $snapshotMarkup = Storage::disk('public')->get($snapshotPath);
+
+    expect($snapshotMarkup)
+        ->toContain('data:image/')
+        ->and($snapshotMarkup)->toContain('<image href="data:image/');
+
+    $this->get(route('admin.personalization.templates.index'))
+        ->assertOk()
+        ->assertSee($template->thumbnail_image_url, false);
+});
+
+it('does not delete a shared managed asset when a template image is replaced', function () {
+    $this->seed(CatalogSeeder::class);
+    Storage::fake('public');
+
+    Storage::disk('public')->put('personalization/shared/coupled-asset.png', 'shared-asset');
+
+    $sharedUrl = Storage::url('personalization/shared/coupled-asset.png');
+    $template = PersonalizationTemplate::with(['fields', 'fonts'])->firstOrFail();
+    $mockup = PersonalizationMockup::with('map')->firstOrFail();
+
+    $template->update(['base_template_url' => $sharedUrl]);
+    $mockup->update(['base_image_url' => $sharedUrl]);
+
+    $response = $this->put(route('admin.personalization.templates.update', $template), [
+        'product_id' => $template->product_id,
+        'name' => $template->name,
+        'base_template_upload' => UploadedFile::fake()->image('replacement-base.jpg', 1400, 2000),
+        'base_template_url' => $template->base_template_url,
+        'preview_image_url' => $template->preview_image_url,
+        'mask_image_url' => $template->mask_image_url,
+        'preview_data_presets' => [
+            'bride_name' => 'Amena',
+            'groom_name' => 'Hassan',
+            'ceremony_date' => '12 December 2026',
+            'venue' => 'Dhaka',
+        ],
+        'fields_payload' => json_encode($template->fields->map(fn ($field) => [
+            'label' => $field->label,
+            'field_key' => $field->field_key,
+            'placeholder' => $field->placeholder,
+            'help_text' => $field->help_text,
+            'default_value' => $field->default_value,
+            'preview_sample_value' => $field->preview_sample_value,
+            'is_required' => $field->is_required ? 1 : 0,
+            'max_length' => $field->max_length,
+            'min_length' => $field->min_length,
+            'font_size_min' => $field->font_size_min,
+            'font_size_max' => $field->font_size_max,
+            'line_height' => $field->line_height,
+            'letter_spacing' => $field->letter_spacing,
+            'text_align' => $field->text_align,
+            'text_color' => $field->text_color,
+            'position_x' => $field->position_x,
+            'position_y' => $field->position_y,
+            'width' => $field->width,
+            'height' => $field->height,
+            'rotation' => $field->rotation,
+            'z_index' => $field->z_index,
+            'settings' => $field->settings,
+        ])->values()->all(), JSON_THROW_ON_ERROR),
+        'fonts_payload' => json_encode($template->fonts->map(fn ($font) => [
+            'name' => $font->name,
+            'internal_name' => $font->internal_name,
+            'preview_label' => $font->preview_label,
+            'css_font_family' => $font->css_font_family,
+            'font_family' => $font->font_family,
+            'font_source_type' => $font->font_source_type,
+            'font_source_value' => $font->font_source_value,
+            'category' => $font->category,
+            'style_type' => $font->style_type,
+            'supported_use' => $font->supported_use,
+            'preview_sample_text' => $font->preview_sample_text,
+            'font_weight_default' => $font->font_weight_default,
+            'font_style_default' => $font->font_style_default,
+            'letter_spacing_default' => $font->letter_spacing_default,
+            'line_height_default' => $font->line_height_default,
+            'text_transform_default' => $font->text_transform_default,
+            'recommended_for' => $font->recommended_for,
+            'is_default' => $font->is_default ? 1 : 0,
+            'is_active' => $font->is_active ? 1 : 0,
+            'sort_order' => $font->sort_order,
+        ])->values()->all(), JSON_THROW_ON_ERROR),
+        'save_mode' => 'template',
+        'is_active' => 1,
+    ]);
+
+    $response->assertRedirect(route('admin.personalization.templates.edit', $template));
+
+    $template->refresh();
+    $mockup->refresh();
+
+    expect($template->base_template_url)->not->toBe($sharedUrl)
+        ->and($mockup->base_image_url)->toBe($sharedUrl)
+        ->and(Storage::disk('public')->exists('personalization/shared/coupled-asset.png'))->toBeTrue();
+});
+
+it('does not delete a shared managed asset when a mockup image is replaced', function () {
+    $this->seed(CatalogSeeder::class);
+    Storage::fake('public');
+
+    Storage::disk('public')->put('personalization/shared/shared-scene.png', 'shared-scene');
+
+    $sharedUrl = Storage::url('personalization/shared/shared-scene.png');
+    $template = PersonalizationTemplate::firstOrFail();
+    $mockup = PersonalizationMockup::with('map')->firstOrFail();
+
+    $template->update(['preview_image_url' => $sharedUrl]);
+    $mockup->update(['base_image_url' => $sharedUrl]);
+
+    $response = $this->put(route('admin.mockups.update', $mockup), [
+        'personalization_template_id' => $mockup->personalization_template_id,
+        'title' => $mockup->title,
+        'slug' => $mockup->slug,
+        'render_mode' => $mockup->render_mode,
+        'sort_order' => $mockup->sort_order,
+        'is_active' => $mockup->is_active ? 1 : 0,
+        'base_image_upload' => UploadedFile::fake()->image('new-scene.jpg', 1600, 1200),
+        'base_image_url' => $mockup->base_image_url,
+        'mask_image_url' => $mockup->mask_image_url,
+        'overlay_image_url' => $mockup->overlay_image_url,
+        'thumb_image_url' => $mockup->thumb_image_url,
+        'notes' => $mockup->notes,
+        'map' => [
+            'map_type' => $mockup->map->map_type,
+            'fit_mode' => $mockup->map->fit_mode,
+            'top_left_x' => $mockup->map->top_left_x,
+            'top_left_y' => $mockup->map->top_left_y,
+            'top_right_x' => $mockup->map->top_right_x,
+            'top_right_y' => $mockup->map->top_right_y,
+            'bottom_right_x' => $mockup->map->bottom_right_x,
+            'bottom_right_y' => $mockup->map->bottom_right_y,
+            'bottom_left_x' => $mockup->map->bottom_left_x,
+            'bottom_left_y' => $mockup->map->bottom_left_y,
+            'manual_rotation' => $mockup->map->manual_rotation,
+            'shadow_strength' => $mockup->map->shadow_strength,
+            'highlight_strength' => $mockup->map->highlight_strength,
+            'opacity' => $mockup->map->opacity,
+        ],
+    ]);
+
+    $response->assertRedirect(route('admin.mockups.edit', $mockup));
+
+    $template->refresh();
+    $mockup->refresh();
+
+    expect($mockup->base_image_url)->not->toBe($sharedUrl)
+        ->and($template->preview_image_url)->toBe($sharedUrl)
+        ->and(Storage::disk('public')->exists('personalization/shared/shared-scene.png'))->toBeTrue();
 });
 
 it('persists field text and typography updates without needing canvas movement', function () {

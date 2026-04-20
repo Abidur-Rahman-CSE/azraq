@@ -251,6 +251,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
 
     Route::prefix('personalization')->name('personalization.')->group(function (): void {
         Route::resource('templates', PersonalizationTemplateController::class)->except('show', 'destroy');
+        Route::post('templates/{template}/duplicate', [PersonalizationTemplateController::class, 'duplicate'])->name('templates.duplicate');
     });
 
     Route::prefix('content')->name('content.')->group(function (): void {

@@ -17,6 +17,7 @@ class PersonalizationTemplate extends Model
         'base_template_url',
         'preview_image_url',
         'mask_image_url',
+        'thumbnail_image_url',
         'export_ratio_width',
         'export_ratio_height',
         'preview_rules',

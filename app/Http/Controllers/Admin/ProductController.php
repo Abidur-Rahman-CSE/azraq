@@ -127,6 +127,17 @@ class ProductController extends Controller
 
     private function formData(Product $product): array
     {
+        $activeTemplateQuery = PersonalizationTemplate::with([
+            'product',
+            'fields',
+            'fonts',
+            'mockups.map',
+        ])->where('is_active', true);
+
+        if ($product->personalizationTemplate?->id) {
+            $activeTemplateQuery->orWhere('id', $product->personalizationTemplate->id);
+        }
+
         return [
             'product' => $product,
             'categories' => Category::orderBy('name')->get(),
@@ -134,7 +145,7 @@ class ProductController extends Controller
             'tags' => Tag::orderBy('name')->get(),
             'relatedProducts' => Product::when($product->exists, fn ($query) => $query->whereKeyNot($product->id))->orderBy('name')->get(),
             'relatedCategories' => Category::when($product->exists, fn ($query) => $query->whereKeyNot($product->category_id))->orderBy('name')->get(),
-            'personalizationTemplates' => PersonalizationTemplate::with(['product', 'mockups'])->orderBy('name')->get(),
+            'personalizationTemplates' => $activeTemplateQuery->orderBy('name')->get(),
             'personalizationMockups' => PersonalizationMockup::with('template')->orderBy('sort_order')->orderBy('title')->get(),
             'productTypes' => ProductType::options(),
         ];
@@ -229,7 +240,7 @@ class ProductController extends Controller
 
     private function syncPersonalizationAssignments(Product $product, array $data): void
     {
-        if ($product->type !== ProductType::AdvancedPersonalized) {
+        if (! $this->supportsNikahPersonalization($product, $data)) {
             if ($product->personalizationTemplate) {
                 $product->personalizationTemplate()->update(['product_id' => null]);
             }
@@ -287,6 +298,33 @@ class ProductController extends Controller
             ->all();
 
         $product->personalizationMockups()->sync($syncPayload);
+    }
+
+    private function supportsNikahPersonalization(Product $product, array $data): bool
+    {
+        $type = $product->type instanceof ProductType
+            ? $product->type
+            : ProductType::tryFrom((string) $product->type);
+
+        if ($type === ProductType::AdvancedPersonalized) {
+            return true;
+        }
+
+        $categoryId = $data['category_id'] ?? $product->category_id;
+
+        if (! $categoryId) {
+            return false;
+        }
+
+        $category = Category::query()->find($categoryId);
+
+        if (! $category) {
+            return false;
+        }
+
+        $label = strtolower(trim($category->name.' '.$category->slug));
+
+        return str_contains($label, 'nikah');
     }
 
     private function syncProductMedia(Product $product, array $data): void

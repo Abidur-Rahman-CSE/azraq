@@ -15,7 +15,7 @@ class PersonalizationTemplateRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'product_id' => ['required', 'exists:products,id'],
+            'product_id' => ['nullable', 'exists:products,id'],
             'name' => ['required', 'string', 'max:255'],
             'base_template_upload' => ['nullable', 'image', 'max:10240'],
             'preview_image_upload' => ['nullable', 'image', 'max:10240'],

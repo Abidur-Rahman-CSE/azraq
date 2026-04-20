@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\MockupRequest;
 use App\Models\PersonalizationMockup;
 use App\Models\PersonalizationTemplate;
+use App\Support\PersonalizationAssetUsage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -179,6 +180,7 @@ class MockupController extends Controller
     private function mockupPayload(MockupRequest $request, ?PersonalizationMockup $mockup = null): array
     {
         $title = $request->string('title')->toString();
+        $saveMode = $request->input('save_mode', 'published');
 
         return [
             'personalization_template_id' => (int) $request->input('personalization_template_id'),
@@ -190,7 +192,7 @@ class MockupController extends Controller
             'thumb_image_url' => $this->resolveUpload($request->file('thumb_image_upload'), $request->input('thumb_image_url'), $mockup?->thumb_image_url, $request->boolean('remove_thumb_image')),
             'render_mode' => $request->input('render_mode', 'perspective_quad'),
             'sort_order' => (int) $request->input('sort_order', 0),
-            'is_active' => $request->boolean('is_active', true),
+            'is_active' => $saveMode === 'draft' ? false : $request->boolean('is_active', true),
             'notes' => $request->input('notes'),
         ];
     }
@@ -237,16 +239,6 @@ class MockupController extends Controller
 
     private function deleteManagedAsset(?string $url): void
     {
-        if (! filled($url)) {
-            return;
-        }
-
-        $path = parse_url($url, PHP_URL_PATH);
-
-        if (! is_string($path) || ! str_starts_with($path, '/storage/')) {
-            return;
-        }
-
-        Storage::disk('public')->delete(Str::after($path, '/storage/'));
+        PersonalizationAssetUsage::deleteManagedAssetIfUnused($url);
     }
 }

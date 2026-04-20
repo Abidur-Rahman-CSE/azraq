@@ -252,6 +252,7 @@
                     <label class="field-shell">
                         <span class="text-sm font-medium text-[var(--color-secondary-900)]">Assigned product</span>
                         <select name="product_id" class="field-select" x-model="assignedProductId">
+                            <option value="">Select a product</option>
                             @foreach ($products as $product)
                                 <option value="{{ $product->id }}">{{ $product->name }}</option>
                             @endforeach
@@ -547,7 +548,7 @@
                                     <div
                                         class="absolute transition-[box-shadow,transform] duration-150"
                                         :style="canvasFieldShellStyle(field)"
-                                        @click.stop="focusField(field.id)"
+                                        @click.stop="focusField(field.id, { scroll: false })"
                                         @mousedown.prevent="beginDragById(field.id, $event)"
                                     >
                                         <div
@@ -1269,14 +1270,17 @@ document.addEventListener('alpine:init', () => {
             this.openFieldIndex = null;
             this.activeFieldId = null;
         },
-        focusField(fieldId) {
+        focusField(fieldId, options = {}) {
             const index = this.fields.findIndex((field) => field.id === fieldId);
 
             if (index === -1) return;
 
             this.activeFieldId = fieldId;
             this.openFieldIndex = index;
-            this.$nextTick(() => this.focusAccordionById(fieldId));
+
+            if (options.scroll) {
+                this.$nextTick(() => this.focusAccordionById(fieldId));
+            }
         },
         focusAccordionById(fieldId) {
             const target = document.getElementById(`field-accordion-${fieldId}`);

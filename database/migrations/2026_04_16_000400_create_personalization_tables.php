@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::create('personalization_templates', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('product_id')->unique()->constrained()->cascadeOnDelete();
+            $table->foreignId('product_id')->nullable()->unique()->constrained()->nullOnDelete();
             $table->string('name');
             $table->string('preview_image_url');
             $table->json('preview_rules')->nullable();

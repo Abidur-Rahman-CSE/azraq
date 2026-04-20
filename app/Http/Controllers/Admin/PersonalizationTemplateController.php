@@ -7,6 +7,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\PersonalizationTemplateRequest;
 use App\Models\PersonalizationTemplate;
 use App\Models\Product;
+use App\Support\PersonalizationAssetUsage;
+use App\Support\PersonalizationTemplateSnapshot;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -95,9 +97,11 @@ class PersonalizationTemplateController extends Controller
     public function store(PersonalizationTemplateRequest $request)
     {
         $template = DB::transaction(function () use ($request) {
-            $productId = (int) $request->input('product_id');
+            $productId = $request->integer('product_id');
 
-            Product::whereKey($productId)->update(['type' => ProductType::AdvancedPersonalized]);
+            if (filled($request->input('product_id'))) {
+                Product::whereKey($productId)->update(['type' => ProductType::AdvancedPersonalized]);
+            }
 
             $template = PersonalizationTemplate::create($this->templatePayload($request));
 
@@ -105,6 +109,8 @@ class PersonalizationTemplateController extends Controller
 
             return $template;
         });
+
+        PersonalizationTemplateSnapshot::regenerate($template);
 
         return redirect()
             ->route('admin.personalization.templates.edit', $template)
@@ -120,6 +126,99 @@ class PersonalizationTemplateController extends Controller
         return view('admin.personalization.templates.edit', $this->formData($template));
     }
 
+    public function duplicate(PersonalizationTemplate $template)
+    {
+        $template->load(['fields', 'fonts']);
+
+        $duplicate = DB::transaction(function () use ($template) {
+            $copy = PersonalizationTemplate::create([
+                ...collect($template->only([
+                    'base_template_url',
+                    'preview_image_url',
+                    'mask_image_url',
+                    'export_ratio_width',
+                    'export_ratio_height',
+                    'preview_rules',
+                    'render_rules',
+                    'preview_data_presets',
+                    'instructions',
+                    'safe_zone_notes',
+                    'proof_note_label',
+                ]))->all(),
+                'product_id' => null,
+                'name' => $template->name.' Copy',
+                'thumbnail_image_url' => null,
+                'is_active' => false,
+            ]);
+
+            foreach ($template->fields as $index => $field) {
+                $copy->fields()->create([
+                    ...collect($field->only([
+                        'label',
+                        'field_key',
+                        'placeholder',
+                        'help_text',
+                        'default_value',
+                        'is_required',
+                        'max_length',
+                        'min_length',
+                        'font_size_min',
+                        'font_size_max',
+                        'line_height',
+                        'letter_spacing',
+                        'text_align',
+                        'text_color',
+                        'position_x',
+                        'position_y',
+                        'width',
+                        'height',
+                        'rotation',
+                        'z_index',
+                        'preview_sample_value',
+                        'settings',
+                    ]))->all(),
+                    'position' => $index,
+                ]);
+            }
+
+            foreach ($template->fonts as $index => $font) {
+                $copy->fonts()->create([
+                    ...collect($font->only([
+                        'name',
+                        'internal_name',
+                        'css_font_family',
+                        'preview_label',
+                        'font_family',
+                        'font_source_type',
+                        'font_source_value',
+                        'category',
+                        'style_type',
+                        'supported_use',
+                        'preview_sample_text',
+                        'font_weight_default',
+                        'font_style_default',
+                        'letter_spacing_default',
+                        'line_height_default',
+                        'text_transform_default',
+                        'recommended_for',
+                        'sort_order',
+                        'is_default',
+                        'is_active',
+                    ]))->all(),
+                    'position' => $index,
+                ]);
+            }
+
+            return $copy;
+        });
+
+        PersonalizationTemplateSnapshot::regenerate($duplicate);
+
+        return redirect()
+            ->route('admin.personalization.templates.edit', $duplicate)
+            ->with('status', 'Personalization template duplicated.');
+    }
+
     public function update(PersonalizationTemplateRequest $request, PersonalizationTemplate $template)
     {
         DB::transaction(function () use ($request, $template): void {
@@ -127,6 +226,8 @@ class PersonalizationTemplateController extends Controller
 
             $this->syncTemplateChildren($template, $request->validated());
         });
+
+        PersonalizationTemplateSnapshot::regenerate($template);
 
         return redirect()
             ->route('admin.personalization.templates.edit', $template)
@@ -219,7 +320,7 @@ class PersonalizationTemplateController extends Controller
     private function templatePayload(PersonalizationTemplateRequest $request, ?PersonalizationTemplate $template = null): array
     {
         return [
-            'product_id' => (int) $request->input('product_id'),
+            'product_id' => filled($request->input('product_id')) ? $request->integer('product_id') : null,
             'name' => $request->string('name')->toString(),
             'base_template_url' => $this->resolveUpload($request->file('base_template_upload'), $request->input('base_template_url'), $template?->base_template_url, $request->boolean('remove_base_template')),
             'preview_image_url' => $this->resolveUpload($request->file('preview_image_upload'), $request->input('preview_image_url'), $template?->preview_image_url, $request->boolean('remove_preview_image')),
@@ -275,16 +376,6 @@ class PersonalizationTemplateController extends Controller
 
     private function deleteManagedAsset(?string $url): void
     {
-        if (! filled($url)) {
-            return;
-        }
-
-        $path = parse_url($url, PHP_URL_PATH);
-
-        if (! is_string($path) || ! str_starts_with($path, '/storage/')) {
-            return;
-        }
-
-        Storage::disk('public')->delete(str($path)->after('/storage/')->toString());
+        PersonalizationAssetUsage::deleteManagedAssetIfUnused($url);
     }
 }

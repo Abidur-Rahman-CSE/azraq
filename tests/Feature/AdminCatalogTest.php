@@ -134,6 +134,22 @@ it('creates an advanced personalized product with template and mockup assignment
         ->and($product->relatedCategories()->count())->toBe(1);
 });
 
+it('shows the nikah personalization setup tools on the advanced product editor', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')->firstOrFail();
+
+    $this->get(route('admin.catalog.products.edit', $product))
+        ->assertOk()
+        ->assertSee('Nikah personalization and mockup setup')
+        ->assertSee('Assigned Personalization Template')
+        ->assertSee('Create new template')
+        ->assertSee('Open mockup manager')
+        ->assertSee('Storefront preview')
+        ->assertSee('Flat preview')
+        ->assertSee('Mockup preview');
+});
+
 it('creates a category with admin media fields', function () {
     $this->seed(CatalogSeeder::class);
     Storage::fake('public');

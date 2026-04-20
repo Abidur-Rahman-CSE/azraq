@@ -326,9 +326,9 @@ class CatalogSeeder extends Seeder
             'product_id' => $advanced->id,
         ], [
             'name' => 'Signature Nikah Template',
-            'base_template_url' => '/images/nikahnama/Mockup-1.png',
-            'preview_image_url' => '/images/nikahnama/Mockup-1.png',
-            'mask_image_url' => '/images/nikahnama/Mockup-2.png',
+            'base_template_url' => '/images/nikahnama/Template-Base.png',
+            'preview_image_url' => '/images/nikahnama/Template-Preview.png',
+            'mask_image_url' => '/images/nikahnama/Template-Mask.png',
             'preview_rules' => [
                 'safe_scale' => true,
                 'allow_multiline' => true,
