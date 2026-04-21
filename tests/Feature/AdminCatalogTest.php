@@ -141,13 +141,10 @@ it('shows the nikah personalization setup tools on the advanced product editor',
 
     $this->get(route('admin.catalog.products.edit', $product))
         ->assertOk()
-        ->assertSee('Nikah personalization and mockup setup')
-        ->assertSee('Assigned Personalization Template')
-        ->assertSee('Create new template')
-        ->assertSee('Open mockup manager')
-        ->assertSee('Storefront preview')
-        ->assertSee('Flat preview')
-        ->assertSee('Mockup preview');
+        ->assertSee('nikah-product-form-root', false)
+        ->assertSee('nikah-product-form-payload', false)
+        ->assertSee('Edit Nikahnama product')
+        ->assertSee('Signature Nikah Template');
 });
 
 it('creates a category with admin media fields', function () {

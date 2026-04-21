@@ -41,6 +41,7 @@ class Product extends Model
         'proof_notes_enabled',
         'font_presets_enabled',
         'personalization_help_text',
+        'personalization_fields_blueprint',
         'meta_title',
         'meta_description',
     ];
@@ -58,6 +59,7 @@ class Product extends Model
             'live_preview_enabled' => 'boolean',
             'proof_notes_enabled' => 'boolean',
             'font_presets_enabled' => 'boolean',
+            'personalization_fields_blueprint' => 'array',
         ];
     }
 

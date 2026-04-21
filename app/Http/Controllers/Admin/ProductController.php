@@ -169,6 +169,7 @@ class ProductController extends Controller
                 'assigned_template_id',
                 'allowed_mockup_ids',
                 'default_mockup_id',
+                'personalization_fields_blueprint',
                 'related_category_ids',
                 'featured_image_upload',
                 'gallery_uploads',
@@ -184,6 +185,9 @@ class ProductController extends Controller
             'include_mockup_gallery' => $request->boolean('include_mockup_gallery', true),
             'live_preview_enabled' => $request->boolean('live_preview_enabled', true),
             'featured_image_url' => $request->route('product')?->featured_image_url,
+            'personalization_fields_blueprint' => $request->filled('personalization_fields_blueprint')
+                ? json_decode($request->input('personalization_fields_blueprint'), true)
+                : null,
         ];
     }
 
@@ -196,49 +200,55 @@ class ProductController extends Controller
 
         $this->syncPersonalizationAssignments($product, $data);
 
-        $product->variants()->delete();
-        collect($data['variants'] ?? [])
-            ->filter(fn (array $variant) => filled($variant['name'] ?? null))
-            ->values()
-            ->each(fn (array $variant, int $index) => $product->variants()->create([
-                'name' => $variant['name'],
-                'sku' => $variant['sku'] ?: null,
-                'option_values' => filled($variant['option_values'] ?? null)
-                    ? array_map('trim', explode(',', $variant['option_values']))
-                    : [],
-                'price' => $variant['price'] ?? null,
-                'compare_at_price' => $variant['compare_at_price'] ?? null,
-                'stock_quantity' => $variant['stock_quantity'] ?? 0,
-                'is_default' => (bool) ($variant['is_default'] ?? false),
-                'position' => $index,
-            ]));
+        if (array_key_exists('variants', $data)) {
+            $product->variants()->delete();
+            collect($data['variants'] ?? [])
+                ->filter(fn (array $variant) => filled($variant['name'] ?? null))
+                ->values()
+                ->each(fn (array $variant, int $index) => $product->variants()->create([
+                    'name' => $variant['name'],
+                    'sku' => $variant['sku'] ?: null,
+                    'option_values' => filled($variant['option_values'] ?? null)
+                        ? array_map('trim', explode(',', $variant['option_values']))
+                        : [],
+                    'price' => $variant['price'] ?? null,
+                    'compare_at_price' => $variant['compare_at_price'] ?? null,
+                    'stock_quantity' => $variant['stock_quantity'] ?? 0,
+                    'is_default' => (bool) ($variant['is_default'] ?? false),
+                    'position' => $index,
+                ]));
+        }
 
-        $product->bundleItems()->delete();
-        collect($data['bundle_items'] ?? [])
-            ->filter(fn (array $item) => filled($item['child_product_id'] ?? null))
-            ->values()
-            ->each(fn (array $item, int $index) => $product->bundleItems()->create([
-                'child_product_id' => $item['child_product_id'],
-                'quantity' => $item['quantity'] ?? 1,
-                'position' => $index,
-            ]));
+        if (array_key_exists('bundle_items', $data)) {
+            $product->bundleItems()->delete();
+            collect($data['bundle_items'] ?? [])
+                ->filter(fn (array $item) => filled($item['child_product_id'] ?? null))
+                ->values()
+                ->each(fn (array $item, int $index) => $product->bundleItems()->create([
+                    'child_product_id' => $item['child_product_id'],
+                    'quantity' => $item['quantity'] ?? 1,
+                    'position' => $index,
+                ]));
+        }
 
-        $serviceMeta = $data['service_meta'] ?? [];
+        if (array_key_exists('service_meta', $data)) {
+            $serviceMeta = $data['service_meta'] ?? [];
 
-        if ($product->type === ProductType::Service && collect($serviceMeta)->filter()->isNotEmpty()) {
-            $product->serviceMeta()->updateOrCreate(
-                ['product_id' => $product->id],
-                [
-                    'service_type' => $serviceMeta['service_type'] ?? null,
-                    'duration_label' => $serviceMeta['duration_label'] ?? null,
-                    'location_scope' => $serviceMeta['location_scope'] ?? null,
-                    'requires_advance_payment' => (bool) ($serviceMeta['requires_advance_payment'] ?? false),
-                    'advance_payment_amount' => $serviceMeta['advance_payment_amount'] ?? null,
-                    'booking_notes' => $serviceMeta['booking_notes'] ?? null,
-                ],
-            );
-        } else {
-            $product->serviceMeta()->delete();
+            if ($product->type === ProductType::Service && collect($serviceMeta)->filter()->isNotEmpty()) {
+                $product->serviceMeta()->updateOrCreate(
+                    ['product_id' => $product->id],
+                    [
+                        'service_type' => $serviceMeta['service_type'] ?? null,
+                        'duration_label' => $serviceMeta['duration_label'] ?? null,
+                        'location_scope' => $serviceMeta['location_scope'] ?? null,
+                        'requires_advance_payment' => (bool) ($serviceMeta['requires_advance_payment'] ?? false),
+                        'advance_payment_amount' => $serviceMeta['advance_payment_amount'] ?? null,
+                        'booking_notes' => $serviceMeta['booking_notes'] ?? null,
+                    ],
+                );
+            } else {
+                $product->serviceMeta()->delete();
+            }
         }
 
         $this->syncProductMedia($product, $data);
@@ -336,33 +346,38 @@ class ProductController extends Controller
     private function syncProductMedia(Product $product, array $data): void
     {
         $featuredImageUrl = $product->featured_image_url;
+        $shouldRefreshPrimaryImage = false;
 
         if (request()->hasFile('featured_image_upload')) {
             $featuredImageUrl = $this->storeImage(request()->file('featured_image_upload'));
         }
 
-        $existingImages = collect($data['existing_images'] ?? []);
+        if (array_key_exists('existing_images', $data)) {
+            $existingImages = collect($data['existing_images'] ?? []);
+            $shouldRefreshPrimaryImage = true;
 
-        $product->images->each(function (ProductImage $image) use ($existingImages): void {
-            $row = $existingImages->get((string) $image->id, $existingImages->get($image->id, []));
+            $product->images->each(function (ProductImage $image) use ($existingImages): void {
+                $row = $existingImages->get((string) $image->id, $existingImages->get($image->id, []));
 
-            if ((bool) ($row['remove'] ?? false)) {
-                $image->delete();
+                if ((bool) ($row['remove'] ?? false)) {
+                    $image->delete();
 
-                return;
-            }
+                    return;
+                }
 
-            $image->update([
-                'label' => $row['label'] ?? $image->label,
-                'alt_text' => $row['alt_text'] ?? $image->alt_text,
-                'position' => $row['position'] ?? $image->position,
-                'is_primary' => (bool) ($row['is_primary'] ?? false),
-                'status' => 'active',
-            ]);
-        });
+                $image->update([
+                    'label' => $row['label'] ?? $image->label,
+                    'alt_text' => $row['alt_text'] ?? $image->alt_text,
+                    'position' => $row['position'] ?? $image->position,
+                    'is_primary' => (bool) ($row['is_primary'] ?? false),
+                    'status' => 'active',
+                ]);
+            });
+        }
 
         if (request()->hasFile('gallery_uploads')) {
             $basePosition = (int) $product->images()->max('position');
+            $shouldRefreshPrimaryImage = true;
 
             collect(request()->file('gallery_uploads'))
                 ->filter(fn (?UploadedFile $file) => $file instanceof UploadedFile)
@@ -379,14 +394,16 @@ class ProductController extends Controller
                 });
         }
 
-        $images = $product->images()->orderBy('position')->get();
-        $primaryImage = $images->firstWhere('is_primary', true) ?? $images->first();
+        if ($shouldRefreshPrimaryImage) {
+            $images = $product->images()->orderBy('position')->get();
+            $primaryImage = $images->firstWhere('is_primary', true) ?? $images->first();
 
-        $product->images()->whereKey($images->pluck('id'))->update(['is_primary' => false]);
+            $product->images()->whereKey($images->pluck('id'))->update(['is_primary' => false]);
 
-        if ($primaryImage) {
-            $primaryImage->update(['is_primary' => true]);
-            $featuredImageUrl = $featuredImageUrl ?: $primaryImage->image_url;
+            if ($primaryImage) {
+                $primaryImage->update(['is_primary' => true]);
+                $featuredImageUrl = $featuredImageUrl ?: $primaryImage->image_url;
+            }
         }
 
         $product->update([
