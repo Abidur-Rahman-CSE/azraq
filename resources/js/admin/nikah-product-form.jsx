@@ -112,8 +112,112 @@ function Breadcrumbs({ items }) {
     );
 }
 
+function SearchableMultiSelect({
+    label,
+    placeholder,
+    options,
+    selectedValues,
+    onToggle,
+}) {
+    const [isOpen, setIsOpen] = useState(false);
+    const [search, setSearch] = useState('');
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (containerRef.current && !containerRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        }
+
+        document.addEventListener('mousedown', handleClickOutside);
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    const normalizedSearch = search.trim().toLowerCase();
+    const filteredOptions = normalizedSearch
+        ? options.filter((option) => option.name.toLowerCase().includes(normalizedSearch))
+        : options;
+    const selectedOptions = options.filter((option) => selectedValues.includes(option.id));
+
+    return (
+        <div className="nikah-multiselect" ref={containerRef}>
+            <span className="nikah-multiselect__label">{label}</span>
+
+            <div className="nikah-multiselect__capsules">
+                {selectedOptions.length ? selectedOptions.map((option) => (
+                    <button
+                        key={option.id}
+                        type="button"
+                        className="nikah-multiselect__capsule"
+                        onClick={() => onToggle(option.id)}
+                    >
+                        <span>{option.name}</span>
+                        <span className="nikah-multiselect__capsule-remove">×</span>
+                    </button>
+                )) : (
+                    <div className="nikah-empty-note">Nothing selected yet.</div>
+                )}
+            </div>
+
+            <button
+                type="button"
+                className={`nikah-multiselect__trigger ${isOpen ? 'is-open' : ''}`}
+                onClick={() => setIsOpen((current) => !current)}
+            >
+                <span>{placeholder}</span>
+                <span>{isOpen ? '−' : '+'}</span>
+            </button>
+
+            {isOpen ? (
+                <div className="nikah-multiselect__panel">
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        className="nikah-multiselect__search"
+                        placeholder="Search..."
+                    />
+
+                    <div className="nikah-multiselect__options">
+                        {filteredOptions.length ? filteredOptions.map((option) => {
+                            const isSelected = selectedValues.includes(option.id);
+
+                            return (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    className={`nikah-multiselect__option ${isSelected ? 'is-selected' : ''}`}
+                                    onClick={() => onToggle(option.id)}
+                                >
+                                    <span>{option.name}</span>
+                                    <span>{isSelected ? 'Selected' : 'Add'}</span>
+                                </button>
+                            );
+                        }) : (
+                            <div className="nikah-empty-note">No matches found.</div>
+                        )}
+                    </div>
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 function NikahProductForm({ payload }) {
-    const { product, categories, tags, designs, errors, page } = payload;
+    const {
+        product,
+        categories,
+        relatedCategories,
+        tags,
+        relatedProducts,
+        designs,
+        errors,
+        page,
+    } = payload;
     const initialDesignId = product.selectedDesignId || designs[0]?.id || '';
     const initialDesign = designs.find((design) => String(design.id) === String(initialDesignId)) || null;
     const initialFields = (product.personalizationFields || []).length
@@ -124,6 +228,8 @@ function NikahProductForm({ payload }) {
     const [excerpt, setExcerpt] = useState(product.excerpt || '');
     const [categoryId, setCategoryId] = useState(product.categoryId || '');
     const [selectedTags, setSelectedTags] = useState(product.tagIds || []);
+    const [selectedRelatedProducts, setSelectedRelatedProducts] = useState(product.relatedProductIds || []);
+    const [selectedRelatedCategories, setSelectedRelatedCategories] = useState(product.relatedCategoryIds || []);
     const [selectedDesignId, setSelectedDesignId] = useState(initialDesignId);
     const [activeMockups, setActiveMockups] = useState(product.activeMockupIds || []);
     const [defaultMockupId, setDefaultMockupId] = useState(product.defaultMockupId || '');
@@ -183,6 +289,22 @@ function NikahProductForm({ payload }) {
             currentTags.includes(tagId)
                 ? currentTags.filter((id) => id !== tagId)
                 : [...currentTags, tagId]
+        ));
+    }
+
+    function toggleRelatedProduct(productId) {
+        setSelectedRelatedProducts((currentProducts) => (
+            currentProducts.includes(productId)
+                ? currentProducts.filter((id) => id !== productId)
+                : [...currentProducts, productId]
+        ));
+    }
+
+    function toggleRelatedCategory(relatedCategoryId) {
+        setSelectedRelatedCategories((currentCategories) => (
+            currentCategories.includes(relatedCategoryId)
+                ? currentCategories.filter((id) => id !== relatedCategoryId)
+                : [...currentCategories, relatedCategoryId]
         ));
     }
 
@@ -270,6 +392,14 @@ function NikahProductForm({ payload }) {
 
             {selectedTags.map((tagId) => (
                 <input key={tagId} type="hidden" name="tag_ids[]" value={tagId} />
+            ))}
+
+            {selectedRelatedProducts.map((relatedProductId) => (
+                <input key={relatedProductId} type="hidden" name="related_product_ids[]" value={relatedProductId} />
+            ))}
+
+            {selectedRelatedCategories.map((relatedCategoryId) => (
+                <input key={relatedCategoryId} type="hidden" name="related_category_ids[]" value={relatedCategoryId} />
             ))}
 
             {activeMockups.map((mockupId) => (
@@ -588,6 +718,34 @@ function NikahProductForm({ payload }) {
                                     />
                                     {getError(errors, 'compare_at_price') ? <small>{getError(errors, 'compare_at_price')}</small> : null}
                                 </label>
+                            </div>
+                        </section>
+
+                        <section className="nikah-step-card">
+                            <div className="nikah-step-card__heading">
+                                <span className="nikah-step-card__step">6</span>
+                                <div>
+                                    <h3>Related discovery</h3>
+                                    <p>Attach supporting products and nearby browse categories so the storefront can cross-link this Nikahnama cleanly.</p>
+                                </div>
+                            </div>
+
+                            <div className="nikah-form__grid">
+                                <SearchableMultiSelect
+                                    label="Related products"
+                                    placeholder="Search and select related products"
+                                    options={relatedProducts}
+                                    selectedValues={selectedRelatedProducts}
+                                    onToggle={toggleRelatedProduct}
+                                />
+
+                                <SearchableMultiSelect
+                                    label="Related categories"
+                                    placeholder="Search and select related categories"
+                                    options={relatedCategories}
+                                    selectedValues={selectedRelatedCategories}
+                                    onToggle={toggleRelatedCategory}
+                                />
                             </div>
                         </section>
                     </div>

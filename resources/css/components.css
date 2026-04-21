@@ -456,6 +456,121 @@
     gap: 0.55rem;
 }
 
+.nikah-chip-board {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+}
+
+.nikah-multiselect {
+    position: relative;
+    display: grid;
+    gap: 0.6rem;
+}
+
+.nikah-multiselect__label {
+    color: var(--color-secondary-900);
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.nikah-multiselect__capsules {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.nikah-multiselect__capsule {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 0.5px solid rgba(47, 111, 228, 0.2);
+    border-radius: 999px;
+    background: rgba(47, 111, 228, 0.08);
+    color: #2f6fe4;
+    padding: 0.45rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.nikah-multiselect__capsule-remove {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+.nikah-multiselect__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    border: 0.5px solid rgba(15, 46, 60, 0.14);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--color-secondary-900);
+    padding: 0.8rem 0.95rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.nikah-multiselect__trigger.is-open {
+    border-color: rgba(47, 111, 228, 0.28);
+    box-shadow: 0 10px 24px rgba(47, 111, 228, 0.08);
+}
+
+.nikah-multiselect__panel {
+    position: absolute;
+    top: calc(100% + 0.45rem);
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: grid;
+    gap: 0.7rem;
+    border: 0.5px solid rgba(15, 46, 60, 0.12);
+    border-radius: 12px;
+    background: #fff;
+    padding: 0.8rem;
+    box-shadow: 0 18px 40px rgba(15, 46, 60, 0.12);
+}
+
+.nikah-multiselect__search {
+    width: 100%;
+    border: 0.5px solid rgba(15, 46, 60, 0.14);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--color-secondary-900);
+    padding: 0.75rem 0.85rem;
+    font-size: 0.88rem;
+}
+
+.nikah-multiselect__options {
+    display: grid;
+    gap: 0.45rem;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.nikah-multiselect__option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    width: 100%;
+    border: 0.5px solid rgba(15, 46, 60, 0.1);
+    border-radius: 10px;
+    background: #faf7f1;
+    color: var(--color-secondary-900);
+    padding: 0.7rem 0.8rem;
+    font-size: 0.84rem;
+    text-align: left;
+}
+
+.nikah-multiselect__option.is-selected {
+    border-color: rgba(210, 138, 31, 0.24);
+    background: rgba(210, 138, 31, 0.1);
+    color: #b17617;
+}
+
 .nikah-tag {
     border: 0.5px solid rgba(15, 46, 60, 0.14);
     border-radius: 999px;
@@ -466,10 +581,35 @@
     font-weight: 600;
 }
 
+.nikah-chip {
+    border: 0.5px solid rgba(15, 46, 60, 0.14);
+    border-radius: 999px;
+    background: #faf7f1;
+    color: var(--color-secondary-900);
+    padding: 0.58rem 0.92rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
 .nikah-tag.is-active {
     border-color: rgba(47, 111, 228, 0.3);
     background: rgba(47, 111, 228, 0.08);
     color: #2f6fe4;
+}
+
+.nikah-chip.is-active {
+    border-color: rgba(210, 138, 31, 0.3);
+    background: rgba(210, 138, 31, 0.1);
+    color: #b17617;
+}
+
+.nikah-empty-note {
+    border: 0.5px dashed rgba(15, 46, 60, 0.14);
+    border-radius: 12px;
+    background: #faf7f1;
+    color: var(--color-text-soft);
+    padding: 0.8rem 0.95rem;
+    font-size: 0.82rem;
 }
 
 .nikah-design-grid {

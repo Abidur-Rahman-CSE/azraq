@@ -107,6 +107,8 @@
             'excerpt' => old('excerpt', $product->excerpt),
             'categoryId' => $preferredNikahCategoryId ? (string) $preferredNikahCategoryId : '',
             'tagIds' => $selectedTags,
+            'relatedProductIds' => $selectedRelated,
+            'relatedCategoryIds' => $selectedRelatedCategories,
             'status' => old('status', $product->status ?: 'draft'),
             'currentType' => $currentType,
             'price' => (string) old('price', $product->price),
@@ -120,9 +122,17 @@
             'id' => (string) $category->id,
             'name' => $category->name,
         ])->values()->all(),
+        'relatedCategories' => $relatedCategories->map(fn ($category) => [
+            'id' => (int) $category->id,
+            'name' => $category->name,
+        ])->values()->all(),
         'tags' => $tags->map(fn ($tag) => [
             'id' => (int) $tag->id,
             'name' => $tag->name,
+        ])->values()->all(),
+        'relatedProducts' => $relatedProducts->map(fn ($relatedProduct) => [
+            'id' => (int) $relatedProduct->id,
+            'name' => $relatedProduct->name,
         ])->values()->all(),
         'designs' => $designPayload->all(),
         'errors' => $errors->toArray(),
@@ -141,14 +151,6 @@
 
     @foreach ($selectedCollections as $collectionId)
         <input type="hidden" name="collection_ids[]" value="{{ $collectionId }}">
-    @endforeach
-
-    @foreach ($selectedRelated as $relatedProductId)
-        <input type="hidden" name="related_product_ids[]" value="{{ $relatedProductId }}">
-    @endforeach
-
-    @foreach ($selectedRelatedCategories as $relatedCategoryId)
-        <input type="hidden" name="related_category_ids[]" value="{{ $relatedCategoryId }}">
     @endforeach
 
     <div id="nikah-product-form-root"></div>
