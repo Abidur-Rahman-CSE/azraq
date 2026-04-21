@@ -103,10 +103,29 @@
                     height: Math.max(0.12, maxY - minY),
                 };
             },
+            localPolygon(map) {
+                const bounds = this.bounds(map);
+                const normalizeX = (value) => ((value - bounds.left) / bounds.width) * 100;
+                const normalizeY = (value) => ((value - bounds.top) / bounds.height) * 100;
+
+                return [
+                    `${normalizeX(map.top_left_x)}% ${normalizeY(map.top_left_y)}%`,
+                    `${normalizeX(map.top_right_x)}% ${normalizeY(map.top_right_y)}%`,
+                    `${normalizeX(map.bottom_right_x)}% ${normalizeY(map.bottom_right_y)}%`,
+                    `${normalizeX(map.bottom_left_x)}% ${normalizeY(map.bottom_left_y)}%`,
+                ].join(', ');
+            },
             previewStyle(map) {
                 const bounds = this.bounds(map);
 
-                return `left:${bounds.left * 100}%; top:${bounds.top * 100}%; width:${bounds.width * 100}%; height:${bounds.height * 100}%; clip-path: polygon(${this.polygon(map)}); opacity:${map.opacity}; filter: drop-shadow(0 18px 28px rgba(0,48,73,${Math.max(0.12, map.shadow_strength) * 0.35}));`;
+                return `left:${bounds.left * 100}%; top:${bounds.top * 100}%; width:${bounds.width * 100}%; height:${bounds.height * 100}%; clip-path: polygon(${this.localPolygon(map)}); opacity:${map.opacity}; transform: rotate(${map.manual_rotation ?? 0}deg); transform-origin: center center; filter: drop-shadow(0 18px 28px rgba(0,48,73,${Math.max(0.12, map.shadow_strength) * 0.35}));`;
+            },
+            previewImageStyle(map) {
+                const fitMode = map?.fit_mode === 'cover' ? 'cover' : 'fill';
+                const positionX = Math.max(0, Math.min(1, map?.object_position_x ?? 0.5)) * 100;
+                const positionY = Math.max(0, Math.min(1, map?.object_position_y ?? 0.5)) * 100;
+
+                return `object-fit:${fitMode}; object-position:${positionX}% ${positionY}%;`;
             },
             scheduleSceneRefresh() {
                 window.clearTimeout(this.sceneRefreshTimer);
@@ -180,8 +199,13 @@
                             class="absolute inset-0 pointer-events-none"
                             :style="previewStyle(activeSlide().map)"
                         >
-                            <div class="relative h-full w-full overflow-hidden rounded-[18px] border border-[rgba(120,0,0,0.14)] bg-white/92">
-                                <img :src="@js($template->preview_image_url ?: $template->base_template_url)" alt="{{ $template->name }}" class="h-full w-full object-cover">
+                            <div class="relative h-full w-full overflow-hidden bg-white">
+                                <img
+                                    :src="@js($template->preview_image_url ?: $template->base_template_url)"
+                                    alt="{{ $template->name }}"
+                                    class="absolute inset-0 h-full w-full"
+                                    :style="previewImageStyle(activeSlide().map)"
+                                >
 
                                 @foreach ($template->fields as $field)
                                     <div

@@ -100,6 +100,10 @@ class NikahRenderPreview
                     'opacity' => (float) ($mockup->map->opacity ?? 0.95),
                     'shadow_strength' => (float) ($mockup->map->shadow_strength ?? 0.18),
                     'highlight_strength' => (float) ($mockup->map->highlight_strength ?? 0.12),
+                    'fit_mode' => $mockup->map->fit_mode ?? 'stretch',
+                    'object_position_x' => (float) ($mockup->map->object_position_x ?? 0.5),
+                    'object_position_y' => (float) ($mockup->map->object_position_y ?? 0.5),
+                    'manual_rotation' => (float) ($mockup->map->manual_rotation ?? 0),
                 ] : null,
             ] : null,
         ];

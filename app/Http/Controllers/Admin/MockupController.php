@@ -155,7 +155,7 @@ class MockupController extends Controller
     {
         $mockup->setRelation('map', $mockup->map ?? $mockup->map()->make([
             'map_type' => 'quad',
-            'fit_mode' => 'contain',
+            'fit_mode' => 'stretch',
             'top_left_x' => 0.20,
             'top_left_y' => 0.18,
             'top_right_x' => 0.80,
@@ -173,7 +173,7 @@ class MockupController extends Controller
 
         return [
             'mockup' => $mockup,
-            'templates' => PersonalizationTemplate::with('product')->orderBy('name')->get(),
+            'templates' => PersonalizationTemplate::with(['product', 'fields'])->orderBy('name')->get(),
         ];
     }
 
@@ -203,7 +203,7 @@ class MockupController extends Controller
     {
         return [
             'map_type' => $request->input('map.map_type', 'quad'),
-            'fit_mode' => $request->input('map.fit_mode', 'contain'),
+            'fit_mode' => $request->input('map.fit_mode', 'stretch'),
             'top_left_x' => $request->input('map.top_left_x', 0.20),
             'top_left_y' => $request->input('map.top_left_y', 0.18),
             'top_right_x' => $request->input('map.top_right_x', 0.80),

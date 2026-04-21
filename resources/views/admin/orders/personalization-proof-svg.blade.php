@@ -37,6 +37,16 @@
             [data_get($map, 'bottom_left_x') * $width, data_get($map, 'bottom_left_y') * $height],
         ])->map(fn ($point) => $point[0].','.$point[1])->implode(' ');
     }
+
+    $fitMode = data_get($map, 'fit_mode', 'stretch');
+    $anchorX = (float) data_get($map, 'object_position_x', 0.5);
+    $anchorY = (float) data_get($map, 'object_position_y', 0.5);
+    $alignX = $anchorX <= 0.33 ? 'Min' : ($anchorX >= 0.67 ? 'Max' : 'Mid');
+    $alignY = $anchorY <= 0.33 ? 'Min' : ($anchorY >= 0.67 ? 'Max' : 'Mid');
+    $mockupImagePreserve = match ($fitMode) {
+        'cover' => 'x'.$alignX.'Y'.$alignY.' slice',
+        default => 'none',
+    };
 @endphp
 <svg xmlns="http://www.w3.org/2000/svg" width="{{ $width }}" height="{{ $height }}" viewBox="0 0 {{ $width }} {{ $height }}" fill="none">
     <title>{{ $mode === 'mockup' ? data_get($mockup, 'title', $item->product_name.' mockup proof') : ($item->product_name.' flat proof') }}</title>
@@ -88,7 +98,7 @@
                         y="{{ $bounds['top'] }}"
                         width="{{ $bounds['width'] }}"
                         height="{{ $bounds['height'] }}"
-                        preserveAspectRatio="none"
+                        preserveAspectRatio="{{ $mockupImagePreserve }}"
                     />
                 @else
                     <rect x="{{ $bounds['left'] }}" y="{{ $bounds['top'] }}" width="{{ $bounds['width'] }}" height="{{ $bounds['height'] }}" fill="#FFFFFF" />

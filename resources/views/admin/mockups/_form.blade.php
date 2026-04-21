@@ -28,11 +28,33 @@
         showCompare: true,
         isDirty: false,
         activeTemplateId: '{{ (string) old('personalization_template_id', $mockup->personalization_template_id) }}',
+        fitMode: @js(old('map.fit_mode', $map->fit_mode ?? 'stretch')),
+        objectPositionX: {{ (float) old('map.object_position_x', $map->object_position_x ?? 0.5) }},
+        objectPositionY: {{ (float) old('map.object_position_y', $map->object_position_y ?? 0.5) }},
+        manualRotation: {{ (float) old('map.manual_rotation', $map->manual_rotation ?? 0) }},
         templateMeta: @js($templates->mapWithKeys(fn ($item) => [
             (string) $item->id => [
                 'name' => $item->name,
                 'ratio_width' => $item->export_ratio_width ?? 9,
                 'ratio_height' => $item->export_ratio_height ?? 13,
+                'preview_url' => $item->preview_image_url ?: $item->base_template_url,
+                'fields' => $item->fields->map(fn ($field) => [
+                    'key' => $field->field_key,
+                    'label' => $field->label,
+                    'placeholder' => $field->placeholder,
+                    'x' => (float) $field->position_x,
+                    'y' => (float) $field->position_y,
+                    'width' => (float) $field->width,
+                    'height' => (float) $field->height,
+                    'rotation' => (float) $field->rotation,
+                    'align' => $field->text_align,
+                    'color' => $field->text_color,
+                    'line_height' => (float) $field->line_height,
+                    'letter_spacing' => (float) $field->letter_spacing,
+                    'font_size_min' => (int) $field->font_size_min,
+                    'font_size_max' => (int) $field->font_size_max,
+                    'z_index' => (int) ($field->z_index ?? 1),
+                ])->values()->all(),
             ],
         ])),
         brideName: @js($previewData['bride_name'] ?? 'Amena'),
@@ -104,9 +126,30 @@
         ratioMeta() {
             return this.templateMeta[this.activeTemplateId] ?? { ratio_width: 9, ratio_height: 13, name: 'Assigned template' };
         },
+        currentTemplatePreview() {
+            return this.ratioMeta().preview_url ?? '';
+        },
+        currentTemplateFields() {
+            return this.ratioMeta().fields ?? [];
+        },
         ratioLabel() {
             const meta = this.ratioMeta();
             return `${meta.ratio_width}:${meta.ratio_height}`;
+        },
+        bounds() {
+            const xValues = [this.points.top_left.x, this.points.top_right.x, this.points.bottom_right.x, this.points.bottom_left.x];
+            const yValues = [this.points.top_left.y, this.points.top_right.y, this.points.bottom_right.y, this.points.bottom_left.y];
+            const minX = Math.min(...xValues);
+            const maxX = Math.max(...xValues);
+            const minY = Math.min(...yValues);
+            const maxY = Math.max(...yValues);
+
+            return {
+                left: minX,
+                top: minY,
+                width: Math.max(0.12, maxX - minX),
+                height: Math.max(0.12, maxY - minY),
+            };
         },
         pointStyle(key) {
             return `left: calc(${this.points[key].x * 100}% - 11px); top: calc(${this.points[key].y * 100}% - 11px);`;
@@ -128,16 +171,50 @@
         polygon() {
             return `${this.points.top_left.x * 100}% ${this.points.top_left.y * 100}%, ${this.points.top_right.x * 100}% ${this.points.top_right.y * 100}%, ${this.points.bottom_right.x * 100}% ${this.points.bottom_right.y * 100}%, ${this.points.bottom_left.x * 100}% ${this.points.bottom_left.y * 100}%`;
         },
+        localPolygon() {
+            const bounds = this.bounds();
+            const normalizeX = (value) => ((value - bounds.left) / bounds.width) * 100;
+            const normalizeY = (value) => ((value - bounds.top) / bounds.height) * 100;
+
+            return [
+                `${normalizeX(this.points.top_left.x)}% ${normalizeY(this.points.top_left.y)}%`,
+                `${normalizeX(this.points.top_right.x)}% ${normalizeY(this.points.top_right.y)}%`,
+                `${normalizeX(this.points.bottom_right.x)}% ${normalizeY(this.points.bottom_right.y)}%`,
+                `${normalizeX(this.points.bottom_left.x)}% ${normalizeY(this.points.bottom_left.y)}%`,
+            ].join(', ');
+        },
         previewStyle() {
-            const xValues = [this.points.top_left.x, this.points.top_right.x, this.points.bottom_right.x, this.points.bottom_left.x];
-            const yValues = [this.points.top_left.y, this.points.top_right.y, this.points.bottom_right.y, this.points.bottom_left.y];
-            const minX = Math.min(...xValues);
-            const maxX = Math.max(...xValues);
-            const minY = Math.min(...yValues);
-            const maxY = Math.max(...yValues);
-            const width = Math.max(0.12, maxX - minX);
-            const height = Math.max(0.12, maxY - minY);
-            return `left:${minX * 100}%; top:${minY * 100}%; width:${width * 100}%; height:${height * 100}%; clip-path: polygon(${this.polygon()}); opacity:${this.previewOpacity}; filter: drop-shadow(0 18px 24px rgba(0,48,73,${this.shadowStrength * 0.35}));`;
+            const bounds = this.bounds();
+
+            return `left:${bounds.left * 100}%; top:${bounds.top * 100}%; width:${bounds.width * 100}%; height:${bounds.height * 100}%; clip-path: polygon(${this.localPolygon()}); opacity:${this.previewOpacity}; transform: rotate(${this.manualRotation}deg); transform-origin: center center; filter: drop-shadow(0 18px 24px rgba(0,48,73,${this.shadowStrength * 0.35}));`;
+        },
+        previewImageStyle() {
+            const fitMode = this.fitMode === 'cover' ? 'cover' : 'fill';
+
+            return `object-fit:${fitMode}; object-position:${this.objectPositionX * 100}% ${this.objectPositionY * 100}%;`;
+        },
+        previewFieldValue(field) {
+            const key = `${field.key || ''}`.toLowerCase();
+            const label = `${field.label || ''}`.toLowerCase();
+
+            if (key.includes('bride') || label.includes('bride')) return this.brideName || field.placeholder;
+            if (key.includes('groom') || label.includes('groom')) return this.groomName || field.placeholder;
+            if (key.includes('date') || label.includes('date')) return this.ceremonyDate || field.placeholder;
+            if (key.includes('venue') || label.includes('venue') || key.includes('location')) return this.venue || field.placeholder;
+
+            return field.placeholder || field.label || field.key;
+        },
+        previewFieldStyle(field, density = 'full') {
+            const fontMin = density === 'compact'
+                ? Math.max(7, Math.round((field.font_size_min || 12) * 0.82))
+                : Math.max(8, field.font_size_min || 12);
+            const fontMax = density === 'compact'
+                ? Math.max(10, Math.round((field.font_size_max || 24) * 0.82))
+                : Math.max(12, field.font_size_max || 24);
+            const viewportUnit = density === 'compact' ? '0.9vw' : '1vw';
+            const align = field.align === 'start' ? 'left' : (field.align === 'end' ? 'right' : 'center');
+
+            return `left:${field.x}%; top:${field.y}%; width:${field.width}%; min-height:${field.height}%; transform: translate(-50%, -50%) rotate(${field.rotation}deg); text-align:${align}; color:${field.color}; line-height:${field.line_height}; letter-spacing:${field.letter_spacing}px; font-size:clamp(${fontMin}px, ${viewportUnit}, ${fontMax}px); z-index:${field.z_index};`;
         },
         baseTransform() {
             return `transform: translate(${this.panX}px, ${this.panY}px) scale(${this.zoom}); transform-origin: center center;`;
@@ -568,18 +645,22 @@
                         </template>
 
                         <div class="absolute inset-0 pointer-events-none" :style="previewStyle()">
-                            <div class="h-full w-full rounded-[22px] border border-[rgba(120,0,0,0.16)] bg-white/92 px-[10%] py-[9%] text-center shadow-[0_22px_45px_rgba(0,48,73,0.12)]" :style="`box-shadow: 0 24px 50px rgba(0,48,73,${shadowStrength * 0.45});`">
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.32em] text-[var(--color-primary-900)]">Nikah Nama Preview</p>
-                                <div class="mt-6 space-y-4 text-[var(--color-secondary-900)]">
-                                    <p class="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Bride</p>
-                                    <p class="text-[clamp(1rem,2vw,1.7rem)] font-semibold leading-tight" x-text="brideName"></p>
-                                    <p class="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Groom</p>
-                                    <p class="text-[clamp(1rem,2vw,1.7rem)] font-semibold leading-tight" x-text="groomName"></p>
-                                    <p class="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Date</p>
-                                    <p class="text-[clamp(0.82rem,1.5vw,1.05rem)] font-medium" x-text="ceremonyDate"></p>
-                                    <p class="text-[11px] uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Venue</p>
-                                    <p class="text-[clamp(0.82rem,1.5vw,1.05rem)] font-medium" x-text="venue"></p>
-                                </div>
+                            <div class="relative h-full w-full overflow-hidden bg-white" :style="`box-shadow: 0 24px 50px rgba(0,48,73,${shadowStrength * 0.45});`">
+                                <template x-if="currentTemplatePreview()">
+                                    <img :src="currentTemplatePreview()" alt="" class="absolute inset-0 h-full w-full" :style="previewImageStyle()">
+                                </template>
+                                <template x-if="!currentTemplatePreview()">
+                                    <div class="flex h-full items-center justify-center bg-white px-6 text-center text-sm font-semibold uppercase tracking-[0.22em] text-[var(--color-primary-900)]">
+                                        Nikah Nama Preview
+                                    </div>
+                                </template>
+                                <template x-for="field in currentTemplateFields()" :key="field.key">
+                                    <div
+                                        class="absolute px-2 text-center text-[var(--color-secondary-900)]"
+                                        :style="previewFieldStyle(field)"
+                                        x-text="previewFieldValue(field)"
+                                    ></div>
+                                </template>
                             </div>
                         </div>
 
@@ -679,10 +760,22 @@
                                     <img :src="baseImageUrl" alt="" class="h-full w-full bg-[var(--bg-section-soft)] object-contain">
                                 </template>
                                 <div class="absolute inset-0 pointer-events-none" :style="previewStyle()">
-                                    <div class="h-full w-full rounded-[16px] border border-[rgba(120,0,0,0.14)] bg-white/92 px-[8%] py-[7%] text-center">
-                                        <p class="text-[9px] font-semibold uppercase tracking-[0.26em] text-[var(--color-primary-900)]">Mapped</p>
-                                        <p class="mt-4 text-[clamp(0.9rem,1.1vw,1.1rem)] font-semibold text-[var(--color-secondary-900)]" x-text="brideName"></p>
-                                        <p class="mt-1 text-[clamp(0.9rem,1.1vw,1.1rem)] font-semibold text-[var(--color-secondary-900)]" x-text="groomName"></p>
+                                    <div class="relative h-full w-full overflow-hidden bg-white">
+                                        <template x-if="currentTemplatePreview()">
+                                            <img :src="currentTemplatePreview()" alt="" class="absolute inset-0 h-full w-full" :style="previewImageStyle()">
+                                        </template>
+                                        <template x-if="!currentTemplatePreview()">
+                                            <div class="flex h-full items-center justify-center bg-white px-4 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary-900)]">
+                                                Mapped preview
+                                            </div>
+                                        </template>
+                                        <template x-for="field in currentTemplateFields()" :key="field.key">
+                                            <div
+                                                class="absolute px-1.5 text-center text-[var(--color-secondary-900)]"
+                                                :style="previewFieldStyle(field, 'compact')"
+                                                x-text="previewFieldValue(field)"
+                                            ></div>
+                                        </template>
                                     </div>
                                 </div>
                             </div>
@@ -705,9 +798,9 @@
 
                     <label class="field-shell">
                         <span class="text-sm font-medium text-[var(--color-secondary-900)]">Fit mode</span>
-                        <select name="map[fit_mode]" class="field-select">
+                        <select name="map[fit_mode]" class="field-select" x-model="fitMode">
                             @foreach (['contain' => 'Contain', 'cover' => 'Cover', 'stretch' => 'Stretch'] as $value => $label)
-                                <option value="{{ $value }}" @selected(old('map.fit_mode', $map->fit_mode ?? 'contain') === $value)>{{ $label }}</option>
+                                <option value="{{ $value }}" @selected(old('map.fit_mode', $map->fit_mode ?? 'stretch') === $value)>{{ $label }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -777,15 +870,15 @@
                     <div class="grid gap-4 md:grid-cols-2">
                         <label class="field-shell">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Manual rotation</span>
-                            <input type="number" step="0.01" min="-180" max="180" name="map[manual_rotation]" value="{{ old('map.manual_rotation', $map->manual_rotation) }}" class="field-input">
+                            <input type="number" step="0.01" min="-180" max="180" name="map[manual_rotation]" value="{{ old('map.manual_rotation', $map->manual_rotation) }}" x-model.number="manualRotation" class="field-input">
                         </label>
                         <label class="field-shell">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Object position X</span>
-                            <input type="number" step="0.0001" min="0" max="1" name="map[object_position_x]" value="{{ old('map.object_position_x', $map->object_position_x) }}" class="field-input">
+                            <input type="number" step="0.0001" min="0" max="1" name="map[object_position_x]" value="{{ old('map.object_position_x', $map->object_position_x) }}" x-model.number="objectPositionX" class="field-input">
                         </label>
                         <label class="field-shell md:col-span-2">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Object position Y</span>
-                            <input type="number" step="0.0001" min="0" max="1" name="map[object_position_y]" value="{{ old('map.object_position_y', $map->object_position_y) }}" class="field-input">
+                            <input type="number" step="0.0001" min="0" max="1" name="map[object_position_y]" value="{{ old('map.object_position_y', $map->object_position_y) }}" x-model.number="objectPositionY" class="field-input">
                         </label>
                     </div>
 

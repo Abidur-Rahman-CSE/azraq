@@ -173,20 +173,29 @@
                                     $maxX = max($xValues);
                                     $minY = min($yValues);
                                     $maxY = max($yValues);
+                                    $widthPercent = max(12, ($maxX - $minX) * 100);
+                                    $heightPercent = max(12, ($maxY - $minY) * 100);
+                                    $boundsWidth = max(0.12, $maxX - $minX);
+                                    $boundsHeight = max(0.12, $maxY - $minY);
                                     $polygon = collect([
                                         [data_get($mockupMap, 'top_left_x'), data_get($mockupMap, 'top_left_y')],
                                         [data_get($mockupMap, 'top_right_x'), data_get($mockupMap, 'top_right_y')],
                                         [data_get($mockupMap, 'bottom_right_x'), data_get($mockupMap, 'bottom_right_y')],
                                         [data_get($mockupMap, 'bottom_left_x'), data_get($mockupMap, 'bottom_left_y')],
-                                    ])->map(fn ($point) => ($point[0] * 100).'%' .' '.($point[1] * 100).'%')->implode(', ');
+                                    ])->map(fn ($point) => ((($point[0] - $minX) / $boundsWidth) * 100).'%' .' '.((($point[1] - $minY) / $boundsHeight) * 100).'%')->implode(', ');
+                                    $fitMode = data_get($mockupMap, 'fit_mode', 'stretch');
+                                    $objectFit = $fitMode === 'cover' ? 'cover' : 'fill';
+                                    $positionX = max(0, min(1, (float) data_get($mockupMap, 'object_position_x', 0.5))) * 100;
+                                    $positionY = max(0, min(1, (float) data_get($mockupMap, 'object_position_y', 0.5))) * 100;
+                                    $rotation = (float) data_get($mockupMap, 'manual_rotation', 0);
                                 @endphp
                                 <div
-                                    class="absolute overflow-hidden rounded-[22px]"
-                                    style="left: {{ $minX * 100 }}%; top: {{ $minY * 100 }}%; width: {{ max(12, ($maxX - $minX) * 100) }}%; height: {{ max(12, ($maxY - $minY) * 100) }}%; clip-path: polygon({{ $polygon }}); opacity: {{ (float) (data_get($mockupMap, 'opacity', 0.95)) }}; box-shadow: 0 20px 40px rgba(0,48,73,{{ max(0.08, (float) data_get($mockupMap, 'shadow_strength', 0.18) * 0.45) }});"
+                                    class="absolute overflow-hidden"
+                                    style="left: {{ $minX * 100 }}%; top: {{ $minY * 100 }}%; width: {{ $widthPercent }}%; height: {{ $heightPercent }}%; clip-path: polygon({{ $polygon }}); opacity: {{ (float) (data_get($mockupMap, 'opacity', 0.95)) }}; transform: rotate({{ $rotation }}deg); transform-origin: center center; box-shadow: 0 20px 40px rgba(0,48,73,{{ max(0.08, (float) data_get($mockupMap, 'shadow_strength', 0.18) * 0.45) }});"
                                 >
-                                    <div class="relative h-full w-full overflow-hidden rounded-[18px] border border-[rgba(120,0,0,0.12)] bg-white/92">
+                                    <div class="relative h-full w-full overflow-hidden bg-white">
                                         @if ($flatPreview)
-                                            <img src="{{ $flatPreview }}" alt="" class="absolute inset-0 h-full w-full object-cover">
+                                            <img src="{{ $flatPreview }}" alt="" class="absolute inset-0 h-full w-full" style="object-fit: {{ $objectFit }}; object-position: {{ $positionX }}% {{ $positionY }}%;">
                                         @endif
                                         @foreach ($flatTextLayers as $layer)
                                             <div

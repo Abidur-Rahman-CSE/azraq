@@ -69,6 +69,10 @@ class ProductDetailController extends Controller
                         'opacity' => (float) ($map?->opacity ?? 0.95),
                         'shadow_strength' => (float) ($map?->shadow_strength ?? 0.18),
                         'highlight_strength' => (float) ($map?->highlight_strength ?? 0.12),
+                        'fit_mode' => $map?->fit_mode ?? 'stretch',
+                        'object_position_x' => (float) ($map?->object_position_x ?? 0.5),
+                        'object_position_y' => (float) ($map?->object_position_y ?? 0.5),
+                        'manual_rotation' => (float) ($map?->manual_rotation ?? 0),
                     ],
                 ];
             })->values();
