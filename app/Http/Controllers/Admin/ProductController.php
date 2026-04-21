@@ -153,8 +153,13 @@ class ProductController extends Controller
 
     private function productPayload(ProductRequest $request): array
     {
+        $status = $request->input('save_mode') === 'draft'
+            ? 'draft'
+            : $request->input('status');
+
         return [
             ...$request->safe()->except([
+                'save_mode',
                 'collection_ids',
                 'tag_ids',
                 'related_product_ids',
@@ -169,6 +174,7 @@ class ProductController extends Controller
                 'gallery_uploads',
                 'existing_images',
             ]),
+            'status' => $status,
             'manage_stock' => $request->boolean('manage_stock'),
             'is_featured' => $request->boolean('is_featured'),
             'proof_notes_enabled' => $request->boolean('proof_notes_enabled'),

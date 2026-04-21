@@ -18,6 +18,7 @@ class ProductRequest extends FormRequest
         $productId = $this->route('product')?->id;
 
         return [
+            'save_mode' => ['nullable', Rule::in(['draft', 'publish'])],
             'category_id' => ['required', 'exists:categories,id'],
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('products', 'slug')->ignore($productId)],

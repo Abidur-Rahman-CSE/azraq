@@ -34,6 +34,8 @@
         productName: @js(old('name', $product->name)),
         excerpt: @js(old('excerpt', $product->excerpt)),
         price: @js((string) old('price', $product->price)),
+        templateSearch: '',
+        mockupSearch: '',
         assignedTemplateId: @js($selectedTemplateId),
         selectedMockupIds: @js($selectedMockupIds),
         defaultMockupId: @js($defaultMockupId),
@@ -80,8 +82,19 @@
         ])->values()),
         createTemplateUrl: @js(route('admin.personalization.templates.create')),
         mockupManagerUrl: @js(route('admin.mockups.index')),
+        storefrontUrl: @js($isEdit ? route('products.show', $product) : null),
+        productListUrl: @js(route('admin.catalog.products.index')),
         currentTemplate() {
             return this.templates.find((template) => String(template.id) === String(this.assignedTemplateId)) || null;
+        },
+        filteredTemplates() {
+            const search = this.templateSearch.toLowerCase().trim();
+
+            if (! search) {
+                return this.templates;
+            }
+
+            return this.templates.filter((template) => `${template.name} ${template.product_name || ''}`.toLowerCase().includes(search));
         },
         selectedCategory() {
             return this.categories.find((category) => String(category.id) === String(this.categoryId)) || null;
@@ -103,6 +116,15 @@
         },
         availableMockups() {
             return this.currentTemplate()?.mockups || [];
+        },
+        filteredMockups() {
+            const search = this.mockupSearch.toLowerCase().trim();
+
+            if (! search) {
+                return this.availableMockups();
+            }
+
+            return this.availableMockups().filter((mockup) => `${mockup.title} ${mockup.render_mode}`.toLowerCase().includes(search));
         },
         syncTemplate() {
             const availableIds = this.availableMockups().map((mockup) => mockup.id);
@@ -153,6 +175,18 @@
 
             return this.availableMockups().filter((mockup) => selectedIds.includes(mockup.id)).sort((a, b) => selectedIds.indexOf(a.id) - selectedIds.indexOf(b.id));
         },
+        defaultMockup() {
+            return this.selectedMockups().find((mockup) => mockup.id === this.defaultMockupId) || this.selectedMockups()[0] || null;
+        },
+        templatePreviewImage() {
+            return this.currentTemplate()?.thumbnail_image_url
+                || this.currentTemplate()?.preview_image_url
+                || this.currentTemplate()?.base_template_url
+                || '';
+        },
+        mockupPreviewImage(mockup) {
+            return mockup?.base_image_url || mockup?.thumb_image_url || '';
+        },
         mockupPreviewFrame(mockup) {
             const map = mockup?.map;
 
@@ -185,16 +219,107 @@
 
             return `left:${frame.left}%; top:${frame.top}%; width:${frame.width}%; height:${frame.height}%;`;
         },
+        mockupHasMapping(mockup) {
+            return Boolean(mockup?.map);
+        },
+        previewCards() {
+            const cards = [];
+
+            if (this.currentTemplate()) {
+                cards.push({
+                    id: 'flat-preview',
+                    title: 'Flat preview',
+                    badge: this.showFlatPreviewFirst ? 'Flat preview · First' : 'Flat preview',
+                    type: 'flat',
+                });
+            }
+
+            this.selectedMockups().slice(0, 3).forEach((mockup, index) => {
+                cards.push({
+                    id: `mockup-${mockup.id}`,
+                    title: mockup.title,
+                    badge: this.defaultMockupId === mockup.id ? 'Default mockup' : 'Mockup preview',
+                    type: 'mockup',
+                    mockup,
+                    isDefault: this.defaultMockupId === mockup.id,
+                    order: index + 1,
+                });
+            });
+
+            return cards;
+        },
+        galleryOrderSummary() {
+            const labels = [];
+
+            if (this.showFlatPreviewFirst && this.currentTemplate()) {
+                labels.push('Flat preview');
+            }
+
+            if (this.defaultMockup()) {
+                labels.push(this.defaultMockup().title);
+            }
+
+            if (this.includeMockupGallery) {
+                const remaining = this.selectedMockups().filter((mockup) => mockup.id !== this.defaultMockup()?.id);
+
+                if (remaining.length) {
+                    labels.push(`${remaining.length} additional mockup${remaining.length > 1 ? 's' : ''}`);
+                }
+            }
+
+            return labels.length ? labels.join(' → ') : 'Needs template and mockup selection';
+        },
+        readinessStatus() {
+            if (! this.currentTemplate()) {
+                return 'Missing template';
+            }
+
+            if (! this.selectedMockups().length) {
+                return 'Template ready, choose mockups';
+            }
+
+            if (this.selectedMockups().some((mockup) => ! this.mockupHasMapping(mockup))) {
+                return 'Mockup mapping incomplete';
+            }
+
+            return 'Storefront ready';
+        },
+        readinessBadgeClass() {
+            const status = this.readinessStatus();
+
+            if (status === 'Storefront ready') {
+                return 'bg-[rgba(14,116,64,0.08)] text-[var(--color-secondary-900)] border border-[rgba(14,116,64,0.14)]';
+            }
+
+            if (status === 'Mockup mapping incomplete') {
+                return 'bg-[rgba(193,18,31,0.08)] text-[var(--color-danger)] border border-[rgba(193,18,31,0.16)]';
+            }
+
+            return 'bg-white text-[var(--color-secondary-900)] border border-[var(--color-border-soft)]';
+        },
+        mockupCardClass(mockup) {
+            const base = 'rounded-[22px] border p-4 transition';
+
+            if (this.defaultMockupId === mockup.id && this.isMockupSelected(mockup.id)) {
+                return `${base} border-[rgba(120,0,0,0.22)] bg-[rgba(120,0,0,0.04)] shadow-[0_18px_36px_rgba(120,0,0,0.08)]`;
+            }
+
+            if (this.isMockupSelected(mockup.id)) {
+                return `${base} border-[rgba(0,48,73,0.16)] bg-white shadow-[0_14px_28px_rgba(0,48,73,0.08)]`;
+            }
+
+            return `${base} border-[var(--color-border-soft)] bg-[var(--bg-section-soft)]`;
+        },
         storefrontPrimaryImage() {
             if (this.galleryDefaultSource === 'template_flat_preview') {
-                return this.currentTemplate()?.thumbnail_image_url || this.currentTemplate()?.preview_image_url || this.currentTemplate()?.base_template_url || this.featuredImageUrl;
+                return this.templatePreviewImage() || this.featuredImageUrl;
             }
 
             if (this.galleryDefaultSource === 'selected_mockup') {
                 return this.selectedMockups()[0]?.thumb_image_url || this.selectedMockups()[0]?.base_image_url || this.featuredImageUrl;
             }
 
-            return this.featuredImageUrl || this.currentTemplate()?.preview_image_url || this.currentTemplate()?.base_template_url || this.selectedMockups()[0]?.thumb_image_url || this.selectedMockups()[0]?.base_image_url || '';
+            return this.featuredImageUrl || this.templatePreviewImage() || this.selectedMockups()[0]?.thumb_image_url || this.selectedMockups()[0]?.base_image_url || '';
         },
         swapFeaturedPreview(event) {
             const file = event.target.files?.[0];
@@ -211,13 +336,30 @@
         },
     }"
     x-init="syncTemplate()"
->
+    >
     @csrf
     @if ($isEdit)
         @method('PUT')
     @endif
 
-    <section class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+    <section class="space-y-6">
+        <div class="surface-card flex flex-wrap items-start justify-between gap-6 p-6">
+            <div class="max-w-3xl">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Catalog Workspace</p>
+                <h2 class="mt-2 text-3xl font-semibold text-[var(--color-secondary-900)]">{{ $isEdit ? 'Edit product' : 'Create product' }}</h2>
+                <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Keep the core product setup clean, then connect Nikah templates and mapped mockups only when this product needs advanced personalization.</p>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                @if ($isEdit)
+                    <a href="{{ route('products.show', $product) }}" target="_blank" rel="noopener noreferrer" class="button-ghost">View storefront</a>
+                @endif
+                <a href="{{ route('admin.catalog.products.index') }}" class="button-ghost">Back to products</a>
+                <button type="submit" name="save_mode" value="draft" class="button-ghost">Save draft</button>
+                <button type="submit" name="save_mode" value="publish" class="button-primary">{{ $isEdit ? 'Save product' : 'Create product' }}</button>
+            </div>
+        </div>
+
+        <div class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <div class="space-y-6">
             <div class="surface-card grid gap-6 p-6 md:grid-cols-2">
                 <div class="md:col-span-2">
@@ -340,10 +482,314 @@
                 </label>
             </div>
 
+            <div class="surface-card p-6" x-show="shouldShowNikahSetup()" x-cloak>
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">4. Nikah personalization and mockup setup</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Set the flat certificate source before you manage supporting media.</h3>
+                        <p class="mt-3 max-w-3xl text-sm leading-7 text-[var(--color-text-soft)]">This section now comes first for Nikah products so template selection, mapped mockups, and storefront gallery decisions happen before the rest of the merchandising work.</p>
+                    </div>
+                    <a x-show="storefrontUrl" :href="storefrontUrl" target="_blank" rel="noopener noreferrer" class="button-ghost !px-3 !py-2">Open storefront preview</a>
+                </div>
+
+                <div class="mt-5 flex flex-wrap gap-4">
+                    <label class="inline-flex items-center gap-3 rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                        <input type="hidden" name="proof_notes_enabled" value="0">
+                        <input type="checkbox" name="proof_notes_enabled" value="1" @checked(old('proof_notes_enabled', $product->proof_notes_enabled)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
+                        Enable customer proof notes
+                    </label>
+
+                    <label class="inline-flex items-center gap-3 rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                        <input type="hidden" name="font_presets_enabled" value="0">
+                        <input type="checkbox" name="font_presets_enabled" value="1" @checked(old('font_presets_enabled', $product->font_presets_enabled)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
+                        Enable font presets
+                    </label>
+
+                    <label class="inline-flex items-center gap-3 rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                        <input type="hidden" name="live_preview_enabled" value="0">
+                        <input type="checkbox" name="live_preview_enabled" value="1" x-model="livePreviewEnabled" @checked(old('live_preview_enabled', $product->live_preview_enabled ?? true)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
+                        Enable storefront live preview
+                    </label>
+                </div>
+
+                <div class="mt-6 grid gap-6 xl:grid-cols-[1.02fr_1fr]">
+                    <div class="space-y-5">
+                        <div class="rounded-[24px] border border-[var(--color-border-soft)] bg-white/90 p-5 shadow-[0_20px_50px_rgba(0,48,73,0.08)]">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Personalization template</p>
+                                    <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Use one active Nikah template as the flat certificate source artwork for storefront and proof-aware previews.</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    <a :href="currentTemplate()?.edit_url || createTemplateUrl" target="_blank" rel="noopener noreferrer" class="button-ghost !px-3 !py-2 text-xs" x-text="currentTemplate() ? 'Edit personalization template' : 'Create new template'"></a>
+                                    <a :href="createTemplateUrl" target="_blank" rel="noopener noreferrer" class="button-ghost !px-3 !py-2 text-xs">Create new template</a>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+                                <div class="space-y-3">
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Search templates</span>
+                                        <input type="text" x-model="templateSearch" class="field-input" placeholder="Search active Nikah templates">
+                                    </label>
+
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Assigned Personalization Template</span>
+                                        <select name="assigned_template_id" class="field-select" x-model="assignedTemplateId" @change="syncTemplate()">
+                                            <option value="">Select a template</option>
+                                            <template x-for="template in filteredTemplates()" :key="template.id">
+                                                <option :value="template.id" x-text="template.product_name ? `${template.name} • ${template.product_name}` : template.name"></option>
+                                            </template>
+                                        </select>
+                                        @error('assigned_template_id') <span class="text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
+                                    </label>
+                                </div>
+
+                                <div class="rounded-[22px] border border-[rgba(0,48,73,0.08)] bg-[var(--bg-section-soft)] p-4">
+                                    <template x-if="currentTemplate()">
+                                        <div class="grid gap-4 md:grid-cols-[112px_1fr]">
+                                            <div class="overflow-hidden rounded-[18px] border border-[var(--color-border-soft)] bg-white">
+                                                <img :src="templatePreviewImage()" alt="" class="aspect-[4/5] w-full object-contain bg-[var(--bg-section-soft)]">
+                                            </div>
+                                            <div class="space-y-3">
+                                                <div>
+                                                    <p class="text-base font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate().name"></p>
+                                                    <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Assigned product: <span x-text="currentTemplate().product_name || 'Unassigned draft'"></span></p>
+                                                </div>
+                                                <div class="grid gap-3 sm:grid-cols-3">
+                                                    <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-3 py-3">
+                                                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Fields</p>
+                                                        <p class="mt-1 text-lg font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate().fields_count"></p>
+                                                    </div>
+                                                    <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-3 py-3">
+                                                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Font presets</p>
+                                                        <p class="mt-1 text-lg font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate().fonts_count"></p>
+                                                    </div>
+                                                    <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-3 py-3">
+                                                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Proof notes</p>
+                                                        <p class="mt-1 text-xs font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate().proof_note_label ? 'Enabled' : 'Default label'"></p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="!currentTemplate()">
+                                        <div class="rounded-[20px] border border-dashed border-[var(--color-border-soft)] bg-white/80 px-5 py-8 text-sm text-[var(--color-text-soft)]">Choose a personalization template to unlock mapped mockup selection and preview composition.</div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-[24px] border border-[var(--color-border-soft)] bg-white/90 p-5 shadow-[0_20px_50px_rgba(0,48,73,0.08)]">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Mockup selection</p>
+                                    <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Choose mapped storefront scenes for this Nikah product, set one default scene, and keep the order aligned with the gallery.</p>
+                                </div>
+                                <a :href="mockupManagerUrl" target="_blank" rel="noopener noreferrer" class="button-ghost !px-3 !py-2 text-xs">Open mockup manager</a>
+                            </div>
+
+                            <div class="mt-4 space-y-4">
+                                <div class="grid gap-4 md:grid-cols-2">
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Search mockups</span>
+                                        <input type="text" x-model="mockupSearch" class="field-input" placeholder="Search the selected template’s mockups">
+                                    </label>
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Default gallery image source</span>
+                                        <select name="gallery_default_source" class="field-select" x-model="galleryDefaultSource">
+                                            <option value="manual_featured_image">Manual featured image</option>
+                                            <option value="template_flat_preview">Template flat preview</option>
+                                            <option value="selected_mockup">Selected default mockup</option>
+                                        </select>
+                                    </label>
+                                </div>
+
+                                <template x-if="!currentTemplate()">
+                                    <div class="rounded-[20px] border border-dashed border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-5 py-6 text-sm text-[var(--color-text-soft)]">Select an active personalization template first to unlock template-matched mockups.</div>
+                                </template>
+                                <template x-if="currentTemplate() && !availableMockups().length">
+                                    <div class="rounded-[20px] border border-dashed border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-5 py-6 text-sm text-[var(--color-text-soft)]">This template has no active mockups yet. Open the mockup manager to add one.</div>
+                                </template>
+
+                                <div class="grid gap-4" x-show="currentTemplate() && availableMockups().length" x-cloak>
+                                    <template x-for="mockup in filteredMockups()" :key="mockup.id">
+                                        <div :class="mockupCardClass(mockup)">
+                                            <div class="grid gap-4 md:grid-cols-[132px_1fr]">
+                                                <div class="relative overflow-hidden rounded-[18px] border border-[var(--color-border-soft)] bg-white">
+                                                    <img :src="mockup.thumb_image_url || mockup.base_image_url" alt="" class="aspect-[4/5] w-full object-cover">
+                                                    <template x-if="currentTemplate() && mockupHasMapping(mockup)">
+                                                        <div class="absolute overflow-hidden rounded-[8px] border border-white/80 shadow-[0_12px_24px_rgba(0,48,73,0.16)]" :style="mockupPreviewFrameStyle(mockup)">
+                                                            <img :src="templatePreviewImage()" alt="" class="h-full w-full object-contain bg-white">
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="mockup.overlay_image_url">
+                                                        <img :src="mockup.overlay_image_url" alt="" class="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-80">
+                                                    </template>
+                                                </div>
+                                                <div class="space-y-3">
+                                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                                        <div>
+                                                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="mockup.title"></p>
+                                                            <p class="mt-1 text-xs text-[var(--color-text-soft)]" x-text="mockup.render_mode"></p>
+                                                        </div>
+                                                        <label class="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-soft)] bg-white px-3 py-2 text-[11px] font-semibold text-[var(--color-secondary-900)]">
+                                                            <input type="checkbox" :checked="isMockupSelected(mockup.id)" @change="toggleMockup(mockup.id)" class="h-4 w-4 rounded border-[var(--color-border-soft)]">
+                                                            Active for this product
+                                                        </label>
+                                                    </div>
+
+                                                    <div class="flex flex-wrap gap-2">
+                                                        <span class="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[var(--color-secondary-900)]" x-show="isMockupSelected(mockup.id)">Selected</span>
+                                                        <span class="rounded-full bg-[rgba(120,0,0,0.08)] px-3 py-1 text-[11px] font-semibold text-[var(--color-primary-900)]" x-show="defaultMockupId === mockup.id && isMockupSelected(mockup.id)">Default scene</span>
+                                                        <span class="rounded-full bg-[rgba(193,18,31,0.08)] px-3 py-1 text-[11px] font-semibold text-[var(--color-danger)]" x-show="!mockupHasMapping(mockup)">Mapping incomplete</span>
+                                                    </div>
+
+                                                    <div class="flex flex-wrap items-center gap-2 text-xs">
+                                                        <a :href="mockup.edit_url" target="_blank" rel="noopener noreferrer" class="button-ghost !px-3 !py-2 text-xs">Edit mockup</a>
+                                                        <template x-if="isMockupSelected(mockup.id)">
+                                                            <div class="flex flex-wrap items-center gap-2">
+                                                                <input type="hidden" name="allowed_mockup_ids[]" :value="mockup.id">
+                                                                <button type="button" class="button-ghost !px-3 !py-2 text-xs" @click="moveMockup(mockup.id, 'up')">Move up</button>
+                                                                <button type="button" class="button-ghost !px-3 !py-2 text-xs" @click="moveMockup(mockup.id, 'down')">Move down</button>
+                                                                <label class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-[11px] font-semibold text-[var(--color-secondary-900)]">
+                                                                    <input type="radio" name="default_mockup_id" :value="mockup.id" x-model="defaultMockupId" class="h-4 w-4 border-[var(--color-border-soft)]">
+                                                                    Set as default
+                                                                </label>
+                                                            </div>
+                                                        </template>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            @error('allowed_mockup_ids') <span class="mt-3 block text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
+                            @error('allowed_mockup_ids.*') <span class="mt-3 block text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
+                        </div>
+
+                        <div class="rounded-[24px] border border-[var(--color-border-soft)] bg-white/90 p-5 shadow-[0_20px_50px_rgba(0,48,73,0.08)]">
+                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Gallery behavior</p>
+                            <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Control the storefront preview order: flat certificate first, then the selected default mockup, then the remaining chosen scenes.</p>
+                            <div class="mt-4 grid gap-4 md:grid-cols-2">
+                                <label class="inline-flex items-center gap-3 rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                                    <input type="hidden" name="show_flat_preview_first" value="0">
+                                    <input type="checkbox" name="show_flat_preview_first" value="1" x-model="showFlatPreviewFirst" @checked(old('show_flat_preview_first', $product->show_flat_preview_first ?? true)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
+                                    Show flat preview first
+                                </label>
+                                <label class="inline-flex items-center gap-3 rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                                    <input type="hidden" name="include_mockup_gallery" value="0">
+                                    <input type="checkbox" name="include_mockup_gallery" value="1" x-model="includeMockupGallery" @checked(old('include_mockup_gallery', $product->include_mockup_gallery ?? true)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
+                                    Include selected mockups in storefront gallery
+                                </label>
+                                <label class="inline-flex items-center gap-3 rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)] md:col-span-2">
+                                    <input type="hidden" name="live_preview_enabled" value="0">
+                                    <input type="checkbox" name="live_preview_enabled" value="1" x-model="livePreviewEnabled" @checked(old('live_preview_enabled', $product->live_preview_enabled ?? true)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
+                                    Enable storefront live preview for the Nikah configurator
+                                </label>
+                            </div>
+
+                            <div class="mt-4 rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-4 text-sm leading-7 text-[var(--color-text-soft)]">
+                                <span class="font-semibold text-[var(--color-secondary-900)]">Storefront order:</span>
+                                <span x-text="galleryOrderSummary()"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-5 xl:sticky xl:top-24 xl:self-start">
+                        <div class="rounded-[26px] border border-[rgba(0,48,73,0.08)] bg-[var(--bg-section-soft)] p-5 shadow-[0_24px_60px_rgba(0,48,73,0.08)]">
+                            <div class="flex flex-wrap items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Preview summary</p>
+                                    <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Confirm the flat source artwork, default mockup, and gallery readiness before you save this product.</p>
+                                </div>
+                                <span class="rounded-full px-3 py-1 text-[11px] font-semibold" :class="readinessBadgeClass()" x-text="readinessStatus()"></span>
+                            </div>
+
+                            <div class="mt-4 grid gap-3 md:grid-cols-2">
+                                <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-4 py-4">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Selected template</p>
+                                    <p class="mt-2 text-sm font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate()?.name || 'No template yet'"></p>
+                                </div>
+                                <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-4 py-4">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Default mockup</p>
+                                    <p class="mt-2 text-sm font-semibold text-[var(--color-secondary-900)]" x-text="defaultMockup()?.title || 'No default set'"></p>
+                                </div>
+                                <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-4 py-4">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Selected mockups</p>
+                                    <p class="mt-2 text-sm font-semibold text-[var(--color-secondary-900)]" x-text="selectedMockups().length ? `${selectedMockups().length} scenes active` : 'No scenes active'"></p>
+                                </div>
+                                <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-4 py-4">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Gallery order</p>
+                                    <p class="mt-2 text-sm font-semibold text-[var(--color-secondary-900)]" x-text="galleryOrderSummary()"></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rounded-[26px] border border-[rgba(0,48,73,0.08)] bg-white p-5 shadow-[0_24px_60px_rgba(0,48,73,0.08)]">
+                            <div class="flex items-start justify-between gap-4">
+                                <div>
+                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Live preview gallery</p>
+                                    <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Every card below uses the selected flat Nikah Nama artwork as the source, then places it inside each mockup’s mapped scene area.</p>
+                                </div>
+                                <a x-show="storefrontUrl" :href="storefrontUrl" target="_blank" rel="noopener noreferrer" class="button-ghost !px-3 !py-2 text-xs">Open storefront preview</a>
+                            </div>
+
+                            <div class="mt-5 grid gap-4">
+                                <template x-if="!currentTemplate()">
+                                    <div class="rounded-[22px] border border-dashed border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-5 py-10 text-center text-sm text-[var(--color-text-soft)]">Choose a personalization template to render the flat Nikah Nama preview, then select mapped mockups to see composed storefront scenes here.</div>
+                                </template>
+
+                                <template x-for="card in previewCards()" :key="card.id">
+                                    <div class="rounded-[22px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] p-4">
+                                        <div class="flex items-center justify-between gap-3">
+                                            <div>
+                                                <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]" x-text="card.badge"></p>
+                                                <p class="mt-1 text-sm font-semibold text-[var(--color-secondary-900)]" x-text="card.title"></p>
+                                            </div>
+                                            <template x-if="card.type === 'mockup' && !mockupHasMapping(card.mockup)">
+                                                <a :href="card.mockup.edit_url" target="_blank" rel="noopener noreferrer" class="rounded-full border border-[rgba(193,18,31,0.16)] bg-[rgba(193,18,31,0.08)] px-3 py-1 text-[11px] font-semibold text-[var(--color-danger)]">Mockup mapping incomplete</a>
+                                            </template>
+                                        </div>
+
+                                        <template x-if="card.type === 'flat'">
+                                            <div class="mt-3 overflow-hidden rounded-[20px] border border-[var(--color-border-soft)] bg-white">
+                                                <img :src="templatePreviewImage()" alt="" class="aspect-[4/5] w-full object-contain bg-[var(--bg-section-soft)]">
+                                            </div>
+                                        </template>
+
+                                        <template x-if="card.type === 'mockup'">
+                                            <div class="mt-3 rounded-[20px] border border-[var(--color-border-soft)] bg-white p-3">
+                                                <div class="relative overflow-hidden rounded-[18px] bg-[var(--bg-section-soft)]">
+                                                    <img :src="mockupPreviewImage(card.mockup)" alt="" class="aspect-[4/3] w-full object-cover">
+                                                    <template x-if="mockupHasMapping(card.mockup)">
+                                                        <div class="absolute overflow-hidden rounded-[10px] border border-white/80 shadow-[0_16px_34px_rgba(0,48,73,0.22)]" :style="mockupPreviewFrameStyle(card.mockup)">
+                                                            <img :src="templatePreviewImage()" alt="" class="h-full w-full object-contain bg-white">
+                                                        </div>
+                                                    </template>
+                                                    <template x-if="card.mockup.overlay_image_url">
+                                                        <img :src="card.mockup.overlay_image_url" alt="" class="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-80">
+                                                    </template>
+                                                </div>
+                                                <div class="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--color-text-soft)]">
+                                                    <span x-text="card.mockup.render_mode"></span>
+                                                    <a :href="card.mockup.edit_url" target="_blank" rel="noopener noreferrer" class="font-semibold text-[var(--color-secondary-900)]">Edit mockup</a>
+                                                </div>
+                                            </div>
+                                        </template>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="surface-card p-6">
                 <div class="flex items-start justify-between gap-4">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">4. Media uploads</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">5. Media uploads</p>
                         <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Featured image and gallery</h3>
                         <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Upload a lead image plus supporting gallery media. Existing images can be relabeled, re-ordered, marked as primary, or removed.</p>
                     </div>
@@ -432,8 +878,8 @@
 
             <div class="surface-card p-6" x-show="type === 'light_customizable' || type === 'advanced_personalized'" x-cloak>
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">5. Personalization settings</p>
-                    <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Custom text and proof handling</h3>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">6. Personalization settings</p>
+                    <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Custom text and merchandising notes</h3>
                 </div>
 
                 <div class="mt-6 grid gap-6 md:grid-cols-2">
@@ -442,253 +888,17 @@
                         <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Use the helper text below to explain how the customer should enter simple custom text on the storefront.</p>
                     </div>
 
-                    <div class="surface-card-soft p-5" x-show="shouldShowNikahSetup()" x-cloak>
-                        <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Advanced personalized flow</p>
-                        <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">This product can support proof notes, font presets, and a linked template. Template creation still lives in the dedicated personalization manager.</p>
-                    </div>
-
                     <label class="field-shell md:col-span-2">
                         <span class="text-sm font-medium text-[var(--color-secondary-900)]">Personalization help text</span>
                         <textarea name="personalization_help_text" rows="4" class="field-textarea">{{ old('personalization_help_text', $product->personalization_help_text) }}</textarea>
                         @error('personalization_help_text') <span class="text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
                     </label>
-
-                    <label class="inline-flex items-center gap-3 text-sm font-medium text-[var(--color-secondary-900)]" x-show="shouldShowNikahSetup()" x-cloak>
-                        <input type="hidden" name="proof_notes_enabled" value="0">
-                        <input type="checkbox" name="proof_notes_enabled" value="1" @checked(old('proof_notes_enabled', $product->proof_notes_enabled)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
-                        Enable customer proof notes
-                    </label>
-
-                    <label class="inline-flex items-center gap-3 text-sm font-medium text-[var(--color-secondary-900)]" x-show="shouldShowNikahSetup()" x-cloak>
-                        <input type="hidden" name="font_presets_enabled" value="0">
-                        <input type="checkbox" name="font_presets_enabled" value="1" @checked(old('font_presets_enabled', $product->font_presets_enabled)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
-                        Enable font presets
-                    </label>
-
-                    <label class="inline-flex items-center gap-3 text-sm font-medium text-[var(--color-secondary-900)]" x-show="shouldShowNikahSetup()" x-cloak>
-                        <input type="hidden" name="live_preview_enabled" value="0">
-                        <input type="checkbox" name="live_preview_enabled" value="1" x-model="livePreviewEnabled" @checked(old('live_preview_enabled', $product->live_preview_enabled ?? true)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
-                        Enable storefront live preview
-                    </label>
-
-                    <div class="surface-card-soft p-5 md:col-span-2" x-show="shouldShowNikahSetup()" x-cloak>
-                        <div class="flex flex-wrap items-start justify-between gap-4">
-                            <div>
-                                <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Nikah personalization and mockup setup</p>
-                                <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">Connect the flat certificate template, choose storefront mockups, and preview how this Nikah product will look before saving.</p>
-                            </div>
-                            <a href="#" class="button-ghost !px-3 !py-2" @click.prevent="window.open(`/products/${'{{ old('slug', $product->slug) }}' || ''}`, '_blank')" x-show="@js($isEdit)">Open storefront preview</a>
-                        </div>
-
-                        <div class="mt-5 grid gap-5 xl:grid-cols-[1.06fr_0.94fr]">
-                            <div class="space-y-5">
-                                <div class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/85 p-4">
-                                    <div class="flex items-center justify-between gap-3">
-                                        <div>
-                                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Assigned personalization template</p>
-                                            <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Use one active Nikah template as the flat certificate source for this product.</p>
-                                        </div>
-                                        <div class="flex flex-wrap gap-2">
-                                            <a :href="currentTemplate()?.edit_url || createTemplateUrl" target="_blank" class="button-ghost !px-3 !py-2 text-xs" x-text="currentTemplate() ? 'Edit personalization template' : 'Create new template'"></a>
-                                            <a :href="createTemplateUrl" target="_blank" class="button-ghost !px-3 !py-2 text-xs">Create new template</a>
-                                        </div>
-                                    </div>
-
-                                    <label class="field-shell mt-4">
-                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Assigned Personalization Template</span>
-                                        <select name="assigned_template_id" class="field-select" x-model="assignedTemplateId" @change="syncTemplate()">
-                                            <option value="">Select a template</option>
-                                            @foreach ($personalizationTemplates as $template)
-                                                <option value="{{ $template->id }}">{{ $template->name }}{{ $template->product ? ' • '.$template->product->name : '' }}</option>
-                                            @endforeach
-                                        </select>
-                                        @error('assigned_template_id') <span class="text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
-                                    </label>
-
-                                    <template x-if="currentTemplate()">
-                                        <div class="mt-4 rounded-[var(--radius-xl)] border border-[rgba(0,48,73,0.08)] bg-[var(--bg-section-soft)] p-4">
-                                            <div class="grid gap-4 md:grid-cols-[104px_1fr]">
-                                                <div class="overflow-hidden rounded-[20px] border border-[var(--color-border-soft)] bg-white">
-                                                    <img :src="currentTemplate().thumbnail_image_url || currentTemplate().preview_image_url || currentTemplate().base_template_url" alt="" class="aspect-[4/5] w-full object-cover">
-                                                </div>
-                                                <div class="space-y-3">
-                                                    <div>
-                                                        <p class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate().name"></p>
-                                                        <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Assigned product: <span x-text="currentTemplate().product_name || 'Unassigned draft'"></span></p>
-                                                    </div>
-                                                    <div class="grid gap-3 sm:grid-cols-3">
-                                                        <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-3 py-3">
-                                                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Fields</p>
-                                                            <p class="mt-1 text-lg font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate().fields_count"></p>
-                                                        </div>
-                                                        <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-3 py-3">
-                                                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Fonts</p>
-                                                            <p class="mt-1 text-lg font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate().fonts_count"></p>
-                                                        </div>
-                                                        <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white px-3 py-3">
-                                                            <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]">Proof label</p>
-                                                            <p class="mt-1 text-xs font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate().proof_note_label || 'Default label'"></p>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </div>
-
-                                <div class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/85 p-4">
-                                    <div class="flex items-center justify-between gap-3">
-                                        <div>
-                                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Mockup selection</p>
-                                            <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Choose multiple mockups, reorder them, and mark the default storefront scene.</p>
-                                        </div>
-                                        <a :href="mockupManagerUrl" target="_blank" class="button-ghost !px-3 !py-2 text-xs">Open mockup manager</a>
-                                    </div>
-
-                                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
-                                        <label class="field-shell">
-                                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Default gallery image source</span>
-                                            <select name="gallery_default_source" class="field-select" x-model="galleryDefaultSource">
-                                                <option value="manual_featured_image">Manual featured image</option>
-                                                <option value="template_flat_preview">Template flat preview</option>
-                                                <option value="selected_mockup">Selected mockup</option>
-                                            </select>
-                                        </label>
-                                        <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-3 text-xs leading-6 text-[var(--color-text-soft)]">
-                                            Mockups are filtered to the selected template’s scene library.
-                                        </div>
-                                    </div>
-
-                                    <div class="mt-4 flex flex-wrap gap-4">
-                                        <label class="inline-flex items-center gap-3 text-sm font-medium text-[var(--color-secondary-900)]">
-                                            <input type="hidden" name="show_flat_preview_first" value="0">
-                                            <input type="checkbox" name="show_flat_preview_first" value="1" x-model="showFlatPreviewFirst" @checked(old('show_flat_preview_first', $product->show_flat_preview_first ?? true)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
-                                            Show flat preview first
-                                        </label>
-                                        <label class="inline-flex items-center gap-3 text-sm font-medium text-[var(--color-secondary-900)]">
-                                            <input type="hidden" name="include_mockup_gallery" value="0">
-                                            <input type="checkbox" name="include_mockup_gallery" value="1" x-model="includeMockupGallery" @checked(old('include_mockup_gallery', $product->include_mockup_gallery ?? true)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
-                                            Include selected mockups in storefront gallery
-                                        </label>
-                                    </div>
-
-                                    <div class="mt-4 grid gap-4">
-                                        <template x-if="!currentTemplate()">
-                                            <div class="rounded-[var(--radius-xl)] border border-dashed border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-5 text-sm text-[var(--color-text-soft)]">Select an active personalization template first to unlock mockup selection.</div>
-                                        </template>
-
-                                        <template x-if="currentTemplate() && !availableMockups().length">
-                                            <div class="rounded-[var(--radius-xl)] border border-dashed border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] px-4 py-5 text-sm text-[var(--color-text-soft)]">No active mockups are available for the selected template yet.</div>
-                                        </template>
-
-                                        <template x-for="mockup in availableMockups()" :key="mockup.id">
-                                            <div class="grid gap-4 rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/90 p-4 md:grid-cols-[116px_1fr]">
-                                                <div class="overflow-hidden rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)]">
-                                                    <img :src="mockup.thumb_image_url || mockup.base_image_url" alt="" class="aspect-square w-full object-cover">
-                                                </div>
-                                                <div class="space-y-3">
-                                                    <div class="flex items-start justify-between gap-3">
-                                                        <div>
-                                                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="mockup.title"></p>
-                                                            <p class="text-xs text-[var(--color-text-soft)]" x-text="mockup.render_mode"></p>
-                                                        </div>
-                                                        <label class="inline-flex items-center gap-2 text-xs font-semibold text-[var(--color-secondary-900)]">
-                                                            <input type="checkbox" :checked="isMockupSelected(mockup.id)" @change="toggleMockup(mockup.id)" class="h-4 w-4 rounded border-[var(--color-border-soft)]">
-                                                            Enable
-                                                        </label>
-                                                    </div>
-
-                                                    <div class="flex flex-wrap items-center gap-2">
-                                                        <a :href="mockup.edit_url" target="_blank" class="button-ghost !px-3 !py-2 text-xs">Edit mockup</a>
-                                                        <template x-if="isMockupSelected(mockup.id)">
-                                                            <div class="flex flex-wrap items-center gap-2">
-                                                                <input type="hidden" name="allowed_mockup_ids[]" :value="mockup.id">
-                                                                <button type="button" class="button-ghost !px-3 !py-2 text-xs" @click="moveMockup(mockup.id, 'up')">Move up</button>
-                                                                <button type="button" class="button-ghost !px-3 !py-2 text-xs" @click="moveMockup(mockup.id, 'down')">Move down</button>
-                                                                <label class="inline-flex items-center gap-2 rounded-full bg-[rgba(0,48,73,0.08)] px-3 py-2 text-[11px] font-semibold text-[var(--color-secondary-900)]">
-                                                                    <input type="radio" name="default_mockup_id" :value="mockup.id" x-model="defaultMockupId" class="h-4 w-4 border-[var(--color-border-soft)]">
-                                                                    Default mockup
-                                                                </label>
-                                                            </div>
-                                                        </template>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </template>
-                                    </div>
-                                    @error('allowed_mockup_ids') <span class="mt-3 block text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
-                                    @error('allowed_mockup_ids.*') <span class="mt-3 block text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
-                                </div>
-                            </div>
-
-                            <div class="space-y-5">
-                                <div class="rounded-[var(--radius-xl)] border border-[rgba(0,48,73,0.08)] bg-[var(--bg-section-soft)] p-4">
-                                    <div class="flex items-start justify-between gap-3">
-                                        <div>
-                                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Storefront preview</p>
-                                            <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Flat Nikah preview first, then selected mockup scenes with the certificate placed inside each mapped area.</p>
-                                        </div>
-                                        <span class="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-[var(--color-secondary-900)]" x-text="selectedMockups().length ? `${selectedMockups().length} mockups selected` : 'No mockups selected'"></span>
-                                    </div>
-
-                                    <div class="mt-4 grid gap-4">
-                                        <div class="rounded-[22px] border border-[var(--color-border-soft)] bg-white p-4">
-                                            <div class="flex items-center justify-between gap-3">
-                                                <div>
-                                                    <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]">Flat preview</p>
-                                                    <p class="mt-1 text-sm font-semibold text-[var(--color-secondary-900)]" x-text="currentTemplate()?.name || 'Awaiting template selection'"></p>
-                                                </div>
-                                                <span class="rounded-full bg-[rgba(120,0,0,0.08)] px-3 py-1 text-[11px] font-semibold text-[var(--color-primary-900)]" x-show="showFlatPreviewFirst">First in gallery</span>
-                                            </div>
-                                            <div class="mt-3 overflow-hidden rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)]">
-                                                <template x-if="currentTemplate()">
-                                                    <img :src="currentTemplate().thumbnail_image_url || currentTemplate().preview_image_url || currentTemplate().base_template_url" alt="" class="aspect-[4/5] w-full object-cover">
-                                                </template>
-                                                <template x-if="!currentTemplate()">
-                                                    <div class="flex aspect-[4/5] items-center justify-center px-6 text-center text-sm text-[var(--color-text-soft)]">Select a Nikah template to preview the flat certificate.</div>
-                                                </template>
-                                            </div>
-                                        </div>
-
-                                        <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
-                                            <template x-for="mockup in selectedMockups().slice(0, 3)" :key="mockup.id">
-                                                <div class="rounded-[22px] border border-[var(--color-border-soft)] bg-white p-4">
-                                                    <div class="flex items-center justify-between gap-3">
-                                                        <div>
-                                                            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]">Mockup preview</p>
-                                                            <p class="mt-1 text-sm font-semibold text-[var(--color-secondary-900)]" x-text="mockup.title"></p>
-                                                        </div>
-                                                        <span class="rounded-full bg-[rgba(0,48,73,0.08)] px-3 py-1 text-[11px] font-semibold text-[var(--color-secondary-900)]" x-show="defaultMockupId === mockup.id">Default</span>
-                                                    </div>
-                                                    <div class="mt-3 relative overflow-hidden rounded-[20px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)]">
-                                                        <img :src="mockup.base_image_url" alt="" class="aspect-[4/3] w-full object-cover">
-                                                        <template x-if="currentTemplate()">
-                                                            <div class="absolute overflow-hidden rounded-[10px] border border-white/70 shadow-[0_14px_30px_rgba(0,48,73,0.2)]" :style="mockupPreviewFrameStyle(mockup)">
-                                                                <img :src="currentTemplate().thumbnail_image_url || currentTemplate().preview_image_url || currentTemplate().base_template_url" alt="" class="h-full w-full object-cover">
-                                                            </div>
-                                                        </template>
-                                                        <template x-if="mockup.overlay_image_url">
-                                                            <img :src="mockup.overlay_image_url" alt="" class="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-80">
-                                                        </template>
-                                                    </div>
-                                                    <div class="mt-3 flex items-center justify-between gap-3 text-xs text-[var(--color-text-soft)]">
-                                                        <span x-text="mockup.render_mode"></span>
-                                                        <a :href="mockup.edit_url" target="_blank" class="font-semibold text-[var(--color-secondary-900)]">Edit mockup</a>
-                                                    </div>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 
             <div class="surface-card p-6" x-show="type !== 'service'" x-cloak>
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">6. Inventory and variants</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">7. Inventory and variants</p>
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Stock-aware setup</h3>
                 </div>
 
@@ -730,7 +940,7 @@
 
             <div class="surface-card p-6" x-show="type === 'bundle'" x-cloak>
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">7. Bundle builder</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">8. Bundle builder</p>
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Combo composition</h3>
                 </div>
 
@@ -751,7 +961,7 @@
 
             <div class="surface-card p-6" x-show="type === 'service'" x-cloak>
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">8. Service booking details</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">9. Service booking details</p>
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Booking-specific metadata</h3>
                 </div>
 
@@ -791,7 +1001,7 @@
 
             <div class="surface-card grid gap-6 p-6 md:grid-cols-2">
                 <div class="md:col-span-2">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">9. SEO and related products</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">10. SEO and related products</p>
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Discovery helpers</h3>
                 </div>
 
@@ -855,31 +1065,6 @@
                         </div>
                     </div>
 
-                    <div class="surface-card-soft p-5" x-show="shouldShowNikahSetup()" x-cloak>
-                        <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Nikah gallery summary</p>
-                        <div class="mt-4 space-y-3 text-sm text-[var(--color-text-soft)]">
-                            <p><span class="font-semibold text-[var(--color-secondary-900)]">Template:</span> <span x-text="currentTemplate()?.name || 'Not assigned yet'"></span></p>
-                            <p><span class="font-semibold text-[var(--color-secondary-900)]">Selected mockups:</span> <span x-text="selectedMockups().length"></span></p>
-                            <p><span class="font-semibold text-[var(--color-secondary-900)]">Primary source:</span> <span x-text="galleryDefaultSource.replaceAll('_', ' ')"></span></p>
-                            <p><span class="font-semibold text-[var(--color-secondary-900)]">Flat preview first:</span> <span x-text="showFlatPreviewFirst ? 'Yes' : 'No'"></span></p>
-                            <p><span class="font-semibold text-[var(--color-secondary-900)]">Mockups in gallery:</span> <span x-text="includeMockupGallery ? 'Enabled' : 'Hidden'"></span></p>
-                            <p><span class="font-semibold text-[var(--color-secondary-900)]">Live preview:</span> <span x-text="livePreviewEnabled ? 'Enabled' : 'Disabled'"></span></p>
-                        </div>
-
-                        <div class="mt-4 grid gap-3">
-                            <template x-for="mockup in selectedMockups().slice(0, 3)" :key="mockup.id">
-                                <div class="flex items-center gap-3 rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white px-3 py-3">
-                                    <img :src="mockup.thumb_image_url || mockup.base_image_url" alt="" class="h-14 w-14 rounded-xl object-cover">
-                                    <div class="min-w-0 flex-1">
-                                        <p class="truncate text-sm font-semibold text-[var(--color-secondary-900)]" x-text="mockup.title"></p>
-                                        <p class="truncate text-xs text-[var(--color-text-soft)]" x-text="mockup.render_mode"></p>
-                                    </div>
-                                    <span class="rounded-full bg-[var(--bg-section-soft)] px-2 py-1 text-[11px] font-semibold text-[var(--color-secondary-900)]" x-show="defaultMockupId === mockup.id">Default</span>
-                                </div>
-                            </template>
-                        </div>
-                    </div>
-
                     <div class="surface-card-soft p-5">
                         <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Checklist</p>
                         <div class="mt-4 space-y-3 text-sm text-[var(--color-text-soft)]">
@@ -892,10 +1077,12 @@
                 </div>
             </div>
         </div>
+        </div>
     </section>
 
     <div class="flex flex-wrap gap-3">
-        <button type="submit" class="button-primary">{{ $isEdit ? 'Save product changes' : 'Create product' }}</button>
+        <button type="submit" name="save_mode" value="draft" class="button-ghost">Save draft</button>
+        <button type="submit" name="save_mode" value="publish" class="button-primary">{{ $isEdit ? 'Save product changes' : 'Create product' }}</button>
         <a href="{{ route('admin.catalog.products.index') }}" class="button-ghost">Cancel</a>
     </div>
 </form>
