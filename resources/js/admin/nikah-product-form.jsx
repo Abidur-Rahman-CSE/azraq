@@ -211,6 +211,120 @@ function createVariantOption(name = '', value = '') {
     };
 }
 
+function normalizeVariantGroup(group, index = 0) {
+    return {
+        id: group.id || uid(`variant-group-${index + 1}`),
+        name: group.name || '',
+        valuesText: group.valuesText || '',
+    };
+}
+
+function parseVariantGroupValues(valuesText) {
+    return `${valuesText || ''}`
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+}
+
+function buildVariantSignature(options = []) {
+    return options
+        .map((option) => `${option.name.toLowerCase().trim()}:${option.value.toLowerCase().trim()}`)
+        .sort()
+        .join('|');
+}
+
+function buildVariantName(options = []) {
+    return options
+        .map((option) => option.value.trim())
+        .filter(Boolean)
+        .join(' / ');
+}
+
+function buildVariantSku(baseSku, options = []) {
+    const prefix = skuifyValue(baseSku || 'AZR');
+    const suffix = skuifyValue(options.map((option) => option.value).join('-'));
+
+    return suffix ? `${prefix}-${suffix}` : prefix;
+}
+
+function inferVariantGroupsFromVariants(variants = []) {
+    const groups = new Map();
+
+    variants.forEach((variant) => {
+        (variant.options || []).forEach((option) => {
+            const key = option.name.toLowerCase().trim();
+
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    name: option.name,
+                    values: new Set(),
+                });
+            }
+
+            if (option.value.trim()) {
+                groups.get(key).values.add(option.value.trim());
+            }
+        });
+    });
+
+    return Array.from(groups.values()).map((group, index) => normalizeVariantGroup({
+        name: group.name,
+        valuesText: Array.from(group.values).join(', '),
+    }, index));
+}
+
+function cartesianProduct(arrays) {
+    return arrays.reduce((accumulator, currentArray) => (
+        accumulator.flatMap((item) => currentArray.map((value) => [...item, value]))
+    ), [[]]);
+}
+
+function buildVariantsFromGroups(groups, currentVariants, baseSku) {
+    const validGroups = groups
+        .map((group) => ({
+            name: group.name.trim(),
+            values: parseVariantGroupValues(group.valuesText),
+        }))
+        .filter((group) => group.name && group.values.length);
+
+    if (!validGroups.length) {
+        return currentVariants;
+    }
+
+    const existingBySignature = new Map(
+        currentVariants.map((variant) => [buildVariantSignature(variant.options), variant]),
+    );
+
+    const combinations = cartesianProduct(validGroups.map((group) => group.values))
+        .map((values) => values.map((value, index) => ({
+            id: uid(`variant-option-${index + 1}`),
+            name: validGroups[index].name,
+            value,
+        })));
+
+    const nextVariants = combinations.map((options, index) => {
+        const signature = buildVariantSignature(options);
+        const existingVariant = existingBySignature.get(signature);
+
+        return normalizeVariant({
+            id: existingVariant?.id,
+            name: existingVariant?.name || buildVariantName(options),
+            sku: existingVariant?.sku || buildVariantSku(baseSku, options),
+            option_values: serializeVariantOptions(options),
+            price: existingVariant?.price || '',
+            compare_at_price: existingVariant?.compare_at_price || '',
+            stock_quantity: existingVariant?.stock_quantity || '0',
+            is_default: existingVariant?.is_default || false,
+        }, index);
+    });
+
+    if (nextVariants.length && !nextVariants.some((variant) => variant.is_default)) {
+        nextVariants[0] = { ...nextVariants[0], is_default: true };
+    }
+
+    return nextVariants;
+}
+
 function SearchableMultiSelect({
     label,
     placeholder,
@@ -348,6 +462,71 @@ function ExistingImageRow({ image }) {
     );
 }
 
+function SectionTabs({ tabs, activeTab, onChange }) {
+    return (
+        <div className="editor-section-tabs" role="tablist" aria-label="Product form sections">
+            {tabs.map((tab) => (
+                <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    className={`editor-section-tabs__tab ${activeTab === tab.id ? 'is-active' : ''}`}
+                    onClick={() => onChange(tab.id)}
+                >
+                    {tab.label}
+                </button>
+            ))}
+        </div>
+    );
+}
+
+function VariantPlanner({
+    groups,
+    onUpdateGroup,
+    onAddGroup,
+    onRemoveGroup,
+    onGenerate,
+}) {
+    return (
+        <section className="variant-planner">
+            <div className="variant-planner__header">
+                <div>
+                    <strong>Variant groups</strong>
+                    <p>Define attributes first, then generate all combinations automatically.</p>
+                </div>
+                <button type="button" className="variant-option-add" onClick={onGenerate}>Generate combinations</button>
+            </div>
+
+            <div className="variant-group-list">
+                {groups.length ? groups.map((group) => (
+                    <div key={group.id} className="variant-group-card">
+                        <input
+                            type="text"
+                            value={group.name}
+                            onChange={(event) => onUpdateGroup(group.id, 'name', event.target.value)}
+                            placeholder="Size / Style / Frame type"
+                        />
+                        <textarea
+                            rows="2"
+                            value={group.valuesText}
+                            onChange={(event) => onUpdateGroup(group.id, 'valuesText', event.target.value)}
+                            placeholder="Small, Medium, Large"
+                        />
+                        <button type="button" className="variant-option-row__remove" onClick={() => onRemoveGroup(group.id)}>
+                            Remove group
+                        </button>
+                    </div>
+                )) : (
+                    <div className="nikah-empty-note">No variant groups yet. Start with Size, Style, or Frame type.</div>
+                )}
+            </div>
+
+            <button type="button" className="variant-option-add" onClick={onAddGroup}>Add group</button>
+        </section>
+    );
+}
+
 function VariantEditor({
     variants,
     manageStock,
@@ -358,21 +537,105 @@ function VariantEditor({
     onAddVariantOption,
     onUpdateVariantOption,
     onRemoveVariantOption,
+    onCopyPricing,
+    onPastePricing,
+    hasCopiedPricing,
     emptyMessage,
 }) {
+    const [expandedVariantIds, setExpandedVariantIds] = useState([]);
+
+    useEffect(() => {
+        setExpandedVariantIds((currentExpandedIds) => currentExpandedIds.filter((id) => variants.some((variant) => variant.id === id)));
+    }, [variants]);
+
+    function toggleExpanded(variantId) {
+        setExpandedVariantIds((currentExpandedIds) => (
+            currentExpandedIds.includes(variantId)
+                ? currentExpandedIds.filter((id) => id !== variantId)
+                : [...currentExpandedIds, variantId]
+        ));
+    }
+
     return (
         <>
             <div className="general-variant-list">
                 {variants.length ? variants.map((variant, index) => (
-                    <article key={variant.id} className="general-variant-card">
+                    <article key={variant.id} className={`general-variant-card ${expandedVariantIds.includes(variant.id) ? 'is-expanded' : 'is-collapsed'}`}>
                         <div className="general-variant-card__header">
-                            <strong>Variant {index + 1}</strong>
-                            <button type="button" className="nikah-field-row__remove" onClick={() => onRemoveVariant(variant.id)}>
-                                Remove
-                            </button>
+                            <div className="general-variant-card__summary">
+                                <div className="general-variant-card__title-wrap">
+                                    <strong>{variant.name || `Variant ${index + 1}`}</strong>
+                                    {variant.is_default ? <span className="general-variant-card__badge">Default</span> : null}
+                                </div>
+                                <div className="general-variant-card__meta general-variant-card__meta--inputs">
+                                    <label className="general-variant-card__mini-field">
+                                        <span>Price</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            name={`variants[${index}][price]`}
+                                            value={variant.price}
+                                            onChange={(event) => onUpdateVariant(variant.id, 'price', event.target.value)}
+                                        />
+                                    </label>
+                                    <label className="general-variant-card__mini-field">
+                                        <span>Compare</span>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            name={`variants[${index}][compare_at_price]`}
+                                            value={variant.compare_at_price}
+                                            onChange={(event) => onUpdateVariant(variant.id, 'compare_at_price', event.target.value)}
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+                            <div className="general-variant-card__actions">
+                                <button
+                                    type="button"
+                                    className="variant-icon-button variant-icon-button--price"
+                                    onClick={() => onCopyPricing(variant.id)}
+                                    title="Copy pricing"
+                                    aria-label="Copy pricing"
+                                >
+                                    <span aria-hidden="true">⧉</span>
+                                    <span>Price</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="variant-icon-button variant-icon-button--price"
+                                    onClick={() => onPastePricing(variant.id)}
+                                    disabled={!hasCopiedPricing}
+                                    title="Paste pricing"
+                                    aria-label="Paste pricing"
+                                >
+                                    <span aria-hidden="true">⇪</span>
+                                    <span>Price</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="variant-icon-button"
+                                    onClick={() => toggleExpanded(variant.id)}
+                                    title={expandedVariantIds.includes(variant.id) ? 'Collapse' : 'Expand'}
+                                    aria-label={expandedVariantIds.includes(variant.id) ? 'Collapse' : 'Expand'}
+                                >
+                                    <span aria-hidden="true">{expandedVariantIds.includes(variant.id) ? '▾' : '▸'}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className="variant-icon-button variant-icon-button--danger"
+                                    onClick={() => onRemoveVariant(variant.id)}
+                                    title="Delete"
+                                    aria-label="Delete"
+                                >
+                                    <span aria-hidden="true">✕</span>
+                                </button>
+                            </div>
                         </div>
 
-                        <div className="nikah-form__grid nikah-form__grid--two">
+                        <div className="nikah-form__grid nikah-form__grid--two" hidden={!expandedVariantIds.includes(variant.id)}>
                             <label className="nikah-field">
                                 <span>Variant name</span>
                                 <input
@@ -426,30 +689,6 @@ function VariantEditor({
                                 </button>
                                 <input type="hidden" name={`variants[${index}][option_values]`} value={serializeVariantOptions(variant.options)} />
                             </div>
-
-                            <label className="nikah-field">
-                                <span>Variant price</span>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    name={`variants[${index}][price]`}
-                                    value={variant.price}
-                                    onChange={(event) => onUpdateVariant(variant.id, 'price', event.target.value)}
-                                />
-                            </label>
-
-                            <label className="nikah-field">
-                                <span>Compare-at price</span>
-                                <input
-                                    type="number"
-                                    step="0.01"
-                                    min="0"
-                                    name={`variants[${index}][compare_at_price]`}
-                                    value={variant.compare_at_price}
-                                    onChange={(event) => onUpdateVariant(variant.id, 'compare_at_price', event.target.value)}
-                                />
-                            </label>
 
                             {manageStock ? (
                                 <label className="nikah-field">
@@ -547,6 +786,8 @@ function NikahProductForm({ payload }) {
     const initialDesignId = product.isNew ? (product.selectedDesignId || '') : (product.selectedDesignId || designs[0]?.id || '');
     const initialDesign = designs.find((design) => String(design.id) === String(initialDesignId)) || null;
     const initialFields = resolvedFields(initialDesign, product.personalizationFields || []);
+    const initialVariants = (product.variants || []).map((variant, index) => normalizeVariant(variant, index));
+    const initialVariantGroups = inferVariantGroupsFromVariants(initialVariants);
     const initialGeneratedSlug = slugifyValue(product.name || '');
     const initialGeneratedSku = skuifyValue(product.name || '');
     const initialGeneratedMetaTitle = buildMetaTitle(product.name || '');
@@ -566,7 +807,8 @@ function NikahProductForm({ payload }) {
     const [selectedTags, setSelectedTags] = useState(product.tagIds || []);
     const [selectedRelatedProducts, setSelectedRelatedProducts] = useState(product.relatedProductIds || []);
     const [selectedRelatedCategories, setSelectedRelatedCategories] = useState(product.relatedCategoryIds || []);
-    const [variants, setVariants] = useState((product.variants || []).map((variant, index) => normalizeVariant(variant, index)));
+    const [variants, setVariants] = useState(initialVariants);
+    const [variantGroups, setVariantGroups] = useState(initialVariantGroups);
     const [selectedDesignId, setSelectedDesignId] = useState(initialDesignId);
     const [activeMockups, setActiveMockups] = useState(product.isNew ? [] : (product.activeMockupIds || []));
     const [defaultMockupId, setDefaultMockupId] = useState(product.isNew ? '' : (product.defaultMockupId || ''));
@@ -583,6 +825,9 @@ function NikahProductForm({ payload }) {
     const [personalizationHelpText, setPersonalizationHelpText] = useState(product.personalizationHelpText || '');
     const [metaTitle, setMetaTitle] = useState(product.metaTitle || '');
     const [metaDescription, setMetaDescription] = useState(product.metaDescription || '');
+    const [advancedTab, setAdvancedTab] = useState('identity');
+    const [generalTab, setGeneralTab] = useState('setup');
+    const [copiedVariantPricing, setCopiedVariantPricing] = useState(null);
     const [draggedFieldId, setDraggedFieldId] = useState(null);
     const previousDesignId = useRef(selectedDesignId);
     const slugManualRef = useRef(Boolean(product.slug) && product.slug !== initialGeneratedSlug);
@@ -609,6 +854,24 @@ function NikahProductForm({ payload }) {
     const canPublish = isAdvancedMode
         ? basePublishReady && hasDesign && hasActiveMockups && hasZone && hasFields
         : basePublishReady;
+    const advancedTabs = [
+        { id: 'identity', label: 'Identity' },
+        { id: 'personalization', label: 'Template' },
+        { id: 'mockups', label: 'Mockups' },
+        { id: 'fields', label: 'Fields' },
+        { id: 'pricing', label: 'Pricing' },
+        { id: 'variants', label: 'Variants' },
+        { id: 'related', label: 'Related' },
+        { id: 'seo', label: 'SEO' },
+    ];
+    const generalTabs = [
+        { id: 'setup', label: 'Setup' },
+        { id: 'organization', label: 'Organization' },
+        { id: 'pricing', label: 'Pricing' },
+        { id: 'variants', label: 'Variants' },
+        { id: 'media', label: 'Media' },
+        { id: 'seo', label: 'SEO' },
+    ];
 
     useEffect(() => {
         const validMockupIds = new Set(availableMockups.map((mockup) => mockup.id));
@@ -774,6 +1037,27 @@ function NikahProductForm({ payload }) {
         });
     }
 
+    function updateVariantGroup(groupId, key, value) {
+        setVariantGroups((currentGroups) => currentGroups.map((group) => (
+            group.id === groupId ? { ...group, [key]: value } : group
+        )));
+    }
+
+    function addVariantGroup(presetName = '') {
+        setVariantGroups((currentGroups) => [
+            ...currentGroups,
+            normalizeVariantGroup({ name: presetName, valuesText: '' }, currentGroups.length),
+        ]);
+    }
+
+    function removeVariantGroup(groupId) {
+        setVariantGroups((currentGroups) => currentGroups.filter((group) => group.id !== groupId));
+    }
+
+    function generateVariantCombinations() {
+        setVariants((currentVariants) => buildVariantsFromGroups(variantGroups, currentVariants, sku || productName));
+    }
+
     function updateVariant(variantId, key, value) {
         setVariants((currentVariants) => currentVariants.map((variant) => (
             variant.id === variantId ? { ...variant, [key]: value } : variant
@@ -824,6 +1108,32 @@ function NikahProductForm({ payload }) {
         setVariants((currentVariants) => currentVariants.map((variant) => (
             variant.id === variantId
                 ? { ...variant, options: variant.options.filter((option) => option.id !== optionId) }
+                : variant
+        )));
+    }
+
+    function copyVariantPricing(variantId) {
+        const variant = variants.find((item) => item.id === variantId);
+
+        if (!variant) {
+            return;
+        }
+
+        setCopiedVariantPricing({
+            price: variant.price,
+            compare_at_price: variant.compare_at_price,
+            stock_quantity: variant.stock_quantity,
+        });
+    }
+
+    function pasteVariantPricing(variantId) {
+        if (!copiedVariantPricing) {
+            return;
+        }
+
+        setVariants((currentVariants) => currentVariants.map((variant) => (
+            variant.id === variantId
+                ? { ...variant, ...copiedVariantPricing }
                 : variant
         )));
     }
@@ -959,7 +1269,9 @@ function NikahProductForm({ payload }) {
                 {isAdvancedMode ? (
                     <div className="nikah-form__layout">
                         <div className="nikah-form__main">
-                            <section className="nikah-step-card">
+                            <SectionTabs tabs={advancedTabs} activeTab={advancedTab} onChange={setAdvancedTab} />
+
+                            <section className="nikah-step-card" hidden={advancedTab !== 'identity'}>
                                 <div className="nikah-step-card__heading">
                                     <span className="nikah-step-card__step">1</span>
                                     <div>
@@ -1014,7 +1326,7 @@ function NikahProductForm({ payload }) {
                                 </div>
                             </section>
 
-                            <section className="nikah-step-card nikah-step-card--accent-blue">
+                            <section className="nikah-step-card nikah-step-card--accent-blue" hidden={advancedTab !== 'personalization'}>
                                 <div className="nikah-step-card__heading">
                                     <span className="nikah-step-card__step">2</span>
                                     <div>
@@ -1051,7 +1363,7 @@ function NikahProductForm({ payload }) {
                                 </div>
                             </section>
 
-                            <section className="nikah-step-card nikah-step-card--accent-amber">
+                            <section className="nikah-step-card nikah-step-card--accent-amber" hidden={advancedTab !== 'mockups'}>
                                 <div className="nikah-step-card__heading">
                                     <span className="nikah-step-card__step">3</span>
                                     <div>
@@ -1144,7 +1456,7 @@ function NikahProductForm({ payload }) {
                                 <div className="nikah-callout">Nikahnama will be composited at the saved zone position.</div>
                             </section>
 
-                            <section className="nikah-step-card">
+                            <section className="nikah-step-card" hidden={advancedTab !== 'fields'}>
                                 <div className="nikah-step-card__heading">
                                     <span className="nikah-step-card__step">4</span>
                                     <div>
@@ -1192,7 +1504,7 @@ function NikahProductForm({ payload }) {
                                 <button type="button" className="nikah-add-field" onClick={addField}>Add field</button>
                             </section>
 
-                            <section className="nikah-step-card">
+                            <section className="nikah-step-card" hidden={advancedTab !== 'pricing'}>
                                 <div className="nikah-step-card__heading">
                                     <span className="nikah-step-card__step">5</span>
                                     <div>
@@ -1243,7 +1555,7 @@ function NikahProductForm({ payload }) {
                                 </div>
                             </section>
 
-                            <section className="nikah-step-card">
+                            <section className="nikah-step-card" hidden={advancedTab !== 'variants'}>
                                 <div className="nikah-step-card__heading">
                                     <span className="nikah-step-card__step">6</span>
                                     <div>
@@ -1251,6 +1563,14 @@ function NikahProductForm({ payload }) {
                                         <p>Add frame sizes, styles, and finishes with their own SKU, price, and optional stock count.</p>
                                     </div>
                                 </div>
+
+                                <VariantPlanner
+                                    groups={variantGroups}
+                                    onUpdateGroup={updateVariantGroup}
+                                    onAddGroup={() => addVariantGroup()}
+                                    onRemoveGroup={removeVariantGroup}
+                                    onGenerate={generateVariantCombinations}
+                                />
 
                                 <VariantEditor
                                     variants={variants}
@@ -1262,11 +1582,14 @@ function NikahProductForm({ payload }) {
                                     onAddVariantOption={(variantId) => addVariantOption(variantId)}
                                     onUpdateVariantOption={updateVariantOption}
                                     onRemoveVariantOption={removeVariantOption}
+                                    onCopyPricing={copyVariantPricing}
+                                    onPastePricing={pasteVariantPricing}
+                                    hasCopiedPricing={Boolean(copiedVariantPricing)}
                                     emptyMessage="No variants added yet. Leave this empty for a single-option Nikahnama product."
                                 />
                             </section>
 
-                            <section className="nikah-step-card">
+                            <section className="nikah-step-card" hidden={advancedTab !== 'related'}>
                                 <div className="nikah-step-card__heading">
                                     <span className="nikah-step-card__step">7</span>
                                     <div>
@@ -1293,14 +1616,16 @@ function NikahProductForm({ payload }) {
                                 </div>
                             </section>
 
-                            <SharedSeoCard
-                                metaTitle={metaTitle}
-                                onMetaTitleChange={handleMetaTitleChange}
-                                metaDescription={metaDescription}
-                                onMetaDescriptionChange={handleMetaDescriptionChange}
-                                errors={errors}
-                                step="8"
-                            />
+                            <div hidden={advancedTab !== 'seo'}>
+                                <SharedSeoCard
+                                    metaTitle={metaTitle}
+                                    onMetaTitleChange={handleMetaTitleChange}
+                                    metaDescription={metaDescription}
+                                    onMetaDescriptionChange={handleMetaDescriptionChange}
+                                    errors={errors}
+                                    step="8"
+                                />
+                            </div>
                         </div>
 
                         <aside className="nikah-form__sidebar">
@@ -1389,7 +1714,9 @@ function NikahProductForm({ payload }) {
                     </div>
                 ) : (
                     <div className="general-editor">
-                        <section className="nikah-step-card">
+                        <SectionTabs tabs={generalTabs} activeTab={generalTab} onChange={setGeneralTab} />
+
+                        <section className="nikah-step-card" hidden={generalTab !== 'setup'}>
                             <div className="nikah-step-card__heading">
                                 <span className="nikah-step-card__step">1</span>
                                 <div>
@@ -1463,7 +1790,7 @@ function NikahProductForm({ payload }) {
                             </div>
                         </section>
 
-                        <section className="nikah-step-card">
+                        <section className="nikah-step-card" hidden={generalTab !== 'organization'}>
                             <div className="nikah-step-card__heading">
                                 <span className="nikah-step-card__step">2</span>
                                 <div>
@@ -1504,7 +1831,7 @@ function NikahProductForm({ payload }) {
                             </div>
                         </section>
 
-                        <section className="nikah-step-card">
+                        <section className="nikah-step-card" hidden={generalTab !== 'pricing'}>
                             <div className="nikah-step-card__heading">
                                 <span className="nikah-step-card__step">3</span>
                                 <div>
@@ -1564,7 +1891,7 @@ function NikahProductForm({ payload }) {
                             </div>
                         </section>
 
-                        <section className="nikah-step-card">
+                        <section className="nikah-step-card" hidden={generalTab !== 'variants'}>
                             <div className="nikah-step-card__heading">
                                 <span className="nikah-step-card__step">4</span>
                                 <div>
@@ -1572,6 +1899,14 @@ function NikahProductForm({ payload }) {
                                     <p>Add purchasable options with their own SKU, price, and optional stock count.</p>
                                 </div>
                             </div>
+
+                            <VariantPlanner
+                                groups={variantGroups}
+                                onUpdateGroup={updateVariantGroup}
+                                onAddGroup={() => addVariantGroup()}
+                                onRemoveGroup={removeVariantGroup}
+                                onGenerate={generateVariantCombinations}
+                            />
 
                             <VariantEditor
                                 variants={variants}
@@ -1583,11 +1918,14 @@ function NikahProductForm({ payload }) {
                                 onAddVariantOption={(variantId) => addVariantOption(variantId)}
                                 onUpdateVariantOption={updateVariantOption}
                                 onRemoveVariantOption={removeVariantOption}
+                                onCopyPricing={copyVariantPricing}
+                                onPastePricing={pasteVariantPricing}
+                                hasCopiedPricing={Boolean(copiedVariantPricing)}
                                 emptyMessage="No variants added yet. Leave this empty for a single-price product."
                             />
                         </section>
 
-                        <section className="nikah-step-card">
+                        <section className="nikah-step-card" hidden={generalTab !== 'media'}>
                             <div className="nikah-step-card__heading">
                                 <span className="nikah-step-card__step">5</span>
                                 <div>
@@ -1623,14 +1961,16 @@ function NikahProductForm({ payload }) {
                             </div>
                         </section>
 
-                        <SharedSeoCard
-                            metaTitle={metaTitle}
-                            onMetaTitleChange={handleMetaTitleChange}
-                            metaDescription={metaDescription}
-                            onMetaDescriptionChange={handleMetaDescriptionChange}
-                            errors={errors}
-                            step="6"
-                        />
+                        <div hidden={generalTab !== 'seo'}>
+                            <SharedSeoCard
+                                metaTitle={metaTitle}
+                                onMetaTitleChange={handleMetaTitleChange}
+                                metaDescription={metaDescription}
+                                onMetaDescriptionChange={handleMetaDescriptionChange}
+                                errors={errors}
+                                step="6"
+                            />
+                        </div>
                     </div>
                 )}
             </div>
