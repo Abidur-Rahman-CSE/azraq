@@ -3,6 +3,7 @@
 namespace App\Http\Requests;
 
 use App\Models\PersonalizationFont;
+use App\Models\PersonalizationMockup;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Foundation\Http\FormRequest;
@@ -22,6 +23,7 @@ class AddToCartRequest extends FormRequest
             'variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
             'custom_text' => ['nullable', 'string', 'max:120'],
             'font_id' => ['nullable', 'integer', 'exists:personalization_fonts,id'],
+            'mockup_id' => ['nullable', 'integer', 'exists:personalization_mockups,id'],
             'proof_note' => ['nullable', 'string', 'max:500'],
             'personalization' => ['nullable', 'array'],
             'personalization.*' => ['nullable', 'string', 'max:500'],
@@ -52,6 +54,17 @@ class AddToCartRequest extends FormRequest
 
                 if (! $font || ! $templateId || $font->personalization_template_id !== $templateId || ! $font->is_active) {
                     $validator->errors()->add('font_id', 'The selected font is not available for this product.');
+                }
+            }
+
+            if ($this->filled('mockup_id')) {
+                $mockup = PersonalizationMockup::query()->find($this->integer('mockup_id'));
+                $allowedMockupIds = $product->personalizationMockups()
+                    ->where('is_active', true)
+                    ->pluck('personalization_mockups.id');
+
+                if (! $mockup || ! $allowedMockupIds->contains($mockup->id)) {
+                    $validator->errors()->add('mockup_id', 'The selected mockup is not available for this product.');
                 }
             }
         });

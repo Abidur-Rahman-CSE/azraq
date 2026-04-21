@@ -72,6 +72,52 @@ it('creates an order from the cart and clears the cart session', function () {
         ->and(session('cart.items'))->toBeNull();
 });
 
+it('uses the customer selected mockup from the product page through checkout', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')->firstOrFail();
+    $template = PersonalizationTemplate::whereBelongsTo($product)->firstOrFail();
+    $font = $template->fonts()->firstOrFail();
+    $mockup = $product->personalizationMockups()->skip(1)->firstOrFail();
+
+    $this->post(route('cart.store', $product), [
+        'quantity' => 1,
+        'font_id' => $font->id,
+        'mockup_id' => $mockup->id,
+        'proof_note' => 'Use the selected scene for the proof.',
+        'personalization' => [
+            'bride_name' => 'Amena',
+            'groom_name' => 'Hassan',
+        ],
+    ])->assertRedirect(route('cart.index'));
+
+    $response = $this->post(route('checkout.store'), [
+        'customer_name' => 'Amena Rahman',
+        'customer_email' => 'amena@example.com',
+        'customer_phone' => '01700000000',
+        'shipping_method' => 'standard',
+        'payment_method' => 'cod',
+        'billing_same_as_shipping' => 1,
+        'shipping_address' => [
+            'line_1' => 'Road 10, House 7',
+            'line_2' => 'Dhanmondi',
+            'city' => 'Dhaka',
+            'area' => 'Dhaka',
+            'postal_code' => '1209',
+            'country' => 'Bangladesh',
+        ],
+    ]);
+
+    $order = Order::latest('id')->first();
+
+    $response->assertRedirect(route('orders.success', $order));
+
+    expect(data_get($order->items->first()->line_item_meta, 'mockup_id'))->toBe($mockup->id)
+        ->and(data_get($order->items->first()->line_item_meta, 'mockup'))->toBe($mockup->title)
+        ->and(data_get($order->items->first()->line_item_meta, 'render_preview.mockup.id'))->toBe($mockup->id)
+        ->and(data_get($order->items->first()->line_item_meta, 'render_preview.mockup.title'))->toBe($mockup->title);
+});
+
 it('tracks an order by order number and email', function () {
     $this->seed(CatalogSeeder::class);
 

@@ -183,7 +183,9 @@ class MockupController extends Controller
         $saveMode = $request->input('save_mode', 'published');
 
         return [
-            'personalization_template_id' => (int) $request->input('personalization_template_id'),
+            'personalization_template_id' => $request->filled('personalization_template_id')
+                ? (int) $request->input('personalization_template_id')
+                : null,
             'title' => $title,
             'slug' => Str::slug($request->input('slug') ?: $title),
             'base_image_url' => $this->resolveUpload($request->file('base_image_upload'), $request->input('base_image_url'), $mockup?->base_image_url, $request->boolean('remove_base_image')),

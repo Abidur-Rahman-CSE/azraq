@@ -138,6 +138,18 @@ class ProductController extends Controller
             $activeTemplateQuery->orWhere('id', $product->personalizationTemplate->id);
         }
 
+        $availableMockupQuery = PersonalizationMockup::query()
+            ->with(['template', 'map'])
+            ->where('is_active', true);
+
+        if ($product->exists) {
+            $selectedMockupIds = $product->personalizationMockups()->pluck('personalization_mockups.id');
+
+            if ($selectedMockupIds->isNotEmpty()) {
+                $availableMockupQuery->orWhereIn('id', $selectedMockupIds);
+            }
+        }
+
         return [
             'product' => $product,
             'categories' => Category::orderBy('name')->get(),
@@ -146,7 +158,7 @@ class ProductController extends Controller
             'relatedProducts' => Product::when($product->exists, fn ($query) => $query->whereKeyNot($product->id))->orderBy('name')->get(),
             'relatedCategories' => Category::when($product->exists, fn ($query) => $query->whereKeyNot($product->category_id))->orderBy('name')->get(),
             'personalizationTemplates' => $activeTemplateQuery->orderBy('name')->get(),
-            'personalizationMockups' => PersonalizationMockup::with('template')->orderBy('sort_order')->orderBy('title')->get(),
+            'personalizationMockups' => $availableMockupQuery->orderBy('sort_order')->orderBy('title')->get(),
             'productTypes' => ProductType::options(),
         ];
     }
@@ -286,18 +298,8 @@ class ProductController extends Controller
         $allowedMockupIds = collect($data['allowed_mockup_ids'] ?? [])
             ->filter(fn ($id) => filled($id))
             ->map(fn ($id) => (int) $id)
+            ->unique()
             ->values();
-
-        if ($selectedTemplateId) {
-            $allowedMockupIds = PersonalizationMockup::query()
-                ->where('personalization_template_id', $selectedTemplateId)
-                ->whereIn('id', $allowedMockupIds)
-                ->orderBy('sort_order')
-                ->pluck('id')
-                ->values();
-        } else {
-            $allowedMockupIds = collect();
-        }
 
         $defaultMockupId = filled($data['default_mockup_id'] ?? null)
             ? (int) $data['default_mockup_id']

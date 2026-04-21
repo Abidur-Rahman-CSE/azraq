@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\AddToCartRequest;
 use App\Models\Coupon;
+use App\Models\PersonalizationMockup;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Support\CartSession;
@@ -32,6 +33,9 @@ class CartController extends Controller
         $variant = filled($validated['variant_id'] ?? null)
             ? ProductVariant::query()->find($validated['variant_id'])
             : null;
+        $mockup = filled($validated['mockup_id'] ?? null)
+            ? PersonalizationMockup::query()->find($validated['mockup_id'])
+            : null;
         $personalization = collect($validated['personalization'] ?? [])
             ->filter(fn ($value) => filled($value))
             ->all();
@@ -42,6 +46,7 @@ class CartController extends Controller
             md5((string) ($validated['custom_text'] ?? '')),
             md5(json_encode($personalization)),
             $validated['font_id'] ?? 'no-font',
+            $validated['mockup_id'] ?? 'no-mockup',
         ]);
 
         $existingIndex = $items->search(fn (array $item) => $item['key'] === $key);
@@ -73,6 +78,8 @@ class CartController extends Controller
                 'quantity' => (int) $validated['quantity'],
                 'custom_text' => $validated['custom_text'] ?? null,
                 'font_id' => $validated['font_id'] ?? null,
+                'mockup_id' => $validated['mockup_id'] ?? null,
+                'mockup_title' => $mockup?->title,
                 'proof_note' => $validated['proof_note'] ?? null,
                 'personalization' => $personalization,
             ]);

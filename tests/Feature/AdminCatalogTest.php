@@ -134,6 +134,59 @@ it('creates an advanced personalized product with template and mockup assignment
         ->and($product->relatedCategories()->count())->toBe(1);
 });
 
+it('allows reusable mockups to be assigned from the product form without template matching', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $category = Category::where('slug', 'nikah-collection')->firstOrFail();
+    $template = PersonalizationTemplate::firstOrFail();
+    $mockup = PersonalizationMockup::create([
+        'personalization_template_id' => null,
+        'title' => 'Universal frame scene',
+        'slug' => 'universal-frame-scene',
+        'base_image_url' => '/storage/personalization/mockups/universal-frame.jpg',
+        'thumb_image_url' => '/storage/personalization/mockups/universal-frame-thumb.jpg',
+        'render_mode' => 'perspective_quad',
+        'sort_order' => 99,
+        'is_active' => true,
+    ]);
+
+    $mockup->map()->create([
+        'map_type' => 'quad',
+        'fit_mode' => 'contain',
+        'top_left_x' => 0.20,
+        'top_left_y' => 0.18,
+        'top_right_x' => 0.80,
+        'top_right_y' => 0.18,
+        'bottom_right_x' => 0.80,
+        'bottom_right_y' => 0.82,
+        'bottom_left_x' => 0.20,
+        'bottom_left_y' => 0.82,
+        'normalized_coordinates' => true,
+    ]);
+
+    $response = $this->post('/admin/catalog/products', [
+        'category_id' => $category->id,
+        'name' => 'Universal Scene Nikah Nama',
+        'type' => ProductType::AdvancedPersonalized->value,
+        'status' => 'active',
+        'price' => 2490,
+        'manage_stock' => false,
+        'stock_quantity' => 0,
+        'low_stock_threshold' => 0,
+        'assigned_template_id' => $template->id,
+        'allowed_mockup_ids' => [$mockup->id],
+        'default_mockup_id' => $mockup->id,
+        'related_category_ids' => [$category->id],
+    ]);
+
+    $response->assertRedirect();
+
+    $product = Product::where('name', 'Universal Scene Nikah Nama')->firstOrFail();
+
+    expect($product->personalizationTemplate?->id)->toBe($template->id)
+        ->and($product->personalizationMockups()->pluck('personalization_mockups.id')->all())->toBe([$mockup->id]);
+});
+
 it('shows the nikah personalization setup tools on the advanced product editor', function () {
     $this->seed(CatalogSeeder::class);
 
@@ -143,8 +196,43 @@ it('shows the nikah personalization setup tools on the advanced product editor',
         ->assertOk()
         ->assertSee('nikah-product-form-root', false)
         ->assertSee('nikah-product-form-payload', false)
-        ->assertSee('Edit Nikahnama product')
+        ->assertSee('Edit Advanced customization product')
+        ->assertSee('Personalization')
         ->assertSee('Signature Nikah Template');
+});
+
+it('shows the general product editor with seo fields on create', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $this->get(route('admin.catalog.products.create'))
+        ->assertOk()
+        ->assertSee('Create General product')
+        ->assertSee('General product setup')
+        ->assertSee('SEO')
+        ->assertSee('Related products')
+        ->assertSee('Related categories');
+});
+
+it('hydrates variants on the general product editor', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'bridal-dupatta')->firstOrFail();
+    $variant = $product->variants()->firstOrFail();
+
+    $this->get(route('admin.catalog.products.edit', $product))
+        ->assertOk()
+        ->assertSee('"variants":[', false)
+        ->assertSee($variant->name, false);
+});
+
+it('keeps advanced customization create state clean until a template is chosen', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $this->get(route('admin.catalog.products.create'))
+        ->assertOk()
+        ->assertSee('"selectedDesignId":""', false)
+        ->assertSee('"activeMockupIds":[]', false)
+        ->assertSee('"defaultMockupId":""', false);
 });
 
 it('creates a category with admin media fields', function () {

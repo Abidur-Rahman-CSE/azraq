@@ -94,6 +94,8 @@ class CheckoutController extends Controller
                         $product,
                         $item['personalization'] ?? [],
                         $item['font'],
+                        null,
+                        $item['mockup'] ?? null,
                     )
                     : null;
 
@@ -113,6 +115,8 @@ class CheckoutController extends Controller
                         'variant_name' => $variant?->name,
                         'custom_text' => $item['custom_text'] ?? null,
                         'font' => $item['font']?->name,
+                        'mockup_id' => $item['mockup']?->id,
+                        'mockup' => $item['mockup']?->title,
                         'proof_note' => $item['proof_note'] ?? null,
                         'personalization' => $item['personalization'] ?? [],
                         'category' => $product->category?->name,

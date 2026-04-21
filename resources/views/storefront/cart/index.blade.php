@@ -37,6 +37,11 @@
                                 @if ($item['font'])
                                     <p><span class="font-semibold text-[var(--color-secondary-900)]">Font:</span> {{ $item['font']->name }}</p>
                                 @endif
+                                @if ($item['mockup'])
+                                    <p><span class="font-semibold text-[var(--color-secondary-900)]">Mockup scene:</span> {{ $item['mockup']->title }}</p>
+                                @elseif ($item['mockup_title'] ?? null)
+                                    <p><span class="font-semibold text-[var(--color-secondary-900)]">Mockup scene:</span> {{ $item['mockup_title'] }}</p>
+                                @endif
                                 @if ($item['proof_note'])
                                     <p><span class="font-semibold text-[var(--color-secondary-900)]">Proof note:</span> {{ $item['proof_note'] }}</p>
                                 @endif

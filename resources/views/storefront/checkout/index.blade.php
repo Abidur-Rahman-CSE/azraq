@@ -131,6 +131,11 @@
                             <div>
                                 <p class="font-medium text-[var(--color-secondary-900)]">{{ $item['product']->name }}</p>
                                 <p class="mt-1 text-sm text-[var(--color-text-soft)]">Qty {{ $item['quantity'] }}</p>
+                                @if ($item['mockup'])
+                                    <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Mockup scene: {{ $item['mockup']->title }}</p>
+                                @elseif ($item['mockup_title'] ?? null)
+                                    <p class="mt-1 text-xs leading-6 text-[var(--color-text-soft)]">Mockup scene: {{ $item['mockup_title'] }}</p>
+                                @endif
                                 @if (! empty($item['personalization']))
                                     <div class="mt-2 space-y-1 text-xs leading-6 text-[var(--color-text-soft)]">
                                         @foreach ($item['personalization'] as $label => $value)

@@ -339,15 +339,16 @@
                 </label>
 
                 <label class="field-shell md:col-span-2">
-                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Assigned template</span>
+                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Assigned template <span class="text-[var(--color-text-soft)]">(optional)</span></span>
                     <select name="personalization_template_id" class="field-select" x-model="activeTemplateId">
-                        <option value="">Select a template</option>
+                        <option value="">Reusable across products</option>
                         @foreach ($templates as $templateOption)
                             <option value="{{ $templateOption->id }}" @selected((string) old('personalization_template_id', $mockup->personalization_template_id) === (string) $templateOption->id)>
                                 {{ $templateOption->name }}{{ $templateOption->product ? ' • '.$templateOption->product->name : '' }}
                             </option>
                         @endforeach
                     </select>
+                    <span class="text-xs text-[var(--color-text-soft)]">Leave this blank when the same mockup scene should be reusable across multiple Nikahnama products.</span>
                     @error('personalization_template_id') <span class="text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
                 </label>
 

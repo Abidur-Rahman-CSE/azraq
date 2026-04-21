@@ -21,15 +21,13 @@
         ->map(fn ($id) => (int) $id)
         ->values()
         ->all();
-    $currentType = old('type', $isEdit ? ($product->type?->value ?? $product->type) : 'advanced_personalized');
+    $currentType = old('type', $isEdit ? ($product->type?->value ?? $product->type) : 'standard');
+    $existingImages = $product->images->sortBy('position')->values();
     $defaultMockupId = old(
         'default_mockup_id',
         optional($product->personalizationMockups->firstWhere('pivot.is_default', true))->id ?? $product->personalizationMockups->first()?->id
     );
-    $preferredNikahCategoryId = old(
-        'category_id',
-        $product->category_id ?: optional($categories->first(fn ($category) => str_contains(strtolower($category->name.' '.$category->slug), 'nikah')))->id
-    );
+    $preferredNikahCategoryId = old('category_id', $product->category_id);
 
     $decodedBlueprint = old('personalization_fields_blueprint');
 
@@ -52,6 +50,33 @@
             ];
         })
         ->values()
+        ->all();
+
+    $variantPayload = collect(old('variants', $product->variants->map(function ($variant) {
+        return [
+            'name' => $variant->name,
+            'sku' => $variant->sku,
+            'option_values' => filled($variant->option_values ?? null)
+                ? implode(', ', $variant->option_values)
+                : null,
+            'price' => $variant->price,
+            'compare_at_price' => $variant->compare_at_price,
+            'stock_quantity' => $variant->stock_quantity,
+            'is_default' => (bool) $variant->is_default,
+        ];
+    })->all() ?? []))
+        ->values()
+        ->map(function ($variant) {
+            return [
+                'name' => $variant['name'] ?? '',
+                'sku' => $variant['sku'] ?? '',
+                'option_values' => $variant['option_values'] ?? '',
+                'price' => isset($variant['price']) ? (string) $variant['price'] : '',
+                'compare_at_price' => isset($variant['compare_at_price']) ? (string) $variant['compare_at_price'] : '',
+                'stock_quantity' => isset($variant['stock_quantity']) ? (string) $variant['stock_quantity'] : '0',
+                'is_default' => (bool) ($variant['is_default'] ?? false),
+            ];
+        })
         ->all();
 
     $designPayload = $personalizationTemplates->map(function ($template) {
@@ -92,9 +117,38 @@
         ];
     })->values();
 
+    $mockupPayload = $personalizationMockups->map(function ($mockup) {
+        return [
+            'id' => (int) $mockup->id,
+            'title' => $mockup->title,
+            'thumb_image_url' => $mockup->thumb_image_url ?: $mockup->base_image_url,
+            'base_image_url' => $mockup->base_image_url,
+            'overlay_image_url' => $mockup->overlay_image_url,
+            'render_mode' => $mockup->render_mode,
+            'template_name' => $mockup->template?->name,
+            'map' => $mockup->map ? [
+                'top_left_x' => (float) $mockup->map->top_left_x,
+                'top_left_y' => (float) $mockup->map->top_left_y,
+                'top_right_x' => (float) $mockup->map->top_right_x,
+                'top_right_y' => (float) $mockup->map->top_right_y,
+                'bottom_right_x' => (float) $mockup->map->bottom_right_x,
+                'bottom_right_y' => (float) $mockup->map->bottom_right_y,
+                'bottom_left_x' => (float) $mockup->map->bottom_left_x,
+                'bottom_left_y' => (float) $mockup->map->bottom_left_y,
+            ] : null,
+        ];
+    })->values();
+
     $formPayload = [
         'page' => [
-            'heading' => $isEdit ? 'Edit Nikahnama product' : 'Create Nikahnama product',
+            'isEdit' => $isEdit,
+            'advancedHeading' => $isEdit ? 'Edit Advanced customization product' : 'Create Advanced customization product',
+            'generalHeading' => $isEdit ? 'Edit General product' : 'Create General product',
+            'generalSetupLabel' => 'General product setup',
+            'personalizationLabel' => 'Personalization',
+            'seoLabel' => 'SEO',
+            'relatedProductsLabel' => 'Related products',
+            'relatedCategoriesLabel' => 'Related categories',
             'breadcrumbs' => [
                 ['label' => 'Admin', 'href' => route('admin.dashboard')],
                 ['label' => 'Catalog'],
@@ -111,13 +165,32 @@
             'relatedCategoryIds' => $selectedRelatedCategories,
             'status' => old('status', $product->status ?: 'draft'),
             'currentType' => $currentType,
+            'slug' => old('slug', $product->slug),
+            'sku' => old('sku', $product->sku),
+            'description' => old('description', $product->description),
             'price' => (string) old('price', $product->price),
             'compareAtPrice' => (string) old('compare_at_price', $product->compare_at_price),
+            'leadTimeDays' => (string) old('lead_time_days', $product->lead_time_days ?? 0),
+            'manageStock' => (bool) old('manage_stock', $product->manage_stock ?? true),
+            'stockQuantity' => (string) old('stock_quantity', $product->stock_quantity ?? 0),
+            'lowStockThreshold' => (string) old('low_stock_threshold', $product->low_stock_threshold ?? 0),
+            'isFeatured' => (bool) old('is_featured', $product->is_featured ?? false),
+            'videoUrl' => old('video_url', $product->video_url),
+            'personalizationHelpText' => old('personalization_help_text', $product->personalization_help_text),
+            'metaTitle' => old('meta_title', $product->meta_title),
+            'metaDescription' => old('meta_description', $product->meta_description),
+            'collectionIds' => $selectedCollections,
             'selectedDesignId' => $selectedTemplateId ? (int) $selectedTemplateId : '',
             'activeMockupIds' => $selectedMockupIds,
             'defaultMockupId' => $defaultMockupId ? (int) $defaultMockupId : '',
             'personalizationFields' => $personalizationFieldsBlueprint,
+            'variants' => $variantPayload,
+            'isNew' => ! $isEdit,
         ],
+        'productTypes' => collect($productTypes)
+            ->filter(fn ($type) => $type['value'] !== \App\Enums\ProductType::AdvancedPersonalized->value)
+            ->values()
+            ->all(),
         'categories' => $categories->map(fn ($category) => [
             'id' => (string) $category->id,
             'name' => $category->name,
@@ -130,11 +203,24 @@
             'id' => (int) $tag->id,
             'name' => $tag->name,
         ])->values()->all(),
+        'collections' => $collections->map(fn ($collection) => [
+            'id' => (int) $collection->id,
+            'name' => $collection->name,
+        ])->values()->all(),
         'relatedProducts' => $relatedProducts->map(fn ($relatedProduct) => [
             'id' => (int) $relatedProduct->id,
             'name' => $relatedProduct->name,
         ])->values()->all(),
+        'existingImages' => $existingImages->map(fn ($image) => [
+            'id' => (int) $image->id,
+            'image_url' => $image->image_url,
+            'label' => $image->label,
+            'alt_text' => $image->alt_text,
+            'position' => $image->position,
+            'is_primary' => (bool) $image->is_primary,
+        ])->values()->all(),
         'designs' => $designPayload->all(),
+        'mockups' => $mockupPayload->all(),
         'errors' => $errors->toArray(),
     ];
 @endphp

@@ -18,7 +18,7 @@ class MockupRequest extends FormRequest
         $mockup = $this->route('mockup');
 
         return [
-            'personalization_template_id' => ['required', 'exists:personalization_templates,id'],
+            'personalization_template_id' => ['nullable', 'exists:personalization_templates,id'],
             'title' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('personalization_mockups', 'slug')->ignore($mockup?->id)],
             'render_mode' => ['required', Rule::in(['flat_fit', 'perspective_quad', 'masked_perspective'])],

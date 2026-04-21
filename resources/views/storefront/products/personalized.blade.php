@@ -16,6 +16,7 @@
         ->values();
 
     $defaultFontId = old('font_id', $activeFonts->firstWhere('is_default', true)?->id ?? $activeFonts->first()?->id);
+    $defaultMockupId = old('mockup_id', $availableMockups->firstWhere('pivot.is_default', true)?->id ?? $availableMockups->first()?->id);
 @endphp
 
 @foreach ($fontStylesheetUrls as $fontStylesheetUrl)
@@ -50,6 +51,7 @@
         x-data="{
             galleryItems: @js($galleryItems->values()->all()),
             activeSlideId: @js($galleryItems->first()['id'] ?? 'template-flat'),
+            selectedMockupId: @js($defaultMockupId),
             selectedFont: @js($defaultFontId),
             sceneFont: @js($defaultFontId),
             fields: @js($template->fields->mapWithKeys(fn ($field) => [$field->field_key => old('personalization.'.$field->field_key, $field->default_value ?? $field->preview_sample_value ?? '')])->all()),
@@ -74,6 +76,11 @@
             },
             selectSlide(id) {
                 this.activeSlideId = id;
+                const slide = this.galleryItems.find((item) => item.id === id);
+
+                if (slide?.kind === 'mockup' && slide.mockup_id) {
+                    this.selectedMockupId = slide.mockup_id;
+                }
             },
             fontFamily(id) {
                 return this.fonts.find((item) => item.id == id)?.font_family ?? 'Poppins, sans-serif';
@@ -295,6 +302,42 @@
                                 </label>
                             @endforeach
                         </div>
+                    </div>
+
+                    <div class="surface-configurator p-5">
+                        @if ($availableMockups->isNotEmpty())
+                            <input type="hidden" name="mockup_id" :value="selectedMockupId">
+
+                            <div class="flex items-center justify-between gap-3">
+                                <h2 class="text-lg font-semibold text-[var(--color-secondary-900)]">Choose a mockup scene</h2>
+                                <span class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Proof preview selection</span>
+                            </div>
+                            <div class="mt-5 grid gap-3 sm:grid-cols-2">
+                                @foreach ($availableMockups as $mockup)
+                                    <button
+                                        type="button"
+                                        class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(15,46,60,0.08)]"
+                                        :class="{ 'border-[var(--color-primary-900)] bg-[var(--color-surface-cream)] shadow-[0_18px_35px_rgba(120,0,0,0.12)]': String(selectedMockupId) === '{{ $mockup->id }}' }"
+                                        @click="selectedMockupId = {{ $mockup->id }}; activeSlideId = 'mockup-{{ $mockup->id }}'"
+                                    >
+                                        <div class="overflow-hidden rounded-[var(--radius-xl)] bg-[var(--color-surface-cream)]">
+                                            <img src="{{ $mockup->thumb_image_url ?: $mockup->base_image_url }}" alt="{{ $mockup->title }}" class="aspect-[4/3] w-full object-cover">
+                                        </div>
+                                        <div class="mt-3 flex items-start justify-between gap-3">
+                                            <div>
+                                                <p class="text-sm font-semibold text-[var(--color-secondary-900)]">{{ $mockup->title }}</p>
+                                                <p class="mt-1 text-xs text-[var(--color-text-soft)]">{{ str($mockup->render_mode)->headline() }}</p>
+                                            </div>
+                                            <span class="rounded-full bg-[rgba(253,240,213,0.95)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]" x-show="String(selectedMockupId) === '{{ $mockup->id }}'">Selected</span>
+                                        </div>
+                                    </button>
+                                @endforeach
+                            </div>
+                            @error('mockup_id')
+                                <p class="mt-3 text-sm text-[var(--color-danger)]">{{ $message }}</p>
+                            @enderror
+                            <p class="mt-4 text-sm text-[var(--color-text-soft)]">The selected mockup scene will be used for the cart summary and initial proof preview.</p>
+                        @endif
                     </div>
 
                     <div class="surface-configurator p-5">

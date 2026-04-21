@@ -49,6 +49,7 @@ class ProductDetailController extends Controller
 
                 return [
                     'id' => 'mockup-'.$mockup->id,
+                    'mockup_id' => $mockup->id,
                     'kind' => 'mockup',
                     'title' => $mockup->title,
                     'eyebrow' => 'Scene mockup',
@@ -90,6 +91,7 @@ class ProductDetailController extends Controller
                 'product' => $product,
                 'template' => $template,
                 'galleryItems' => $galleryItems->values(),
+                'availableMockups' => $mockups->values(),
             ]);
         }
 

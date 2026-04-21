@@ -4,6 +4,7 @@ namespace App\Support;
 
 use App\Models\Coupon;
 use App\Models\PersonalizationFont;
+use App\Models\PersonalizationMockup;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use Illuminate\Http\Request;
@@ -18,15 +19,18 @@ class CartSession
         $productIds = $cart->pluck('product_id')->filter()->all();
         $variantIds = $cart->pluck('variant_id')->filter()->all();
         $fontIds = $cart->pluck('font_id')->filter()->all();
+        $mockupIds = $cart->pluck('mockup_id')->filter()->all();
 
         $products = Product::with(['category', 'images', 'bundleItems.childProduct.images'])->whereIn('id', $productIds)->get()->keyBy('id');
         $variants = ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
         $fonts = PersonalizationFont::whereIn('id', $fontIds)->get()->keyBy('id');
+        $mockups = PersonalizationMockup::whereIn('id', $mockupIds)->get()->keyBy('id');
 
-        return $cart->map(function (array $item) use ($products, $variants, $fonts) {
+        return $cart->map(function (array $item) use ($products, $variants, $fonts, $mockups) {
             $product = $products->get($item['product_id']);
             $variant = $item['variant_id'] ? $variants->get($item['variant_id']) : null;
             $font = $item['font_id'] ? $fonts->get($item['font_id']) : null;
+            $mockup = $item['mockup_id'] ? $mockups->get($item['mockup_id']) : null;
             $unitPrice = (float) ($variant?->price ?: $product?->price ?: 0);
             $quantity = (int) $item['quantity'];
 
@@ -35,6 +39,7 @@ class CartSession
                 'product' => $product,
                 'variant' => $variant,
                 'font' => $font,
+                'mockup' => $mockup,
                 'unit_price' => $unitPrice,
                 'subtotal' => $unitPrice * $quantity,
             ];

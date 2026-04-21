@@ -244,6 +244,39 @@ it('creates a mockup from the admin editor and saves normalized map data', funct
         ->and((float) $mockup->map->bottom_right_y)->toEqual(0.81);
 });
 
+it('creates a reusable mockup without assigning a personalization template', function () {
+    $this->seed(CatalogSeeder::class);
+    Storage::fake('public');
+
+    $response = $this->post(route('admin.mockups.store'), [
+        'title' => 'Universal reusable mockup',
+        'render_mode' => 'perspective_quad',
+        'sort_order' => 12,
+        'is_active' => 1,
+        'base_image_upload' => UploadedFile::fake()->image('base.jpg', 1600, 1200),
+        'thumb_image_upload' => UploadedFile::fake()->image('thumb.jpg', 800, 600),
+        'map' => [
+            'map_type' => 'quad',
+            'fit_mode' => 'contain',
+            'top_left_x' => 0.21,
+            'top_left_y' => 0.19,
+            'top_right_x' => 0.79,
+            'top_right_y' => 0.18,
+            'bottom_right_x' => 0.82,
+            'bottom_right_y' => 0.81,
+            'bottom_left_x' => 0.19,
+            'bottom_left_y' => 0.82,
+        ],
+    ]);
+
+    $response->assertRedirect();
+
+    $mockup = PersonalizationMockup::where('title', 'Universal reusable mockup')->firstOrFail();
+
+    expect($mockup->personalization_template_id)->toBeNull()
+        ->and($mockup->map)->not->toBeNull();
+});
+
 it('requires a base image before creating a mockup', function () {
     $this->seed(CatalogSeeder::class);
 
