@@ -2,13 +2,6 @@
 @php($map = $mockup->map)
 @php($editorMap = $editorMap ?? ($map?->toArray() ?? []))
 @php($template = $mockup->template)
-@php($previewData = old('preview_data', $template?->preview_data_presets ?? [
-    'bride_name' => 'Amena',
-    'groom_name' => 'Hassan',
-    'ceremony_date' => '12 December 2026',
-    'venue' => 'Dhaka, Bangladesh',
-]))
-
 <form
     method="POST"
     action="{{ $isEdit ? route('admin.mockups.update', $mockup) : route('admin.mockups.store') }}"
@@ -20,13 +13,13 @@
         previewOpacity: {{ (float) old('map.opacity', $map->opacity ?? 0.95) }},
         shadowStrength: {{ (float) old('map.shadow_strength', $map->shadow_strength ?? 0.18) }},
         highlightStrength: {{ (float) old('map.highlight_strength', $map->highlight_strength ?? 0.12) }},
+        zoneColor: '#dc2626',
         selectedHandle: 'top_left',
         draggingHandle: null,
         isPanning: false,
         panX: 0,
         panY: 0,
         lastPanPoint: null,
-        showCompare: true,
         isDirty: false,
         activeTemplateId: '{{ (string) old('personalization_template_id', $mockup->personalization_template_id) }}',
         fitMode: @js(old('map.fit_mode', $map->fit_mode ?? 'stretch')),
@@ -58,10 +51,6 @@
                 ])->values()->all(),
             ],
         ])),
-        brideName: @js($previewData['bride_name'] ?? 'Amena'),
-        groomName: @js($previewData['groom_name'] ?? 'Hassan'),
-        ceremonyDate: @js($previewData['ceremony_date'] ?? '12 December 2026'),
-        venue: @js($previewData['venue'] ?? 'Dhaka, Bangladesh'),
         baseImageUrl: @js(old('base_image_url', $mockup->base_image_url)),
         naturalBaseWidth: {{ (int) old('image_width', $mockup->image_width ?? 0) }},
         naturalBaseHeight: {{ (int) old('image_height', $mockup->image_height ?? 0) }},
@@ -83,12 +72,6 @@
             top_right: { x: {{ (float) old('map.top_right_x', data_get($editorMap, 'top_right_x', 0.80)) }}, y: {{ (float) old('map.top_right_y', data_get($editorMap, 'top_right_y', 0.18)) }} },
             bottom_right: { x: {{ (float) old('map.bottom_right_x', data_get($editorMap, 'bottom_right_x', 0.80)) }}, y: {{ (float) old('map.bottom_right_y', data_get($editorMap, 'bottom_right_y', 0.82)) }} },
             bottom_left: { x: {{ (float) old('map.bottom_left_x', data_get($editorMap, 'bottom_left_x', 0.20)) }}, y: {{ (float) old('map.bottom_left_y', data_get($editorMap, 'bottom_left_y', 0.82)) }} },
-        },
-        sampleDefaults: {
-            brideName: @js($previewData['bride_name'] ?? 'Amena'),
-            groomName: @js($previewData['groom_name'] ?? 'Hassan'),
-            ceremonyDate: @js($previewData['ceremony_date'] ?? '12 December 2026'),
-            venue: @js($previewData['venue'] ?? 'Dhaka, Bangladesh'),
         },
         cornerMeta: {
             top_left: {
@@ -129,15 +112,22 @@
         ratioMeta() {
             return this.templateMeta[this.activeTemplateId] ?? { ratio_width: 9, ratio_height: 13, name: 'Assigned template' };
         },
-        currentTemplatePreview() {
-            return this.ratioMeta().preview_url ?? '';
-        },
-        currentTemplateFields() {
-            return this.ratioMeta().fields ?? [];
-        },
         ratioLabel() {
             const meta = this.ratioMeta();
             return `${meta.ratio_width}:${meta.ratio_height}`;
+        },
+        hexToRgb(hex) {
+            const normalized = `${hex || ''}`.replace('#', '').trim();
+
+            if (normalized.length !== 6) {
+                return { r: 220, g: 38, b: 38 };
+            }
+
+            return {
+                r: Number.parseInt(normalized.slice(0, 2), 16),
+                g: Number.parseInt(normalized.slice(2, 4), 16),
+                b: Number.parseInt(normalized.slice(4, 6), 16),
+            };
         },
         bounds() {
             const xValues = [this.points.top_left.x, this.points.top_right.x, this.points.bottom_right.x, this.points.bottom_left.x];
@@ -190,11 +180,15 @@
             const x = bounds.left + (this.points[key].x * bounds.width);
             const y = bounds.top + (this.points[key].y * bounds.height);
 
-            return `left:${x - 11}px; top:${y - 11}px;`;
+            return `left:${x - 15}px; top:${y - 15}px;`;
         },
         pointToneStyle(key) {
             const meta = this.cornerMeta[key];
-            return `background:${meta.fill}; box-shadow: 0 10px 22px ${meta.ring};`;
+            return `background:rgba(255,255,255,0.92); border:3px solid ${meta.fill}; box-shadow: 0 12px 26px ${meta.ring};`;
+        },
+        pointCenterStyle(key) {
+            const meta = this.cornerMeta[key];
+            return `background:${meta.fill}; box-shadow: 0 0 0 2px rgba(255,255,255,0.98);`;
         },
         cornerBadgeStyle(key) {
             const meta = this.cornerMeta[key];
@@ -224,36 +218,9 @@
         previewStyle() {
             const bounds = this.bounds();
             const imageBounds = this.imageBounds();
+            const { r, g, b } = this.hexToRgb(this.zoneColor);
 
-            return `left:${imageBounds.left + (bounds.left * imageBounds.width)}px; top:${imageBounds.top + (bounds.top * imageBounds.height)}px; width:${bounds.width * imageBounds.width}px; height:${bounds.height * imageBounds.height}px; clip-path: polygon(${this.localPolygon()}); opacity:${this.previewOpacity}; transform: rotate(${this.manualRotation}deg); transform-origin: center center; filter: drop-shadow(0 18px 24px rgba(0,48,73,${this.shadowStrength * 0.35}));`;
-        },
-        previewImageStyle() {
-            const fitMode = this.fitMode === 'cover' ? 'cover' : 'fill';
-
-            return `object-fit:${fitMode}; object-position:${this.objectPositionX * 100}% ${this.objectPositionY * 100}%;`;
-        },
-        previewFieldValue(field) {
-            const key = `${field.key || ''}`.toLowerCase();
-            const label = `${field.label || ''}`.toLowerCase();
-
-            if (key.includes('bride') || label.includes('bride')) return this.brideName || field.placeholder;
-            if (key.includes('groom') || label.includes('groom')) return this.groomName || field.placeholder;
-            if (key.includes('date') || label.includes('date')) return this.ceremonyDate || field.placeholder;
-            if (key.includes('venue') || label.includes('venue') || key.includes('location')) return this.venue || field.placeholder;
-
-            return field.placeholder || field.label || field.key;
-        },
-        previewFieldStyle(field, density = 'full') {
-            const fontMin = density === 'compact'
-                ? Math.max(7, Math.round((field.font_size_min || 12) * 0.82))
-                : Math.max(8, field.font_size_min || 12);
-            const fontMax = density === 'compact'
-                ? Math.max(10, Math.round((field.font_size_max || 24) * 0.82))
-                : Math.max(12, field.font_size_max || 24);
-            const viewportUnit = density === 'compact' ? '0.9vw' : '1vw';
-            const align = field.align === 'start' ? 'left' : (field.align === 'end' ? 'right' : 'center');
-
-            return `left:${field.x}%; top:${field.y}%; width:${field.width}%; min-height:${field.height}%; transform: translate(-50%, -50%) rotate(${field.rotation}deg); text-align:${align}; color:${field.color}; line-height:${field.line_height}; letter-spacing:${field.letter_spacing}px; font-size:clamp(${fontMin}px, ${viewportUnit}, ${fontMax}px); z-index:${field.z_index};`;
+            return `left:${imageBounds.left + (bounds.left * imageBounds.width)}px; top:${imageBounds.top + (bounds.top * imageBounds.height)}px; width:${bounds.width * imageBounds.width}px; height:${bounds.height * imageBounds.height}px; clip-path: polygon(${this.localPolygon()}); background: rgba(${r}, ${g}, ${b}, ${this.previewOpacity}); border: 1.5px dashed rgba(${r}, ${g}, ${b}, 0.95); transform: rotate(${this.manualRotation}deg); transform-origin: center center; filter: drop-shadow(0 18px 24px rgba(0,48,73,${this.shadowStrength * 0.35}));`;
         },
         baseTransform() {
             return `transform: translate(${this.panX}px, ${this.panY}px) scale(${this.zoom}); transform-origin: center center;`;
@@ -340,13 +307,6 @@
             this.points.top_right = { x: Number((left + width).toFixed(4)), y: Number(top.toFixed(4)) };
             this.points.bottom_right = { x: Number((left + width).toFixed(4)), y: Number((top + height).toFixed(4)) };
             this.points.bottom_left = { x: Number(left.toFixed(4)), y: Number((top + height).toFixed(4)) };
-            this.markDirty();
-        },
-        loadSample() {
-            this.brideName = this.sampleDefaults.brideName;
-            this.groomName = this.sampleDefaults.groomName;
-            this.ceremonyDate = this.sampleDefaults.ceremonyDate;
-            this.venue = this.sampleDefaults.venue;
             this.markDirty();
         },
         syncBaseImageMetrics(event) {
@@ -596,8 +556,8 @@
                         <p class="mt-1">Upload the hero scene first, then adjust the four corners until the certificate sits naturally.</p>
                     </div>
                     <div class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/90 px-4 py-3 text-sm text-[var(--color-text-soft)]">
-                        <p class="font-semibold text-[var(--color-secondary-900)]">{{ $template?->fields?->count() ? 'Template fields are available for testing.' : 'Assigned template fields are still empty.' }}</p>
-                        <p class="mt-1">Use the sample copy below the preview to test different name and date lengths before saving.</p>
+                        <p class="font-semibold text-[var(--color-secondary-900)]">{{ $template?->fields?->count() ? 'Zone overlay is ready for mapping.' : 'Assigned template fields are still empty.' }}</p>
+                        <p class="mt-1">Use the transparent zone color below the preview to quickly judge whether the mapped area matches the visible frame opening.</p>
                     </div>
                 </div>
             </div>
@@ -611,7 +571,7 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Live mockup preview</p>
                     <h2 class="mt-1 text-2xl font-semibold text-[var(--color-secondary-900)]">Scene mapping canvas</h2>
                     <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">
-                        Drag the four corner handles directly on the scene. The mapped Nikah artwork stays ratio-locked to the assigned template while the adjustment panel stays visible beside it.
+                        Drag the four corner handles directly on the scene. This preview now shows only a transparent active zone overlay so the frame opening stays easy to inspect.
                     </p>
                 </div>
                 <div class="flex flex-wrap items-center gap-2 text-sm">
@@ -682,16 +642,6 @@
                     </button>
                     <span class="pointer-events-none absolute -top-10 left-1/2 hidden -translate-x-1/2 rounded-full bg-[var(--color-secondary-900)] px-3 py-1 text-xs font-medium text-white shadow-lg group-hover:block">Reset map</span>
                 </div>
-                <div class="group relative">
-                    <button type="button" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border-soft)] bg-white text-[var(--color-secondary-900)] transition hover:border-[var(--color-primary-900)] hover:text-[var(--color-primary-900)]" @click="showCompare = !showCompare" :aria-label="showCompare ? 'Hide comparison' : 'Show comparison'">
-                        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path d="M10 3c4.253 0 7.605 2.654 8.784 6.436a1.5 1.5 0 0 1 0 .928C17.605 14.146 14.253 16.8 10 16.8s-7.605-2.654-8.784-6.436a1.5 1.5 0 0 1 0-.928C2.395 5.654 5.747 3 10 3Zm0 2C6.71 5 4.018 6.997 3.053 9.9 4.018 12.803 6.71 14.8 10 14.8s5.982-1.997 6.947-4.9C15.982 6.997 13.29 5 10 5Zm0 1.8a3.1 3.1 0 1 1 0 6.2 3.1 3.1 0 0 1 0-6.2Z" /></svg>
-                    </button>
-                    <span class="pointer-events-none absolute -top-10 left-1/2 hidden -translate-x-1/2 rounded-full bg-[var(--color-secondary-900)] px-3 py-1 text-xs font-medium text-white shadow-lg group-hover:block" x-text="showCompare ? 'Hide comparison' : 'Show comparison'"></span>
-                </div>
-                <button type="button" class="inline-flex h-10 items-center gap-2 rounded-full bg-[var(--color-primary-900)] px-4 text-sm font-semibold text-white shadow-[0_16px_30px_rgba(120,0,0,0.18)] transition hover:brightness-105" @click="loadSample()" title="Load test preview" aria-label="Load test preview">
-                    <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.707-9.707a1 1 0 0 0-1.414-1.414L9 10.172 7.707 8.879a1 1 0 1 0-1.414 1.414l2 2a1 1 0 0 0 1.414 0l4-4Z" clip-rule="evenodd" /></svg>
-                    Test
-                </button>
             </div>
 
             <div class="mt-6 rounded-[32px] border border-[var(--color-border-soft)] bg-[linear-gradient(180deg,rgba(253,240,213,0.65),rgba(255,255,255,0.96))] p-5 md:p-6">
@@ -718,25 +668,7 @@
                             </div>
                         </template>
 
-                        <div class="absolute inset-0 pointer-events-none" :style="previewStyle()">
-                            <div class="relative h-full w-full overflow-hidden bg-white" :style="`box-shadow: 0 24px 50px rgba(0,48,73,${shadowStrength * 0.45});`">
-                                <template x-if="currentTemplatePreview()">
-                                    <img :src="currentTemplatePreview()" alt="" class="absolute inset-0 h-full w-full" :style="previewImageStyle()">
-                                </template>
-                                <template x-if="!currentTemplatePreview()">
-                                    <div class="flex h-full items-center justify-center bg-white px-6 text-center text-sm font-semibold uppercase tracking-[0.22em] text-[var(--color-primary-900)]">
-                                        Nikah Nama Preview
-                                    </div>
-                                </template>
-                                <template x-for="field in currentTemplateFields()" :key="field.key">
-                                    <div
-                                        class="absolute px-2 text-center text-[var(--color-secondary-900)]"
-                                        :style="previewFieldStyle(field)"
-                                        x-text="previewFieldValue(field)"
-                                    ></div>
-                                </template>
-                            </div>
-                        </div>
+                        <div class="absolute inset-0 pointer-events-none" :style="previewStyle()"></div>
 
                         <template x-if="overlayImageUrl">
                             <img
@@ -771,13 +703,15 @@
                         <template x-for="handle in ['top_left', 'top_right', 'bottom_right', 'bottom_left']" :key="handle">
                             <button
                                 type="button"
-                                class="absolute h-[22px] w-[22px] rounded-full border-2 border-white transition-transform hover:scale-105"
+                                class="absolute flex h-[30px] w-[30px] items-center justify-center rounded-full transition-transform hover:scale-105"
                                 :style="`${pointStyle(handle)} ${pointToneStyle(handle)} ${selectedHandle === handle ? `--tw-ring-color:${cornerMeta[handle].ring};` : ''}`"
                                 @mousedown.prevent="beginDrag(handle, $event)"
                                 @click.prevent="selectedHandle = handle"
                                 :class="{ 'ring-4': selectedHandle === handle }"
                                 :title="`Select ${cornerMeta[handle].label} corner`"
-                            ></button>
+                            >
+                                <span class="h-[8px] w-[8px] rounded-full" :style="pointCenterStyle(handle)"></span>
+                            </button>
                         </template>
                     </div>
                 </div>
@@ -797,64 +731,29 @@
                 <span class="rounded-full bg-[rgba(255,255,255,0.8)] px-3 py-1 text-[var(--color-text-soft)]">Alt = micro move</span>
             </div>
 
-            <div class="mt-6 grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                <div class="surface-card-soft px-4 py-4">
-                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Test preview copy</p>
-                    <div class="mt-4 grid gap-3 md:grid-cols-2">
-                        <label class="field-shell">
-                            <span class="text-xs font-medium text-[var(--color-secondary-900)]">Bride name</span>
-                            <input type="text" x-model="brideName" class="field-input">
-                        </label>
-                        <label class="field-shell">
-                            <span class="text-xs font-medium text-[var(--color-secondary-900)]">Groom name</span>
-                            <input type="text" x-model="groomName" class="field-input">
-                        </label>
-                        <label class="field-shell">
-                            <span class="text-xs font-medium text-[var(--color-secondary-900)]">Ceremony date</span>
-                            <input type="text" x-model="ceremonyDate" class="field-input">
-                        </label>
-                        <label class="field-shell">
-                            <span class="text-xs font-medium text-[var(--color-secondary-900)]">Venue</span>
-                            <input type="text" x-model="venue" class="field-input">
-                        </label>
-                    </div>
-                </div>
-
-                <div class="surface-card-soft px-4 py-4" x-show="showCompare" x-transition.opacity>
-                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Comparison</p>
-                    <div class="mt-4 grid gap-3 md:grid-cols-2">
-                        <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white p-4 text-center">
-                            <p class="text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-primary-900)]">Flat certificate</p>
-                            <p class="mt-4 text-base font-semibold text-[var(--color-secondary-900)]" x-text="brideName"></p>
-                            <p class="mt-1 text-base font-semibold text-[var(--color-secondary-900)]" x-text="groomName"></p>
-                        </div>
-                        <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] p-3">
-                            <div class="relative aspect-[4/3] overflow-hidden rounded-[16px] bg-white">
-                                <template x-if="baseImageUrl">
-                                    <img :src="baseImageUrl" alt="" class="h-full w-full bg-[var(--bg-section-soft)] object-contain" @load="syncBaseImageMetrics($event)">
-                                </template>
-                                <div class="absolute inset-0 pointer-events-none" :style="previewStyle()">
-                                    <div class="relative h-full w-full overflow-hidden bg-white">
-                                        <template x-if="currentTemplatePreview()">
-                                            <img :src="currentTemplatePreview()" alt="" class="absolute inset-0 h-full w-full" :style="previewImageStyle()">
-                                        </template>
-                                        <template x-if="!currentTemplatePreview()">
-                                            <div class="flex h-full items-center justify-center bg-white px-4 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--color-primary-900)]">
-                                                Mapped preview
-                                            </div>
-                                        </template>
-                                        <template x-for="field in currentTemplateFields()" :key="field.key">
-                                            <div
-                                                class="absolute px-1.5 text-center text-[var(--color-secondary-900)]"
-                                                :style="previewFieldStyle(field, 'compact')"
-                                                x-text="previewFieldValue(field)"
-                                            ></div>
-                                        </template>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+            <div class="mt-6 surface-card-soft px-4 py-4">
+                <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Overlay controls</p>
+                <div class="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <label class="field-shell">
+                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Preview opacity</span>
+                        <input type="range" min="0.1" max="1" step="0.01" x-model="previewOpacity" name="map[opacity]" class="mt-2 w-full accent-[var(--color-primary-900)]">
+                        <span class="text-xs text-[var(--color-text-soft)]"><span x-text="previewOpacity.toFixed(2)"></span> opacity</span>
+                    </label>
+                    <label class="field-shell">
+                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Shadow strength</span>
+                        <input type="range" min="0" max="1" step="0.01" x-model="shadowStrength" name="map[shadow_strength]" class="mt-2 w-full accent-[var(--color-primary-900)]">
+                        <span class="text-xs text-[var(--color-text-soft)]"><span x-text="shadowStrength.toFixed(2)"></span> strength</span>
+                    </label>
+                    <label class="field-shell">
+                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Highlight strength</span>
+                        <input type="range" min="0" max="1" step="0.01" x-model="highlightStrength" name="map[highlight_strength]" class="mt-2 w-full accent-[var(--color-primary-900)]">
+                        <span class="text-xs text-[var(--color-text-soft)]"><span x-text="highlightStrength.toFixed(2)"></span> strength</span>
+                    </label>
+                    <label class="field-shell">
+                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Zone color</span>
+                        <input type="color" x-model="zoneColor" class="mt-2 h-11 w-full rounded-[var(--radius-lg)] border border-[var(--color-border-soft)] bg-white p-1">
+                        <span class="text-xs text-[var(--color-text-soft)]" x-text="zoneColor.toUpperCase()"></span>
+                    </label>
                 </div>
             </div>
         </div>
@@ -957,23 +856,6 @@
                         </label>
                     </div>
 
-                    <div class="grid gap-4 md:grid-cols-3">
-                        <label class="field-shell">
-                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Preview opacity</span>
-                            <input type="range" min="0.1" max="1" step="0.01" x-model="previewOpacity" name="map[opacity]" class="mt-2 w-full accent-[var(--color-primary-900)]">
-                            <span class="text-xs text-[var(--color-text-soft)]"><span x-text="previewOpacity.toFixed(2)"></span> opacity</span>
-                        </label>
-                        <label class="field-shell">
-                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Shadow strength</span>
-                            <input type="range" min="0" max="1" step="0.01" x-model="shadowStrength" name="map[shadow_strength]" class="mt-2 w-full accent-[var(--color-primary-900)]">
-                            <span class="text-xs text-[var(--color-text-soft)]"><span x-text="shadowStrength.toFixed(2)"></span> strength</span>
-                        </label>
-                        <label class="field-shell">
-                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Highlight strength</span>
-                            <input type="range" min="0" max="1" step="0.01" x-model="highlightStrength" name="map[highlight_strength]" class="mt-2 w-full accent-[var(--color-primary-900)]">
-                            <span class="text-xs text-[var(--color-text-soft)]"><span x-text="highlightStrength.toFixed(2)"></span> strength</span>
-                        </label>
-                    </div>
                 </div>
             </div>
         </div>
