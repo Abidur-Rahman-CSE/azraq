@@ -37,6 +37,7 @@
         <meta name="twitter:card" content="{{ $socialImage ? 'summary_large_image' : 'summary' }}">
         <meta name="twitter:title" content="{{ $pageTitle }}">
         <meta name="twitter:description" content="{{ $pageDescription }}">
+        {{ $head ?? '' }}
         @vite(['resources/css/app.css', 'resources/js/app.js'])
         <script type="application/ld+json">{!! json_encode($schemaData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
     </head>

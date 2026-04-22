@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Enums\ProductType;
+use App\Models\Faq;
 use App\Models\Product;
 use App\Support\MockupZoneNormalizer;
 use Illuminate\Http\Request;
@@ -30,74 +31,78 @@ class ProductDetailController extends Controller
             'relatedCategories',
         ]);
 
+        $recentlyViewed = collect($request->session()->get('recently_viewed_products', []))
+            ->reject(fn (int $id) => $id === $product->id)
+            ->take(4)
+            ->whenNotEmpty(fn ($ids) => Product::with(['category', 'tags', 'images'])->whereIn('id', $ids)->get()->sortBy(fn ($item) => array_search($item->id, $ids->all())))
+            ->values();
+
+        $request->session()->put('recently_viewed_products', collect([$product->id])
+            ->merge($request->session()->get('recently_viewed_products', []))
+            ->unique()
+            ->take(8)
+            ->values()
+            ->all());
+
+        $faqs = Faq::query()
+            ->where('is_published', true)
+            ->orderBy('sort_order')
+            ->limit(6)
+            ->get();
+
         if ($product->type === ProductType::AdvancedPersonalized && $product->personalizationTemplate) {
             $template = $product->personalizationTemplate;
             $mockups = $product->personalizationMockups
                 ->where('is_active', true)
                 ->values();
 
-            $flatGalleryItem = [
-                'id' => 'template-flat',
-                'kind' => 'flat',
-                'title' => 'Flat certificate preview',
-                'eyebrow' => 'Template view',
-                'thumb' => $template->preview_image_url ?: $template->base_template_url,
-                'scene' => $template->preview_image_url ?: $template->base_template_url,
-            ];
+            return view('storefront.products.show', [
+                'product' => $product,
+                'template' => $template,
+                'fonts' => $template->fonts
+                    ->where('is_active', true)
+                    ->sortBy('sort_order')
+                    ->values(),
+                'mockups' => $mockups->map(function ($mockup) {
+                    $map = $mockup->map;
+                    $normalizedMap = MockupZoneNormalizer::toImageSpace($mockup, $map);
 
-            $mockupGalleryItems = $mockups->map(function ($mockup) {
-                $map = $mockup->map;
-                $normalizedMap = MockupZoneNormalizer::toImageSpace($mockup, $map);
-
-                return [
-                    'id' => 'mockup-'.$mockup->id,
-                    'mockup_id' => $mockup->id,
-                    'kind' => 'mockup',
-                    'title' => $mockup->title,
-                    'eyebrow' => 'Scene mockup',
-                    'thumb' => $mockup->thumb_image_url ?: $mockup->base_image_url,
-                    'scene' => $mockup->base_image_url,
-                    'overlay' => $mockup->overlay_image_url,
-                    'mask' => $mockup->mask_image_url,
-                    'map' => [
-                        'top_left_x' => (float) ($normalizedMap['top_left_x'] ?? 0.2),
-                        'top_left_y' => (float) ($normalizedMap['top_left_y'] ?? 0.18),
-                        'top_right_x' => (float) ($normalizedMap['top_right_x'] ?? 0.8),
-                        'top_right_y' => (float) ($normalizedMap['top_right_y'] ?? 0.18),
-                        'bottom_right_x' => (float) ($normalizedMap['bottom_right_x'] ?? 0.8),
-                        'bottom_right_y' => (float) ($normalizedMap['bottom_right_y'] ?? 0.82),
-                        'bottom_left_x' => (float) ($normalizedMap['bottom_left_x'] ?? 0.2),
-                        'bottom_left_y' => (float) ($normalizedMap['bottom_left_y'] ?? 0.82),
+                    return [
+                        'id' => $mockup->id,
+                        'name' => $mockup->title,
+                        'thumbnail_url' => $mockup->thumb_image_url ?: $mockup->base_image_url,
+                        'image_url' => $mockup->base_image_url,
+                        'overlay_url' => $mockup->overlay_image_url ?: $mockup->mask_image_url,
+                        'zone_points' => [
+                            'tl' => [
+                                'x' => (float) ($normalizedMap['top_left_x'] ?? 0.2),
+                                'y' => (float) ($normalizedMap['top_left_y'] ?? 0.18),
+                            ],
+                            'tr' => [
+                                'x' => (float) ($normalizedMap['top_right_x'] ?? 0.8),
+                                'y' => (float) ($normalizedMap['top_right_y'] ?? 0.18),
+                            ],
+                            'br' => [
+                                'x' => (float) ($normalizedMap['bottom_right_x'] ?? 0.8),
+                                'y' => (float) ($normalizedMap['bottom_right_y'] ?? 0.82),
+                            ],
+                            'bl' => [
+                                'x' => (float) ($normalizedMap['bottom_left_x'] ?? 0.2),
+                                'y' => (float) ($normalizedMap['bottom_left_y'] ?? 0.82),
+                            ],
+                        ],
+                        'image_width' => (int) ($mockup->image_width ?: 1600),
+                        'image_height' => (int) ($mockup->image_height ?: 1200),
                         'opacity' => (float) ($map?->opacity ?? 0.95),
                         'shadow_strength' => (float) ($map?->shadow_strength ?? 0.18),
                         'highlight_strength' => (float) ($map?->highlight_strength ?? 0.12),
                         'fit_mode' => $map?->fit_mode ?? 'stretch',
-                        'object_position_x' => (float) ($map?->object_position_x ?? 0.5),
-                        'object_position_y' => (float) ($map?->object_position_y ?? 0.5),
                         'manual_rotation' => (float) ($map?->manual_rotation ?? 0),
-                    ],
-                ];
-            })->values();
-
-            $galleryItems = collect();
-
-            if ($product->show_flat_preview_first || ! $product->include_mockup_gallery || $mockupGalleryItems->isEmpty()) {
-                $galleryItems->push($flatGalleryItem);
-            }
-
-            if ($product->include_mockup_gallery) {
-                $galleryItems = $galleryItems->concat($mockupGalleryItems);
-            }
-
-            if (! $product->show_flat_preview_first && $galleryItems->where('kind', 'flat')->isEmpty()) {
-                $galleryItems->push($flatGalleryItem);
-            }
-
-            return view('storefront.products.personalized', [
-                'product' => $product,
-                'template' => $template,
-                'galleryItems' => $galleryItems->values(),
-                'availableMockups' => $mockups->values(),
+                    ];
+                })->values(),
+                'faqs' => $faqs,
+                'related_products' => $product->relatedProducts->values(),
+                'recentlyViewed' => $recentlyViewed,
             ]);
         }
 
@@ -114,19 +119,6 @@ class ProductDetailController extends Controller
                 ->with('status', 'This product type will get its dedicated detail flow in a later phase.');
         }
 
-        $recentlyViewed = collect($request->session()->get('recently_viewed_products', []))
-            ->reject(fn (int $id) => $id === $product->id)
-            ->take(4)
-            ->whenNotEmpty(fn ($ids) => Product::with(['category', 'tags', 'images'])->whereIn('id', $ids)->get()->sortBy(fn ($item) => array_search($item->id, $ids->all())))
-            ->values();
-
-        $request->session()->put('recently_viewed_products', collect([$product->id])
-            ->merge($request->session()->get('recently_viewed_products', []))
-            ->unique()
-            ->take(8)
-            ->values()
-            ->all());
-
         return match ($product->type) {
             ProductType::LightCustomizable => view('storefront.products.light-customizable', [
                 'product' => $product,
@@ -139,6 +131,11 @@ class ProductDetailController extends Controller
             ]),
             default => view('storefront.products.show', [
                 'product' => $product,
+                'template' => null,
+                'fonts' => collect(),
+                'mockups' => collect(),
+                'faqs' => $faqs,
+                'related_products' => $product->relatedProducts->values(),
                 'recentlyViewed' => $recentlyViewed,
             ]),
         };

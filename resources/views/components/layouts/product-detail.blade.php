@@ -15,6 +15,12 @@
     :schema-data="$schemaData"
     :social-image="$socialImage"
 >
+    @if (isset($head))
+        <x-slot:head>
+            {{ $head }}
+        </x-slot:head>
+    @endif
+
     <div class="section-shell">
         <div class="container-shell">
             <div class="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">

@@ -1,9 +1,9 @@
 import Alpine from 'alpinejs';
 import { mountNikahProductForm } from './admin/nikah-product-form';
-import { registerMockupPreview } from './mockup-preview';
+import { registerNikahPreview } from './nikah-preview';
 
 window.Alpine = Alpine;
 
-registerMockupPreview(Alpine);
+registerNikahPreview(Alpine);
 Alpine.start();
 mountNikahProductForm();

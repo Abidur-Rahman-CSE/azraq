@@ -1,17 +1,115 @@
-@php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
-@php($galleryImages = $product->images->take(5))
+@php
+    $primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first();
+    $generalImages = $product->images
+        ->take(8)
+        ->map(fn ($image) => [
+            'url' => $image->image_url,
+            'thumb' => $image->image_url,
+            'alt' => $image->alt_text ?: $image->label ?: $product->name,
+            'label' => $image->label ?: $product->name,
+        ])
+        ->values();
+
+    $activeFonts = $fonts instanceof \Illuminate\Support\Collection ? $fonts : collect($fonts ?? []);
+
+    if ($product->is_customizable && $activeFonts->isEmpty() && $template) {
+        $activeFonts = $template->fonts
+            ->where('is_active', true)
+            ->sortBy('sort_order')
+            ->values();
+    }
+
+    $fontStylesheetUrls = $activeFonts
+        ->pluck('font_source_value')
+        ->filter()
+        ->unique()
+        ->values();
+
+    $templatePayload = $product->is_customizable && $template
+        ? [
+            'base_template_url' => $template->base_template_url,
+            'preview_image_url' => $template->preview_image_url ?: $template->base_template_url,
+            'fields' => $template->fields->map(fn ($field) => [
+                'name' => $field->field_key,
+                'field_key' => $field->field_key,
+                'label' => $field->label,
+                'placeholder' => $field->placeholder,
+                'position_x' => (float) $field->position_x,
+                'position_y' => (float) $field->position_y,
+                'width' => (float) $field->width,
+                'height' => (float) $field->height,
+                'rotation' => (float) $field->rotation,
+                'text_align' => $field->text_align,
+                'text_color' => $field->text_color,
+                'line_height' => (float) $field->line_height,
+                'letter_spacing' => (float) $field->letter_spacing,
+                'font_size_min' => (int) $field->font_size_min,
+                'font_size_max' => (int) $field->font_size_max,
+                'z_index' => (int) ($field->z_index ?? 1),
+                'settings' => $field->settings ?? [],
+            ])->values()->all(),
+        ]
+        : null;
+
+    $fontsPayload = $activeFonts
+        ->map(fn ($font) => [
+            'key' => (string) $font->id,
+            'id' => $font->id,
+            'label' => $font->preview_label ?: $font->name,
+            'preview_text' => $font->preview_sample_text ?: ($font->preview_label ?: $font->name),
+            'css_family' => $font->font_family ?: $font->css_font_family,
+            'font_weight' => $font->font_weight_default,
+            'font_style' => $font->font_style_default,
+            'category' => $font->category,
+        ])
+        ->values();
+
+    $defaultFont = $fontsPayload->firstWhere('key', (string) old('font_id'))
+        ?: $fontsPayload->first();
+
+    $fieldDefaults = $product->is_customizable && $template
+        ? $template->fields->mapWithKeys(fn ($field) => [
+            $field->field_key => old(
+                'personalization.'.$field->field_key,
+                $field->default_value ?? $field->preview_sample_value ?? ''
+            ),
+        ])->all()
+        : [];
+
+    $badgeItems = $product->is_customizable
+        ? collect(['Made to order', 'Proof included', 'Premium finish'])
+        : collect([
+            $product->category?->name,
+            $product->manage_stock ? ($product->stock_quantity > 0 ? 'Ready to ship' : 'Out of stock') : 'Made to order',
+            $product->compare_at_price ? 'Limited offer' : 'Premium finish',
+        ])->filter()->take(3)->values();
+
+    $shortDescription = $product->excerpt
+        ?: \Illuminate\Support\Str::limit(strip_tags($product->description), 150);
+
+    $storyVisual = $product->is_customizable
+        ? ($template?->preview_image_url ?: $template?->base_template_url)
+        : ($primaryImage?->image_url);
+
+    $deliveryRows = [
+        ['label' => 'Production time', 'value' => ($product->lead_time_days ?: 4).' to '.(($product->lead_time_days ?: 4) + 2).' business days'],
+        ['label' => 'Dispatch', 'value' => $product->is_customizable ? 'After proof approval' : 'Packed after order confirmation'],
+        ['label' => 'Delivery estimate', 'value' => '2 to 5 business days after dispatch'],
+        ['label' => 'Packaging', 'value' => 'Carefully wrapped for gifting and posting'],
+    ];
+@endphp
 
 <x-layouts.product-detail
     :title="$product->name.' | '.config('brand.name')"
-    :description="$product->meta_description ?: ($product->excerpt ?: $product->description)"
-    :social-image="$primaryImage?->image_url"
+    :description="$product->meta_description ?: ($product->excerpt ?: strip_tags($product->description))"
+    :social-image="$storyVisual"
     :schema-data="[
         [
             '@context' => 'https://schema.org',
             '@type' => 'Product',
             'name' => $product->name,
-            'description' => $product->meta_description ?: ($product->excerpt ?: $product->description),
-            'image' => $product->images->pluck('image_url')->filter()->values()->all(),
+            'description' => $product->meta_description ?: ($product->excerpt ?: strip_tags($product->description)),
+            'image' => ($product->is_customizable ? collect([$storyVisual])->filter() : $generalImages->pluck('url'))->values()->all(),
             'sku' => $product->sku,
             'category' => $product->category?->name,
             'offers' => [
@@ -26,183 +124,74 @@
         ],
     ]"
 >
-    <div class="space-y-6 lg:sticky lg:top-28 lg:self-start">
-        <div class="surface-product overflow-hidden p-6">
-            <div class="flex items-center justify-between gap-4">
-                <x-storefront.product-breadcrumbs :product="$product" />
-                <span class="hidden rounded-full bg-[var(--color-surface-cream)] px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-primary-900)] sm:inline-flex">
-                    {{ $product->type?->label() }}
-                </span>
-            </div>
+    <x-slot:head>
+        @foreach ($fontStylesheetUrls as $fontStylesheetUrl)
+            <link rel="stylesheet" href="{{ $fontStylesheetUrl }}">
+        @endforeach
+    </x-slot:head>
 
-            <div class="mt-6 overflow-hidden rounded-[var(--radius-3xl)] border border-[var(--color-border-soft)] bg-[var(--color-surface-cream)]">
-                @if ($primaryImage)
-                    <img src="{{ $primaryImage->image_url }}" alt="{{ $primaryImage->label ?: $product->name }}" class="h-[440px] w-full object-cover" fetchpriority="high" decoding="async">
-                @else
-                    <div class="flex h-[440px] items-center justify-center text-[var(--color-text-soft)]">Product gallery preview</div>
-                @endif
-            </div>
+    <div
+        class="contents"
+        x-data="storefrontPdp({
+            isCustomizable: @js($product->is_customizable),
+            canvasId: 'nikah-preview-canvas',
+            template: @js($templatePayload),
+            fonts: @js($fontsPayload->values()->all()),
+            mockups: @js(($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []))->values()->all()),
+            fields: @js($fieldDefaults),
+            activeFont: @js($defaultFont['key'] ?? null),
+            generalImages: @js($generalImages->values()->all()),
+            selectedVariant: @js((string) old('variant_id', $product->variants->firstWhere('is_default', true)?->id)),
+            quantity: @js((int) old('quantity', 1)),
+        })"
+    >
+        @include('storefront.products.partials._preview_stage', [
+            'product' => $product,
+            'template' => $template,
+            'mockups' => $mockups,
+            'generalImages' => $generalImages,
+        ])
 
-            @if ($galleryImages->count() > 1)
-                <div class="mt-4 grid grid-cols-4 gap-3">
-                    @foreach ($galleryImages as $image)
-                        <div class="overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/80">
-                            <img src="{{ $image->image_url }}" alt="{{ $image->label ?: $product->name }}" class="h-24 w-full object-cover" loading="lazy" decoding="async">
-                        </div>
-                    @endforeach
-                </div>
-            @endif
-
-            <p class="mt-4 text-sm text-[var(--color-text-soft)]">Editorial product imagery styled to help you assess tone, craftsmanship, and gifting presentation before checkout.</p>
-        </div>
-
-        @if ($recentlyViewed->isNotEmpty())
-            <div class="surface-card-soft p-6">
-                <div class="flex items-center justify-between gap-4">
-                    <h2 class="text-xl font-semibold text-[var(--color-secondary-900)]">Recently viewed</h2>
-                    <a href="{{ route('shop.index') }}" class="text-sm font-semibold text-[var(--color-primary-900)]">Continue browsing</a>
-                </div>
-                <div class="mt-5 grid gap-4">
-                    @foreach ($recentlyViewed as $recentProduct)
-                        <x-storefront.listing-card :product="$recentProduct" />
-                    @endforeach
-                </div>
-            </div>
-        @endif
-    </div>
-
-    <div class="space-y-6">
-        <div class="surface-sidebar p-8">
-            <div class="flex flex-wrap items-center gap-3">
-                <span class="eyebrow">Ready to ship</span>
-                @if ($product->category)
-                    <x-storefront.trust-badge :label="$product->category->name" />
-                @endif
-                <x-storefront.trust-badge :label="$product->manage_stock ? ($product->stock_quantity > 0 ? 'In stock now' : 'Currently unavailable') : 'Made to order'" />
-            </div>
-
-            <h1 class="mt-5 text-4xl font-semibold tracking-[-0.03em] text-[var(--color-secondary-900)]">{{ $product->name }}</h1>
-            <p class="mt-4 max-w-2xl text-base leading-8 text-[var(--color-text-soft)]">{{ $product->excerpt ?: $product->description }}</p>
-
-            <div class="mt-6">
-                <x-storefront.price-block :product="$product" />
-            </div>
-
-            <div class="mt-6 grid gap-3 sm:grid-cols-3">
-                <div class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/80 px-4 py-4">
-                    <p class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Lead time</p>
-                    <p class="mt-2 text-sm font-semibold text-[var(--color-secondary-900)]">{{ max(2, $product->lead_time_days ?: 4) }} to {{ max(4, ($product->lead_time_days ?: 4) + 2) }} days</p>
-                </div>
-                <div class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/80 px-4 py-4">
-                    <p class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Packaging</p>
-                    <p class="mt-2 text-sm font-semibold text-[var(--color-secondary-900)]">Gift-ready finishing</p>
-                </div>
-                <div class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/80 px-4 py-4">
-                    <p class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Support</p>
-                    <p class="mt-2 text-sm font-semibold text-[var(--color-secondary-900)]">WhatsApp order help</p>
-                </div>
-            </div>
-
-            <form method="POST" action="{{ route('cart.store', $product) }}" class="mt-8 space-y-6">
-                @csrf
-
-                @if ($product->variants->isNotEmpty())
-                    <div class="space-y-3">
-                        <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Choose a variant</p>
-                        <x-storefront.variant-pills :variants="$product->variants" />
-                    </div>
-                @endif
-
-                <x-storefront.quantity-selector />
-
-                <div class="flex flex-wrap gap-3">
-                    <button type="submit" class="button-primary">Add to cart</button>
-                    <a href="{{ route('checkout.show') }}" class="button-secondary">Buy now</a>
-                </div>
-            </form>
-
-            <div class="mt-4 flex flex-wrap gap-3">
-                <form method="POST" action="{{ route('wishlist.store', $product) }}">
-                    @csrf
-                    <button type="submit" class="button-ghost">Save to wishlist</button>
-                </form>
-                <a href="{{ route('products.show', $product) }}" class="button-ghost">Share link</a>
-            </div>
-
-            <div class="mt-6 rounded-[var(--radius-xl)] bg-[var(--color-surface-cream)] p-5 text-sm leading-7 text-[var(--color-secondary-900)]">
-                Delivery note: each piece is packed with protective bridal wrapping and reviewed before dispatch for gifting presentation.
-            </div>
-        </div>
-
-        <div class="surface-card p-8">
-            <h2 class="text-xl font-semibold text-[var(--color-secondary-900)]">Product details</h2>
-            <p class="mt-4 text-sm leading-8 text-[var(--color-text-soft)]">{{ $product->description }}</p>
-
-            <div class="mt-6 grid gap-4 md:grid-cols-2">
-                <div class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/80 p-5">
-                    <p class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Specifications</p>
-                    <div class="mt-3 space-y-2 text-sm text-[var(--color-secondary-900)]">
-                        <p>SKU: {{ $product->sku }}</p>
-                        <p>Category: {{ $product->category?->name ?: 'Azraq Bridal' }}</p>
-                        <p>Type: {{ $product->type?->label() }}</p>
-                    </div>
-                </div>
-                <div class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/80 p-5">
-                    <p class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Best suited for</p>
-                    <div class="mt-3 space-y-2 text-sm text-[var(--color-secondary-900)]">
-                        <p>Wedding gifting and ceremonial styling</p>
-                        <p>Category-led bridal set building</p>
-                        <p>Elegant add-ons for curated orders</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="surface-card p-8">
-            <h2 class="text-xl font-semibold text-[var(--color-secondary-900)]">Shipping, care, and policy</h2>
-            <div class="mt-5 space-y-4">
-                <details class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/75 p-5" open>
-                    <summary class="cursor-pointer text-sm font-semibold text-[var(--color-secondary-900)]">Shipping guidance</summary>
-                    <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Orders are packed with protective presentation wrapping and dispatched according to the product lead time shown above.</p>
-                </details>
-                <details class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/75 p-5">
-                    <summary class="cursor-pointer text-sm font-semibold text-[var(--color-secondary-900)]">Care notes</summary>
-                    <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Store delicate bridal pieces away from direct moisture and perfumes, and keep them folded or boxed between events.</p>
-                </details>
-                <details class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/75 p-5">
-                    <summary class="cursor-pointer text-sm font-semibold text-[var(--color-secondary-900)]">Returns and review</summary>
-                    <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Azraq reviews each order before dispatch. Return handling depends on product condition and whether the order includes personalized elements.</p>
-                </details>
-            </div>
-        </div>
-
-        @if ($product->relatedProducts->isNotEmpty())
-            <div class="surface-card-featured p-8">
-                <div class="flex flex-wrap items-end justify-between gap-4">
-                    <div>
-                        <p class="eyebrow">Suggested next</p>
-                        <h2 class="mt-4 text-2xl font-semibold text-[var(--color-secondary-900)]">You may also like</h2>
-                        <p class="mt-2 max-w-2xl text-sm leading-7 text-[var(--color-text-soft)]">A soft recommendation flow built around matching categories, gifting logic, and bridal set completion.</p>
-                    </div>
-                    <a href="{{ route('shop.index') }}" class="button-ghost">Explore more</a>
-                </div>
-                <div class="mt-6 grid gap-4 md:grid-cols-2">
-                    @foreach ($product->relatedProducts->take(4) as $relatedProduct)
-                        <x-storefront.listing-card :product="$relatedProduct" />
-                    @endforeach
-                </div>
-            </div>
+        @if ($product->is_customizable)
+            @include('storefront.products.partials._config_panel', [
+                'product' => $product,
+                'template' => $template,
+                'fonts' => $activeFonts,
+                'mockups' => $mockups,
+                'badgeItems' => $badgeItems,
+                'shortDescription' => $shortDescription,
+            ])
+        @else
+            @include('storefront.products.partials._general_panel', [
+                'product' => $product,
+                'badgeItems' => $badgeItems,
+                'shortDescription' => $shortDescription,
+            ])
         @endif
 
-        @if ($product->reviews->isNotEmpty())
-            <div class="surface-card p-8">
-                <h2 class="text-xl font-semibold text-[var(--color-secondary-900)]">Customer reviews</h2>
-                <div class="mt-5 grid gap-4">
-                    @foreach ($product->reviews as $review)
-                        <x-storefront.review-card :review="$review" />
-                    @endforeach
+        @include('storefront.products.partials._below_fold', [
+            'product' => $product,
+            'storyVisual' => $storyVisual,
+            'deliveryRows' => $deliveryRows,
+            'faqs' => $faqs,
+            'relatedProducts' => $related_products,
+            'recentlyViewed' => $recentlyViewed,
+        ])
+
+        <div class="fixed inset-x-0 bottom-0 z-40 border-t border-[#E8E3DC] bg-[rgba(250,250,248,0.96)] px-4 py-3 shadow-[0_-2px_16px_rgba(0,0,0,0.06)] backdrop-blur lg:hidden" x-show="showStickyBar" x-transition.opacity.duration.200ms>
+            <div class="mx-auto flex max-w-3xl items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="truncate text-sm font-medium text-[#2C2C3E]">{{ $product->name }}</p>
+                    <p class="text-sm font-semibold text-[#8B2635]">BDT {{ number_format((float) $product->price, 0) }}</p>
                 </div>
+                <button
+                    type="button"
+                    class="rounded-xl bg-[#8B2635] px-4 py-3 text-sm font-semibold text-white transition duration-200 ease-out hover:bg-[#6D1D29]"
+                    @click="$refs.mainProductForm?.requestSubmit()"
+                >
+                    Add to cart
+                </button>
             </div>
-        @endif
+        </div>
     </div>
 </x-layouts.product-detail>

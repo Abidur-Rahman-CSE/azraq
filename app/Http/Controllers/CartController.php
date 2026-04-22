@@ -87,7 +87,9 @@ class CartController extends Controller
 
         $request->session()->put('cart.items', $items->values()->all());
 
-        return redirect()->route('cart.index')->with('status', 'Product added to cart.');
+        return redirect()
+            ->route($request->boolean('buy_now') ? 'checkout.show' : 'cart.index')
+            ->with('status', $request->boolean('buy_now') ? 'Product added to cart. Continue to checkout.' : 'Product added to cart.');
     }
 
     public function update(Request $request, string $key)

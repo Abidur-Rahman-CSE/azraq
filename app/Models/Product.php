@@ -125,4 +125,9 @@ class Product extends Model
             ->withTimestamps()
             ->orderByPivot('sort_order');
     }
+
+    public function getIsCustomizableAttribute(): bool
+    {
+        return $this->type === ProductType::AdvancedPersonalized;
+    }
 }

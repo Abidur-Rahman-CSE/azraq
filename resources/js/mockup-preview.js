@@ -20,7 +20,9 @@ async function loadPerspective() {
 }
 
 function getContainGeometry(image, width, height) {
-    const sourceRatio = image.naturalWidth / image.naturalHeight;
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+    const sourceRatio = sourceWidth / sourceHeight;
     const targetRatio = width / height;
 
     let drawWidth = width;
@@ -57,8 +59,50 @@ function measureTextWithSpacing(ctx, text, letterSpacing) {
     return baseWidth + Math.max(0, text.length - 1) * spacing;
 }
 
-function wrapTextLines(ctx, text, maxWidth, letterSpacing) {
-    const paragraphs = `${text ?? ''}`.split(/\r?\n/);
+function applyTextTransform(text, textTransform) {
+    const value = `${text ?? ''}`;
+
+    switch (textTransform) {
+        case 'uppercase':
+            return value.toUpperCase();
+        case 'lowercase':
+            return value.toLowerCase();
+        case 'capitalize':
+            return value.replace(/\b\w/g, (character) => character.toUpperCase());
+        default:
+            return value;
+    }
+}
+
+function truncateTextToWidth(ctx, text, maxWidth, letterSpacing) {
+    if (measureTextWithSpacing(ctx, text, letterSpacing) <= maxWidth) {
+        return text;
+    }
+
+    const ellipsis = '…';
+    let output = '';
+
+    for (const character of [...`${text ?? ''}`]) {
+        const candidate = `${output}${character}`;
+
+        if (measureTextWithSpacing(ctx, `${candidate}${ellipsis}`, letterSpacing) > maxWidth) {
+            break;
+        }
+
+        output = candidate;
+    }
+
+    return output ? `${output}${ellipsis}` : ellipsis;
+}
+
+function wrapTextLines(ctx, text, maxWidth, letterSpacing, allowMultiline = true) {
+    const source = `${text ?? ''}`;
+
+    if (!allowMultiline) {
+        return [source.replace(/\r?\n/g, ' ').replace(/\s+/g, ' ').trim()];
+    }
+
+    const paragraphs = source.split(/\r?\n/);
     const lines = [];
 
     paragraphs.forEach((paragraph) => {
@@ -83,30 +127,43 @@ function wrapTextLines(ctx, text, maxWidth, letterSpacing) {
     return lines.length ? lines : [''];
 }
 
-function fitTextBlock(ctx, text, layer, fontFamily) {
+function fitTextBlock(ctx, text, layer, typography) {
     const width = Math.max(40, layer.widthPx);
     const height = Math.max(24, layer.heightPx);
     const minSize = Math.max(8, Number(layer.font_size_min || 12));
     const maxSize = Math.max(minSize, Number(layer.font_size_max || 24));
-    const lineHeight = Math.max(1, Number(layer.line_height || 1.2));
-    const letterSpacing = Number(layer.letter_spacing || 0);
+    const lineHeight = Math.max(1, Number(typography.lineHeight || layer.line_height || 1.2));
+    const letterSpacing = Number(typography.letterSpacing ?? layer.letter_spacing ?? 0);
+    const allowMultiline = Boolean(typography.allowMultiline);
+    const maxLines = Math.max(1, Number(typography.maxLines || 1));
+    const overflowBehavior = typography.overflowBehavior || 'shrink_then_wrap';
+    const canWrap = allowMultiline && overflowBehavior !== 'shrink_only';
 
     for (let fontSize = maxSize; fontSize >= minSize; fontSize -= 1) {
-        ctx.font = `${fontSize}px ${fontFamily}`;
-        const lines = wrapTextLines(ctx, text, width, letterSpacing);
+        ctx.font = `${typography.fontStyle || 'normal'} ${typography.fontWeight || '600'} ${fontSize}px ${typography.fontFamily}`;
+        const lines = wrapTextLines(ctx, text, width, letterSpacing, canWrap);
         const tallestLine = fontSize * lineHeight * lines.length;
         const widestLine = Math.max(...lines.map((line) => measureTextWithSpacing(ctx, line, letterSpacing)));
 
-        if (tallestLine <= height && widestLine <= width) {
+        if (lines.length <= maxLines && tallestLine <= height && widestLine <= width) {
             return { fontSize, lines };
         }
     }
 
-    ctx.font = `${minSize}px ${fontFamily}`;
+    ctx.font = `${typography.fontStyle || 'normal'} ${typography.fontWeight || '600'} ${minSize}px ${typography.fontFamily}`;
+    let lines = wrapTextLines(ctx, text, width, letterSpacing, canWrap).slice(0, maxLines);
+
+    if (lines.length === 0) {
+        lines = [''];
+    }
+
+    if (overflowBehavior === 'clip' && lines.length > 0) {
+        lines[lines.length - 1] = truncateTextToWidth(ctx, lines[lines.length - 1], width, letterSpacing);
+    }
 
     return {
         fontSize: minSize,
-        lines: wrapTextLines(ctx, text, width, letterSpacing),
+        lines,
     };
 }
 
@@ -213,8 +270,32 @@ export function registerMockupPreview(Alpine) {
         activeSlide() {
             return this.galleryItems.find((item) => item.id === this.activeSlideId) ?? this.galleryItems[0] ?? null;
         },
+        hasMockupSlides() {
+            return this.galleryItems.some((item) => item.kind === 'mockup');
+        },
+        fontConfig(id) {
+            return this.fonts.find((item) => item.id == id) ?? {};
+        },
         fontFamily(id) {
-            return this.fonts.find((item) => item.id == id)?.font_family ?? 'Poppins, sans-serif';
+            return this.fontConfig(id).font_family ?? 'Poppins, sans-serif';
+        },
+        showFlatPreview() {
+            this.activeSlideId = 'template-flat';
+            this.queuePreviewRender();
+        },
+        showSelectedMockupPreview() {
+            if (!this.selectedMockupId) {
+                const firstMockup = this.galleryItems.find((item) => item.kind === 'mockup');
+                if (firstMockup?.mockup_id) {
+                    this.selectedMockupId = firstMockup.mockup_id;
+                }
+            }
+
+            if (this.selectedMockupId) {
+                this.activeSlideId = `mockup-${this.selectedMockupId}`;
+            }
+
+            this.queuePreviewRender();
         },
         selectSlide(id) {
             this.activeSlideId = id;
@@ -224,31 +305,41 @@ export function registerMockupPreview(Alpine) {
                 this.selectedMockupId = slide.mockup_id;
             }
 
-            this.queueMockupRender();
+            this.queuePreviewRender();
         },
         selectMockup(id) {
             this.selectedMockupId = id;
             this.activeSlideId = `mockup-${id}`;
-            this.queueMockupRender();
+            this.queuePreviewRender();
         },
         scheduleSceneRefresh() {
-                window.clearTimeout(this.sceneRefreshTimer);
-                this.sceneRefreshTimer = window.setTimeout(() => {
-                    this.sceneFields = cloneData(this.fields);
-                    this.sceneFont = this.selectedFont;
-                    this.queueMockupRender();
-                }, 140);
+            window.clearTimeout(this.sceneRefreshTimer);
+            this.sceneRefreshTimer = window.setTimeout(() => {
+                this.sceneFields = cloneData(this.fields);
+                this.sceneFont = this.selectedFont;
+                this.queuePreviewRender();
+            }, 140);
         },
         flushSceneRefresh() {
             window.clearTimeout(this.sceneRefreshTimer);
             this.sceneFields = cloneData(this.fields);
             this.sceneFont = this.selectedFont;
-            this.queueMockupRender();
+            this.queuePreviewRender();
         },
         queueMockupRender() {
+            this.queuePreviewRender();
+        },
+        queuePreviewRender() {
             window.cancelAnimationFrame(this.renderFrame);
             this.renderFrame = window.requestAnimationFrame(() => {
-                this.renderMockupCanvas().catch(() => {});
+                const activeSlide = this.activeSlide();
+
+                if (activeSlide?.kind === 'mockup') {
+                    this.renderMockupCanvas().catch(() => {});
+                    return;
+                }
+
+                this.renderFlatStage().catch(() => {});
             });
         },
         async renderFlatCertificate() {
@@ -266,11 +357,22 @@ export function registerMockupPreview(Alpine) {
             ctx.drawImage(templateImage, 0, 0, width, height);
 
             const sortedLayers = [...this.templateFields].sort((left, right) => Number(left.z_index || 1) - Number(right.z_index || 1));
-            const fontFamily = this.fontFamily(this.sceneFont);
+            const font = this.fontConfig(this.sceneFont);
 
             sortedLayers.forEach((field) => {
                 const layer = buildFieldLayer(field, width, height);
-                const text = `${this.sceneFields[field.field_key] || field.placeholder || ''}`.trim();
+                const typography = {
+                    fontFamily: field.settings?.font_family_override || font.font_family || 'Poppins, sans-serif',
+                    fontWeight: field.settings?.font_weight || font.font_weight_default || '600',
+                    fontStyle: field.settings?.font_style || font.font_style_default || 'normal',
+                    lineHeight: Number(field.line_height || font.line_height_default || 1.2),
+                    letterSpacing: Number(field.letter_spacing ?? font.letter_spacing_default ?? 0),
+                    textTransform: field.settings?.text_transform || font.text_transform_default || 'none',
+                    allowMultiline: Boolean(field.settings?.allow_multiline ?? true),
+                    maxLines: Number(field.settings?.max_lines || 3),
+                    overflowBehavior: field.settings?.overflow_behavior || 'shrink_then_wrap',
+                };
+                const text = applyTextTransform(`${this.sceneFields[field.field_key] || field.placeholder || ''}`.trim(), typography.textTransform);
 
                 if (!text) {
                     return;
@@ -278,8 +380,8 @@ export function registerMockupPreview(Alpine) {
 
                 const x = (width * Number(field.position_x || 50)) / 100;
                 const y = (height * Number(field.position_y || 50)) / 100;
-                const { fontSize, lines } = fitTextBlock(ctx, text, layer, fontFamily);
-                const lineHeight = Math.max(1, Number(field.line_height || 1.2));
+                const { fontSize, lines } = fitTextBlock(ctx, text, layer, typography);
+                const lineHeight = Math.max(1, Number(typography.lineHeight || 1.2));
                 const totalHeight = fontSize * lineHeight * lines.length;
                 const boxLeft = x - (layer.widthPx / 2);
                 const startY = y - (totalHeight / 2) + fontSize;
@@ -293,17 +395,49 @@ export function registerMockupPreview(Alpine) {
                 ctx.fillStyle = field.text_color || '#780000';
                 ctx.textBaseline = 'alphabetic';
                 ctx.textAlign = align;
-                ctx.font = `${fontSize}px ${fontFamily}`;
+                ctx.font = `${typography.fontStyle || 'normal'} ${typography.fontWeight || '600'} ${fontSize}px ${typography.fontFamily}`;
 
                 lines.forEach((line, index) => {
                     const lineY = startY + (index * fontSize * lineHeight);
-                    drawLineWithSpacing(ctx, line, drawX, lineY, align, field.letter_spacing || 0);
+                    drawLineWithSpacing(ctx, line, drawX, lineY, align, typography.letterSpacing || 0);
                 });
 
                 ctx.restore();
             });
 
             return canvas;
+        },
+        async renderFlatStage() {
+            if (!this.$refs.flatStage || !this.$refs.flatCanvas) {
+                return;
+            }
+
+            const stage = this.$refs.flatStage;
+            const canvas = this.$refs.flatCanvas;
+            const width = Math.max(1, Math.round(stage.clientWidth));
+            const height = Math.max(1, Math.round(stage.clientHeight));
+
+            if (!width || !height) {
+                return;
+            }
+
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            canvas.width = Math.round(width * devicePixelRatio);
+            canvas.height = Math.round(height * devicePixelRatio);
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+            ctx.clearRect(0, 0, width, height);
+
+            const flatCanvas = await this.renderFlatCertificate();
+
+            if (!flatCanvas) {
+                return;
+            }
+
+            drawContainedImage(ctx, flatCanvas, width, height);
         },
         async renderMockupCanvas() {
             const slide = this.activeSlide();
@@ -375,13 +509,17 @@ export function registerMockupPreview(Alpine) {
             }
         },
         init() {
-            this.resizeObserver = new ResizeObserver(() => this.queueMockupRender());
+            this.resizeObserver = new ResizeObserver(() => this.queuePreviewRender());
 
             if (this.$refs.mockupStage) {
                 this.resizeObserver.observe(this.$refs.mockupStage);
             }
 
-            this.queueMockupRender();
+            if (this.$refs.flatStage) {
+                this.resizeObserver.observe(this.$refs.flatStage);
+            }
+
+            this.queuePreviewRender();
         },
         destroy() {
             window.cancelAnimationFrame(this.renderFrame);
