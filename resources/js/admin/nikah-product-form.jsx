@@ -1073,7 +1073,7 @@ function NikahProductForm({ payload }) {
     const activeFrame = availableMockups.find((mockup) => String(mockup.id) === String(defaultMockupId))
         || availableMockups.find((mockup) => activeMockups.includes(mockup.id))
         || null;
-    const designThumbnail = selectedDesign?.thumbnail_url || selectedDesign?.preview_url || '';
+    const designThumbnail = selectedDesign?.rendered_preview_url || selectedDesign?.thumbnail_url || selectedDesign?.preview_url || '';
     const zoneBox = getZoneBox(activeFrame);
     const hasDesign = Boolean(selectedDesignId);
     const hasActiveMockups = activeMockups.length > 0;

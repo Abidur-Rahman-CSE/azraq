@@ -1,4 +1,6 @@
 @php
+    use App\Support\PersonalizationTextLayout;
+
     $template = data_get($renderPreview, 'template', []);
     $flat = data_get($renderPreview, 'flat', []);
     $mockup = data_get($renderPreview, 'mockup', []);
@@ -67,22 +69,40 @@
 
         @foreach ($layers as $layer)
             @php
-                $x = ($width * ((float) data_get($layer, 'x', 50) / 100));
-                $y = ($height * ((float) data_get($layer, 'y', 50) / 100));
-                $size = max(12, (int) data_get($layer, 'font_size_max', 24));
-                $anchor = data_get($layer, 'align') === 'start' ? 'start' : (data_get($layer, 'align') === 'end' ? 'end' : 'middle');
+                $layout = PersonalizationTextLayout::layout($layer, (string) data_get($layer, 'value', ''), $width, $height);
             @endphp
-            <text
-                x="{{ $x }}"
-                y="{{ $y }}"
-                fill="{{ data_get($layer, 'color', '#780000') }}"
-                font-family="{{ $fontFamily }}"
-                font-size="{{ $size }}"
-                letter-spacing="{{ data_get($layer, 'letter_spacing', 0) }}"
-                text-anchor="{{ $anchor }}"
-                dominant-baseline="middle"
-                transform="rotate({{ data_get($layer, 'rotation', 0) }}, {{ $x }}, {{ $y }})"
-            >{{ data_get($layer, 'value') }}</text>
+            <clipPath id="flat-proof-clip-{{ $loop->index }}">
+                <rect
+                    x="{{ $layout['box_left'] }}"
+                    y="{{ $layout['box_top'] }}"
+                    width="{{ $layout['box_width'] }}"
+                    height="{{ $layout['box_height'] }}"
+                    rx="4"
+                />
+            </clipPath>
+            <g clip-path="url(#flat-proof-clip-{{ $loop->index }})">
+                <text
+                    x="{{ $layout['text_x'] }}"
+                    y="{{ $layout['text_y'] }}"
+                    fill="{{ data_get($layer, 'color', '#780000') }}"
+                    font-family="{{ data_get($layer, 'settings.font_family_override') ?: $fontFamily }}"
+                    font-size="{{ $layout['font_size'] }}"
+                    font-weight="{{ data_get($layer, 'settings.font_weight', '600') }}"
+                    font-style="{{ data_get($layer, 'settings.font_style', 'normal') }}"
+                    letter-spacing="{{ data_get($layer, 'letter_spacing', 0) }}"
+                    text-anchor="{{ $layout['text_anchor'] }}"
+                    transform="rotate({{ data_get($layer, 'rotation', 0) }}, {{ $layout['x'] }}, {{ $layout['y'] }})"
+                >
+                    @foreach ($layout['lines'] as $lineIndex => $line)
+                        <tspan
+                            x="{{ $layout['text_x'] }}"
+                            @if ($lineIndex > 0)
+                                dy="{{ $layout['font_size'] * $layout['line_height'] }}"
+                            @endif
+                        >{{ $line }}</tspan>
+                    @endforeach
+                </text>
+            </g>
         @endforeach
     @else
         @if (data_get($mockup, 'base_image_url'))
@@ -106,22 +126,45 @@
 
                 @foreach ($layers as $layer)
                     @php
-                        $x = $bounds['left'] + ($bounds['width'] * ((float) data_get($layer, 'x', 50) / 100));
-                        $y = $bounds['top'] + ($bounds['height'] * ((float) data_get($layer, 'y', 50) / 100));
-                        $size = max(10, (int) round(($bounds['width'] / 900) * (int) data_get($layer, 'font_size_max', 24)));
-                        $anchor = data_get($layer, 'align') === 'start' ? 'start' : (data_get($layer, 'align') === 'end' ? 'end' : 'middle');
+                        $scaledLayer = [
+                            ...$layer,
+                            'width' => (float) data_get($layer, 'width', 50),
+                            'height' => (float) data_get($layer, 'height', 10),
+                        ];
+                        $layout = PersonalizationTextLayout::layout($scaledLayer, (string) data_get($layer, 'value', ''), $bounds['width'], $bounds['height']);
                     @endphp
-                    <text
-                        x="{{ $x }}"
-                        y="{{ $y }}"
-                        fill="{{ data_get($layer, 'color', '#780000') }}"
-                        font-family="{{ $fontFamily }}"
-                        font-size="{{ $size }}"
-                        letter-spacing="{{ data_get($layer, 'letter_spacing', 0) }}"
-                        text-anchor="{{ $anchor }}"
-                        dominant-baseline="middle"
-                        transform="rotate({{ data_get($layer, 'rotation', 0) }}, {{ $x }}, {{ $y }})"
-                    >{{ data_get($layer, 'value') }}</text>
+                    <clipPath id="mockup-proof-clip-{{ $loop->index }}">
+                        <rect
+                            x="{{ $bounds['left'] + $layout['box_left'] }}"
+                            y="{{ $bounds['top'] + $layout['box_top'] }}"
+                            width="{{ $layout['box_width'] }}"
+                            height="{{ $layout['box_height'] }}"
+                            rx="4"
+                        />
+                    </clipPath>
+                    <g clip-path="url(#mockup-proof-clip-{{ $loop->index }})">
+                        <text
+                            x="{{ $bounds['left'] + $layout['text_x'] }}"
+                            y="{{ $bounds['top'] + $layout['text_y'] }}"
+                            fill="{{ data_get($layer, 'color', '#780000') }}"
+                            font-family="{{ data_get($layer, 'settings.font_family_override') ?: $fontFamily }}"
+                            font-size="{{ $layout['font_size'] }}"
+                            font-weight="{{ data_get($layer, 'settings.font_weight', '600') }}"
+                            font-style="{{ data_get($layer, 'settings.font_style', 'normal') }}"
+                            letter-spacing="{{ data_get($layer, 'letter_spacing', 0) }}"
+                            text-anchor="{{ $layout['text_anchor'] }}"
+                            transform="rotate({{ data_get($layer, 'rotation', 0) }}, {{ $bounds['left'] + $layout['x'] }}, {{ $bounds['top'] + $layout['y'] }})"
+                        >
+                            @foreach ($layout['lines'] as $lineIndex => $line)
+                                <tspan
+                                    x="{{ $bounds['left'] + $layout['text_x'] }}"
+                                    @if ($lineIndex > 0)
+                                        dy="{{ $layout['font_size'] * $layout['line_height'] }}"
+                                    @endif
+                                >{{ $line }}</tspan>
+                            @endforeach
+                        </text>
+                    </g>
                 @endforeach
             </g>
         @endif

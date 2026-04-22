@@ -572,7 +572,9 @@ it('generates a clean snapshot thumbnail for the personalization template list',
 
     expect($snapshotMarkup)
         ->toContain('data:image/')
-        ->and($snapshotMarkup)->toContain('<image href="data:image/');
+        ->and($snapshotMarkup)->toContain('<image href="data:image/')
+        ->and($snapshotMarkup)->toContain('snapshot-field-clip-0')
+        ->and($snapshotMarkup)->toContain('<tspan');
 
     $this->get(route('admin.personalization.templates.index'))
         ->assertOk()

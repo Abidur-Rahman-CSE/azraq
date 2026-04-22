@@ -80,10 +80,15 @@
         ->all();
 
     $designPayload = $personalizationTemplates->map(function ($template) {
+        $snapshotUrl = $template->thumbnail_image_url
+            ? $template->thumbnail_image_url.'?v='.urlencode((string) optional($template->updated_at)->timestamp)
+            : null;
+
         return [
             'id' => (int) $template->id,
             'name' => $template->name,
-            'thumbnail_url' => $template->thumbnail_image_url ?: $template->preview_image_url ?: $template->base_template_url,
+            'thumbnail_url' => $snapshotUrl ?: ($template->preview_image_url ?: $template->base_template_url),
+            'rendered_preview_url' => $snapshotUrl ?: ($template->preview_image_url ?: $template->base_template_url),
             'preview_url' => $template->preview_image_url ?: $template->base_template_url,
             'fields' => $template->fields->map(function ($field) {
                 return [
