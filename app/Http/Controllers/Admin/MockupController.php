@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\MockupRequest;
 use App\Models\PersonalizationMockup;
 use App\Models\PersonalizationTemplate;
+use App\Support\MockupZoneNormalizer;
 use App\Support\PersonalizationAssetUsage;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -66,6 +67,8 @@ class MockupController extends Controller
             'render_mode' => 'perspective_quad',
             'sort_order' => (int) PersonalizationMockup::query()->max('sort_order') + 1,
             'is_active' => true,
+            'image_width' => null,
+            'image_height' => null,
         ]);
 
         return view('admin.mockups.create', $this->formData($mockup));
@@ -114,6 +117,8 @@ class MockupController extends Controller
                     'overlay_image_url',
                     'mask_image_url',
                     'thumb_image_url',
+                    'image_width',
+                    'image_height',
                     'render_mode',
                     'is_active',
                     'notes',
@@ -165,14 +170,23 @@ class MockupController extends Controller
             'bottom_left_x' => 0.20,
             'bottom_left_y' => 0.82,
             'normalized_coordinates' => true,
+            'coordinate_space' => 'image',
             'manual_rotation' => 0,
             'shadow_strength' => 0.18,
             'highlight_strength' => 0.12,
             'opacity' => 0.95,
         ]));
 
+        $editorMap = $mockup->map
+            ? [
+                ...$mockup->map->toArray(),
+                ...MockupZoneNormalizer::toImageSpace($mockup, $mockup->map),
+            ]
+            : null;
+
         return [
             'mockup' => $mockup,
+            'editorMap' => $editorMap,
             'templates' => PersonalizationTemplate::with(['product', 'fields'])->orderBy('name')->get(),
         ];
     }
@@ -181,6 +195,7 @@ class MockupController extends Controller
     {
         $title = $request->string('title')->toString();
         $saveMode = $request->input('save_mode', 'published');
+        $imageDimensions = $this->resolveImageDimensions($request, $mockup);
 
         return [
             'personalization_template_id' => $request->filled('personalization_template_id')
@@ -192,6 +207,8 @@ class MockupController extends Controller
             'mask_image_url' => $this->resolveUpload($request->file('mask_image_upload'), $request->input('mask_image_url'), $mockup?->mask_image_url, $request->boolean('remove_mask_image')),
             'overlay_image_url' => $this->resolveUpload($request->file('overlay_image_upload'), $request->input('overlay_image_url'), $mockup?->overlay_image_url, $request->boolean('remove_overlay_image')),
             'thumb_image_url' => $this->resolveUpload($request->file('thumb_image_upload'), $request->input('thumb_image_url'), $mockup?->thumb_image_url, $request->boolean('remove_thumb_image')),
+            'image_width' => $imageDimensions['width'],
+            'image_height' => $imageDimensions['height'],
             'render_mode' => $request->input('render_mode', 'perspective_quad'),
             'sort_order' => (int) $request->input('sort_order', 0),
             'is_active' => $saveMode === 'draft' ? false : $request->boolean('is_active', true),
@@ -213,6 +230,7 @@ class MockupController extends Controller
             'bottom_left_x' => $request->input('map.bottom_left_x', 0.20),
             'bottom_left_y' => $request->input('map.bottom_left_y', 0.82),
             'normalized_coordinates' => true,
+            'coordinate_space' => 'image',
             'object_position_x' => $request->input('map.object_position_x'),
             'object_position_y' => $request->input('map.object_position_y'),
             'manual_rotation' => $request->input('map.manual_rotation'),
@@ -237,6 +255,30 @@ class MockupController extends Controller
         }
 
         return $inputUrl ?: $currentUrl;
+    }
+
+    private function resolveImageDimensions(MockupRequest $request, ?PersonalizationMockup $mockup = null): array
+    {
+        if ($request->boolean('remove_base_image')) {
+            return ['width' => null, 'height' => null];
+        }
+
+        if ($request->file('base_image_upload') instanceof UploadedFile) {
+            [$width, $height] = getimagesize($request->file('base_image_upload')->getRealPath()) ?: [null, null];
+
+            return [
+                'width' => $width ? (int) $width : null,
+                'height' => $height ? (int) $height : null,
+            ];
+        }
+
+        $width = $request->integer('image_width') ?: $mockup?->image_width;
+        $height = $request->integer('image_height') ?: $mockup?->image_height;
+
+        return [
+            'width' => $width ?: null,
+            'height' => $height ?: null,
+        ];
     }
 
     private function deleteManagedAsset(?string $url): void

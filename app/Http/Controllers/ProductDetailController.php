@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ProductType;
 use App\Models\Product;
+use App\Support\MockupZoneNormalizer;
 use Illuminate\Http\Request;
 
 class ProductDetailController extends Controller
@@ -46,6 +47,7 @@ class ProductDetailController extends Controller
 
             $mockupGalleryItems = $mockups->map(function ($mockup) {
                 $map = $mockup->map;
+                $normalizedMap = MockupZoneNormalizer::toImageSpace($mockup, $map);
 
                 return [
                     'id' => 'mockup-'.$mockup->id,
@@ -58,14 +60,14 @@ class ProductDetailController extends Controller
                     'overlay' => $mockup->overlay_image_url,
                     'mask' => $mockup->mask_image_url,
                     'map' => [
-                        'top_left_x' => (float) ($map?->top_left_x ?? 0.2),
-                        'top_left_y' => (float) ($map?->top_left_y ?? 0.18),
-                        'top_right_x' => (float) ($map?->top_right_x ?? 0.8),
-                        'top_right_y' => (float) ($map?->top_right_y ?? 0.18),
-                        'bottom_right_x' => (float) ($map?->bottom_right_x ?? 0.8),
-                        'bottom_right_y' => (float) ($map?->bottom_right_y ?? 0.82),
-                        'bottom_left_x' => (float) ($map?->bottom_left_x ?? 0.2),
-                        'bottom_left_y' => (float) ($map?->bottom_left_y ?? 0.82),
+                        'top_left_x' => (float) ($normalizedMap['top_left_x'] ?? 0.2),
+                        'top_left_y' => (float) ($normalizedMap['top_left_y'] ?? 0.18),
+                        'top_right_x' => (float) ($normalizedMap['top_right_x'] ?? 0.8),
+                        'top_right_y' => (float) ($normalizedMap['top_right_y'] ?? 0.18),
+                        'bottom_right_x' => (float) ($normalizedMap['bottom_right_x'] ?? 0.8),
+                        'bottom_right_y' => (float) ($normalizedMap['bottom_right_y'] ?? 0.82),
+                        'bottom_left_x' => (float) ($normalizedMap['bottom_left_x'] ?? 0.2),
+                        'bottom_left_y' => (float) ($normalizedMap['bottom_left_y'] ?? 0.82),
                         'opacity' => (float) ($map?->opacity ?? 0.95),
                         'shadow_strength' => (float) ($map?->shadow_strength ?? 0.18),
                         'highlight_strength' => (float) ($map?->highlight_strength ?? 0.12),

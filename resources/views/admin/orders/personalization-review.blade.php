@@ -15,6 +15,8 @@
         $mockupMap = data_get($renderPreview, 'mockup.map');
         $flatTextLayers = collect(data_get($renderPreview, 'flat.text_layers', []));
         $generatedProofs = collect($meta['generated_proofs'] ?? []);
+        $flatProofPreviewUrl = route('admin.orders.personalization.export', [$order, $item, 'flat', 'png']).'?preview=1';
+        $mockupProofPreviewUrl = route('admin.orders.personalization.export', [$order, $item, 'mockup', 'png']).'?preview=1';
     @endphp
 
     <div class="space-y-8">
@@ -130,29 +132,9 @@
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Template preview</h3>
                     <div class="mt-6 rounded-[var(--radius-2xl)] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] p-5">
                         <div class="relative mx-auto aspect-[9/13] max-w-[520px] overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--color-border-soft)] bg-white shadow-[var(--shadow-soft)]">
-                            @if ($flatPreview)
-                                <img src="{{ $flatPreview }}" alt="{{ $currentTemplate?->name ?: $item->product_name }}" class="absolute inset-0 h-full w-full object-cover">
-                            @endif
-                            @foreach ($flatTextLayers as $layer)
-                                <div
-                                    class="absolute px-2 text-center"
-                                    style="
-                                        left: {{ data_get($layer, 'x', 50) }}%;
-                                        top: {{ data_get($layer, 'y', 50) }}%;
-                                        width: {{ data_get($layer, 'width', 50) }}%;
-                                        min-height: {{ data_get($layer, 'height', 8) }}%;
-                                        transform: translate(-50%, -50%) rotate({{ data_get($layer, 'rotation', 0) }}deg);
-                                        text-align: {{ data_get($layer, 'align') === 'start' ? 'left' : (data_get($layer, 'align') === 'end' ? 'right' : 'center') }};
-                                        color: {{ data_get($layer, 'color', '#780000') }};
-                                        line-height: {{ data_get($layer, 'line_height', 1.2) }};
-                                        letter-spacing: {{ data_get($layer, 'letter_spacing', 0) }}px;
-                                        font-size: clamp({{ data_get($layer, 'font_size_min', 14) }}px, 1.4vw, {{ data_get($layer, 'font_size_max', 30) }}px);
-                                        z-index: {{ data_get($layer, 'z_index', 1) }};
-                                        font-family: {{ data_get($renderPreview, 'font.css_font_family', '"Poppins", sans-serif') }};
-                                    "
-                                >{{ data_get($layer, 'value') }}</div>
-                            @endforeach
+                            <img src="{{ $flatProofPreviewUrl }}" alt="{{ $currentTemplate?->name ?: $item->product_name }}" class="absolute inset-0 h-full w-full object-contain">
                         </div>
+                        <p class="mt-4 text-sm text-[var(--color-text-soft)]">This is the actual rendered flat proof image, not a simulated browser preview.</p>
                     </div>
                 </div>
 
@@ -161,73 +143,9 @@
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Lifestyle composition</h3>
                     <div class="mt-6 rounded-[var(--radius-2xl)] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] p-5">
                         <div class="relative mx-auto aspect-[4/3] max-w-3xl overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--color-border-soft)] bg-white shadow-[var(--shadow-soft)]">
-                            @if (data_get($renderPreview, 'mockup.base_image_url'))
-                                <img src="{{ data_get($renderPreview, 'mockup.base_image_url') }}" alt="{{ data_get($renderPreview, 'mockup.title') }}" class="absolute inset-0 h-full w-full object-cover">
-                            @endif
-
-                            @if ($mockupMap)
-                                @php
-                                    $xValues = [data_get($mockupMap, 'top_left_x'), data_get($mockupMap, 'top_right_x'), data_get($mockupMap, 'bottom_right_x'), data_get($mockupMap, 'bottom_left_x')];
-                                    $yValues = [data_get($mockupMap, 'top_left_y'), data_get($mockupMap, 'top_right_y'), data_get($mockupMap, 'bottom_right_y'), data_get($mockupMap, 'bottom_left_y')];
-                                    $minX = min($xValues);
-                                    $maxX = max($xValues);
-                                    $minY = min($yValues);
-                                    $maxY = max($yValues);
-                                    $widthPercent = max(12, ($maxX - $minX) * 100);
-                                    $heightPercent = max(12, ($maxY - $minY) * 100);
-                                    $boundsWidth = max(0.12, $maxX - $minX);
-                                    $boundsHeight = max(0.12, $maxY - $minY);
-                                    $polygon = collect([
-                                        [data_get($mockupMap, 'top_left_x'), data_get($mockupMap, 'top_left_y')],
-                                        [data_get($mockupMap, 'top_right_x'), data_get($mockupMap, 'top_right_y')],
-                                        [data_get($mockupMap, 'bottom_right_x'), data_get($mockupMap, 'bottom_right_y')],
-                                        [data_get($mockupMap, 'bottom_left_x'), data_get($mockupMap, 'bottom_left_y')],
-                                    ])->map(fn ($point) => ((($point[0] - $minX) / $boundsWidth) * 100).'%' .' '.((($point[1] - $minY) / $boundsHeight) * 100).'%')->implode(', ');
-                                    $fitMode = data_get($mockupMap, 'fit_mode', 'stretch');
-                                    $objectFit = $fitMode === 'cover' ? 'cover' : 'fill';
-                                    $positionX = max(0, min(1, (float) data_get($mockupMap, 'object_position_x', 0.5))) * 100;
-                                    $positionY = max(0, min(1, (float) data_get($mockupMap, 'object_position_y', 0.5))) * 100;
-                                    $rotation = (float) data_get($mockupMap, 'manual_rotation', 0);
-                                @endphp
-                                <div
-                                    class="absolute overflow-hidden"
-                                    style="left: {{ $minX * 100 }}%; top: {{ $minY * 100 }}%; width: {{ $widthPercent }}%; height: {{ $heightPercent }}%; clip-path: polygon({{ $polygon }}); opacity: {{ (float) (data_get($mockupMap, 'opacity', 0.95)) }}; transform: rotate({{ $rotation }}deg); transform-origin: center center; box-shadow: 0 20px 40px rgba(0,48,73,{{ max(0.08, (float) data_get($mockupMap, 'shadow_strength', 0.18) * 0.45) }});"
-                                >
-                                    <div class="relative h-full w-full overflow-hidden bg-white">
-                                        @if ($flatPreview)
-                                            <img src="{{ $flatPreview }}" alt="" class="absolute inset-0 h-full w-full" style="object-fit: {{ $objectFit }}; object-position: {{ $positionX }}% {{ $positionY }}%;">
-                                        @endif
-                                        @foreach ($flatTextLayers as $layer)
-                                            <div
-                                                class="absolute px-2 text-center"
-                                                style="
-                                                    left: {{ data_get($layer, 'x', 50) }}%;
-                                                    top: {{ data_get($layer, 'y', 50) }}%;
-                                                    width: {{ data_get($layer, 'width', 50) }}%;
-                                                    min-height: {{ data_get($layer, 'height', 8) }}%;
-                                                    transform: translate(-50%, -50%) rotate({{ data_get($layer, 'rotation', 0) }}deg);
-                                                    text-align: {{ data_get($layer, 'align') === 'start' ? 'left' : (data_get($layer, 'align') === 'end' ? 'right' : 'center') }};
-                                                    color: {{ data_get($layer, 'color', '#780000') }};
-                                                    line-height: {{ data_get($layer, 'line_height', 1.2) }};
-                                                    letter-spacing: {{ data_get($layer, 'letter_spacing', 0) }}px;
-                                                    font-size: clamp(8px, 1vw, {{ data_get($layer, 'font_size_max', 24) }}px);
-                                                    z-index: {{ data_get($layer, 'z_index', 1) }};
-                                                    font-family: {{ data_get($renderPreview, 'font.css_font_family', '"Poppins", sans-serif') }};
-                                                "
-                                            >{{ data_get($layer, 'value') }}</div>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @endif
-
-                            @if (data_get($renderPreview, 'mockup.overlay_image_url'))
-                                <img src="{{ data_get($renderPreview, 'mockup.overlay_image_url') }}" alt="" class="absolute inset-0 h-full w-full object-cover" style="opacity: {{ max(0.12, (float) data_get($mockupMap, 'highlight_strength', 0.12)) }}">
-                            @endif
-
-                            @if (data_get($renderPreview, 'mockup.mask_image_url'))
-                                <img src="{{ data_get($renderPreview, 'mockup.mask_image_url') }}" alt="" class="absolute inset-0 h-full w-full object-cover mix-blend-multiply" style="opacity: {{ max(0.12, (float) data_get($mockupMap, 'highlight_strength', 0.12) * 0.9) }}">
-                            @endif
+                            <img src="{{ $mockupProofPreviewUrl }}" alt="{{ data_get($renderPreview, 'mockup.title', $item->product_name) }}" class="absolute inset-0 h-full w-full object-contain">
                         </div>
+                        <p class="mt-4 text-sm text-[var(--color-text-soft)]">This uses the same server-side perspective render path as the exported mockup PNG proof.</p>
                     </div>
                 </div>
 

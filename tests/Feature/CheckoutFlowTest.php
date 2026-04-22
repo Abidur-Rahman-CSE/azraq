@@ -283,8 +283,18 @@ it('allows the customer to review and approve proof from a signed link', functio
             ],
             'generated_proofs' => [
                 'flat' => [
+                    'png' => [
+                        'latest' => ['url' => '/storage/proofs/example-flat.png'],
+                        'history' => [],
+                    ],
                     'svg' => [
                         'latest' => ['url' => '/storage/proofs/example-flat.svg'],
+                        'history' => [],
+                    ],
+                ],
+                'mockup' => [
+                    'png' => [
+                        'latest' => ['url' => '/storage/proofs/example-mockup.png'],
                         'history' => [],
                     ],
                 ],
@@ -301,6 +311,9 @@ it('allows the customer to review and approve proof from a signed link', functio
     $this->get($signedUrl)
         ->assertOk()
         ->assertSee('Proof review')
+        ->assertSee('Rendered proof previews')
+        ->assertSee('/storage/proofs/example-flat.png')
+        ->assertSee('/storage/proofs/example-mockup.png')
         ->assertSee('Approve proof');
 
     $this->post($signedUrl, [

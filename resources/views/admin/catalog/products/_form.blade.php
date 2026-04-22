@@ -95,22 +95,28 @@
                 ];
             })->values()->all(),
             'mockups' => $template->mockups->map(function ($mockup) {
+                $normalizedMap = $mockup->map ? \App\Support\MockupZoneNormalizer::toImageSpace($mockup, $mockup->map) : null;
+
                 return [
                     'id' => (int) $mockup->id,
                     'title' => $mockup->title,
                     'thumb_image_url' => $mockup->thumb_image_url ?: $mockup->base_image_url,
                     'base_image_url' => $mockup->base_image_url,
                     'overlay_image_url' => $mockup->overlay_image_url,
+                    'mask_image_url' => $mockup->mask_image_url,
                     'render_mode' => $mockup->render_mode,
                     'map' => $mockup->map ? [
-                        'top_left_x' => (float) $mockup->map->top_left_x,
-                        'top_left_y' => (float) $mockup->map->top_left_y,
-                        'top_right_x' => (float) $mockup->map->top_right_x,
-                        'top_right_y' => (float) $mockup->map->top_right_y,
-                        'bottom_right_x' => (float) $mockup->map->bottom_right_x,
-                        'bottom_right_y' => (float) $mockup->map->bottom_right_y,
-                        'bottom_left_x' => (float) $mockup->map->bottom_left_x,
-                        'bottom_left_y' => (float) $mockup->map->bottom_left_y,
+                        'top_left_x' => (float) ($normalizedMap['top_left_x'] ?? 0.2),
+                        'top_left_y' => (float) ($normalizedMap['top_left_y'] ?? 0.18),
+                        'top_right_x' => (float) ($normalizedMap['top_right_x'] ?? 0.8),
+                        'top_right_y' => (float) ($normalizedMap['top_right_y'] ?? 0.18),
+                        'bottom_right_x' => (float) ($normalizedMap['bottom_right_x'] ?? 0.8),
+                        'bottom_right_y' => (float) ($normalizedMap['bottom_right_y'] ?? 0.82),
+                        'bottom_left_x' => (float) ($normalizedMap['bottom_left_x'] ?? 0.2),
+                        'bottom_left_y' => (float) ($normalizedMap['bottom_left_y'] ?? 0.82),
+                        'opacity' => (float) ($mockup->map->opacity ?? 0.95),
+                        'highlight_strength' => (float) ($mockup->map->highlight_strength ?? 0.12),
+                        'manual_rotation' => (float) ($mockup->map->manual_rotation ?? 0),
                     ] : null,
                 ];
             })->values()->all(),
@@ -118,23 +124,29 @@
     })->values();
 
     $mockupPayload = $personalizationMockups->map(function ($mockup) {
+        $normalizedMap = $mockup->map ? \App\Support\MockupZoneNormalizer::toImageSpace($mockup, $mockup->map) : null;
+
         return [
             'id' => (int) $mockup->id,
             'title' => $mockup->title,
             'thumb_image_url' => $mockup->thumb_image_url ?: $mockup->base_image_url,
             'base_image_url' => $mockup->base_image_url,
             'overlay_image_url' => $mockup->overlay_image_url,
+            'mask_image_url' => $mockup->mask_image_url,
             'render_mode' => $mockup->render_mode,
             'template_name' => $mockup->template?->name,
             'map' => $mockup->map ? [
-                'top_left_x' => (float) $mockup->map->top_left_x,
-                'top_left_y' => (float) $mockup->map->top_left_y,
-                'top_right_x' => (float) $mockup->map->top_right_x,
-                'top_right_y' => (float) $mockup->map->top_right_y,
-                'bottom_right_x' => (float) $mockup->map->bottom_right_x,
-                'bottom_right_y' => (float) $mockup->map->bottom_right_y,
-                'bottom_left_x' => (float) $mockup->map->bottom_left_x,
-                'bottom_left_y' => (float) $mockup->map->bottom_left_y,
+                'top_left_x' => (float) ($normalizedMap['top_left_x'] ?? 0.2),
+                'top_left_y' => (float) ($normalizedMap['top_left_y'] ?? 0.18),
+                'top_right_x' => (float) ($normalizedMap['top_right_x'] ?? 0.8),
+                'top_right_y' => (float) ($normalizedMap['top_right_y'] ?? 0.18),
+                'bottom_right_x' => (float) ($normalizedMap['bottom_right_x'] ?? 0.8),
+                'bottom_right_y' => (float) ($normalizedMap['bottom_right_y'] ?? 0.82),
+                'bottom_left_x' => (float) ($normalizedMap['bottom_left_x'] ?? 0.2),
+                'bottom_left_y' => (float) ($normalizedMap['bottom_left_y'] ?? 0.82),
+                'opacity' => (float) ($mockup->map->opacity ?? 0.95),
+                'highlight_strength' => (float) ($mockup->map->highlight_strength ?? 0.12),
+                'manual_rotation' => (float) ($mockup->map->manual_rotation ?? 0),
             ] : null,
         ];
     })->values();

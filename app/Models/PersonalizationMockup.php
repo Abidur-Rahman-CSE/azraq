@@ -19,6 +19,8 @@ class PersonalizationMockup extends Model
         'overlay_image_url',
         'mask_image_url',
         'thumb_image_url',
+        'image_width',
+        'image_height',
         'render_mode',
         'sort_order',
         'is_active',
@@ -29,6 +31,8 @@ class PersonalizationMockup extends Model
     {
         return [
             'is_active' => 'boolean',
+            'image_width' => 'integer',
+            'image_height' => 'integer',
         ];
     }
 

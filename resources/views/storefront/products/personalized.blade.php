@@ -48,14 +48,12 @@
 >
     <div
         class="space-y-6"
-        x-data="{
+        x-data="nikahMockupPreview({
             galleryItems: @js($galleryItems->values()->all()),
             activeSlideId: @js($galleryItems->first()['id'] ?? 'template-flat'),
             selectedMockupId: @js($defaultMockupId),
             selectedFont: @js($defaultFontId),
-            sceneFont: @js($defaultFontId),
             fields: @js($template->fields->mapWithKeys(fn ($field) => [$field->field_key => old('personalization.'.$field->field_key, $field->default_value ?? $field->preview_sample_value ?? '')])->all()),
-            sceneFields: @js($template->fields->mapWithKeys(fn ($field) => [$field->field_key => old('personalization.'.$field->field_key, $field->default_value ?? $field->preview_sample_value ?? '')])->all()),
             fonts: @js($activeFonts->map(fn ($font) => [
                 'id' => $font->id,
                 'name' => $font->name,
@@ -70,77 +68,25 @@
                 'text_transform_default' => $font->text_transform_default,
                 'recommended_for' => $font->recommended_for,
             ])->values()),
-            sceneRefreshTimer: null,
-            activeSlide() {
-                return this.galleryItems.find((item) => item.id === this.activeSlideId) ?? this.galleryItems[0];
-            },
-            selectSlide(id) {
-                this.activeSlideId = id;
-                const slide = this.galleryItems.find((item) => item.id === id);
-
-                if (slide?.kind === 'mockup' && slide.mockup_id) {
-                    this.selectedMockupId = slide.mockup_id;
-                }
-            },
-            fontFamily(id) {
-                return this.fonts.find((item) => item.id == id)?.font_family ?? 'Poppins, sans-serif';
-            },
-            polygon(map) {
-                return `${map.top_left_x * 100}% ${map.top_left_y * 100}%, ${map.top_right_x * 100}% ${map.top_right_y * 100}%, ${map.bottom_right_x * 100}% ${map.bottom_right_y * 100}%, ${map.bottom_left_x * 100}% ${map.bottom_left_y * 100}%`;
-            },
-            bounds(map) {
-                const xValues = [map.top_left_x, map.top_right_x, map.bottom_right_x, map.bottom_left_x];
-                const yValues = [map.top_left_y, map.top_right_y, map.bottom_right_y, map.bottom_left_y];
-                const minX = Math.min(...xValues);
-                const maxX = Math.max(...xValues);
-                const minY = Math.min(...yValues);
-                const maxY = Math.max(...yValues);
-
-                return {
-                    left: minX,
-                    top: minY,
-                    width: Math.max(0.12, maxX - minX),
-                    height: Math.max(0.12, maxY - minY),
-                };
-            },
-            localPolygon(map) {
-                const bounds = this.bounds(map);
-                const normalizeX = (value) => ((value - bounds.left) / bounds.width) * 100;
-                const normalizeY = (value) => ((value - bounds.top) / bounds.height) * 100;
-
-                return [
-                    `${normalizeX(map.top_left_x)}% ${normalizeY(map.top_left_y)}%`,
-                    `${normalizeX(map.top_right_x)}% ${normalizeY(map.top_right_y)}%`,
-                    `${normalizeX(map.bottom_right_x)}% ${normalizeY(map.bottom_right_y)}%`,
-                    `${normalizeX(map.bottom_left_x)}% ${normalizeY(map.bottom_left_y)}%`,
-                ].join(', ');
-            },
-            previewStyle(map) {
-                const bounds = this.bounds(map);
-
-                return `left:${bounds.left * 100}%; top:${bounds.top * 100}%; width:${bounds.width * 100}%; height:${bounds.height * 100}%; clip-path: polygon(${this.localPolygon(map)}); opacity:${map.opacity}; transform: rotate(${map.manual_rotation ?? 0}deg); transform-origin: center center; filter: drop-shadow(0 18px 28px rgba(0,48,73,${Math.max(0.12, map.shadow_strength) * 0.35}));`;
-            },
-            previewImageStyle(map) {
-                const fitMode = map?.fit_mode === 'cover' ? 'cover' : 'fill';
-                const positionX = Math.max(0, Math.min(1, map?.object_position_x ?? 0.5)) * 100;
-                const positionY = Math.max(0, Math.min(1, map?.object_position_y ?? 0.5)) * 100;
-
-                return `object-fit:${fitMode}; object-position:${positionX}% ${positionY}%;`;
-            },
-            scheduleSceneRefresh() {
-                window.clearTimeout(this.sceneRefreshTimer);
-                this.sceneRefreshTimer = window.setTimeout(() => {
-                    this.sceneFields = JSON.parse(JSON.stringify(this.fields));
-                    this.sceneFont = this.selectedFont;
-                }, 220);
-            },
-            flushSceneRefresh() {
-                window.clearTimeout(this.sceneRefreshTimer);
-                this.sceneFields = JSON.parse(JSON.stringify(this.fields));
-                this.sceneFont = this.selectedFont;
-            },
-        }"
-        x-init="$watch('selectedFont', () => scheduleSceneRefresh())"
+            templateImageUrl: @js($template->preview_image_url ?: $template->base_template_url),
+            templateFields: @js($template->fields->map(fn ($field) => [
+                'field_key' => $field->field_key,
+                'label' => $field->label,
+                'placeholder' => $field->placeholder,
+                'position_x' => (float) $field->position_x,
+                'position_y' => (float) $field->position_y,
+                'width' => (float) $field->width,
+                'height' => (float) $field->height,
+                'rotation' => (float) $field->rotation,
+                'text_align' => $field->text_align,
+                'text_color' => $field->text_color,
+                'line_height' => (float) $field->line_height,
+                'letter_spacing' => (float) $field->letter_spacing,
+                'font_size_min' => (int) $field->font_size_min,
+                'font_size_max' => (int) $field->font_size_max,
+                'z_index' => (int) ($field->z_index ?? 1),
+            ])->values()),
+        })"
     >
         <div class="surface-configurator overflow-hidden p-6 lg:sticky lg:top-28 lg:self-start">
             <div class="flex items-center justify-between gap-4">
@@ -190,60 +136,14 @@
 
                     <div
                         x-show="activeSlide()?.kind === 'mockup'"
+                        x-ref="mockupStage"
                         class="relative aspect-[4/3] w-full overflow-hidden bg-white"
                     >
-                        <img :src="activeSlide()?.scene" alt="" class="h-full w-full object-cover">
-
-                        <div
-                            x-show="activeSlide()?.map"
-                            class="absolute inset-0 pointer-events-none"
-                            :style="previewStyle(activeSlide().map)"
-                        >
-                            <div class="relative h-full w-full overflow-hidden bg-white">
-                                <img
-                                    :src="@js($template->preview_image_url ?: $template->base_template_url)"
-                                    alt="{{ $template->name }}"
-                                    class="absolute inset-0 h-full w-full"
-                                    :style="previewImageStyle(activeSlide().map)"
-                                >
-
-                                @foreach ($template->fields as $field)
-                                    <div
-                                        class="absolute px-2 text-center text-[var(--color-primary-900)]"
-                                        style="
-                                            left: {{ $field->position_x }}%;
-                                            top: {{ $field->position_y }}%;
-                                            width: {{ $field->width }}%;
-                                            transform: translate(-50%, -50%) rotate({{ (float) $field->rotation }}deg);
-                                            text-align: {{ $field->text_align === 'start' ? 'left' : ($field->text_align === 'end' ? 'right' : 'center') }};
-                                            color: {{ $field->text_color }};
-                                            min-height: {{ $field->height }}%;
-                                            line-height: {{ $field->line_height }};
-                                            letter-spacing: {{ $field->letter_spacing }}px;
-                                            font-size: clamp(8px, 1vw, {{ $field->font_size_max }}px);
-                                            z-index: {{ $field->z_index ?? 1 }};
-                                        "
-                                        :style="`font-family: ${fontFamily(sceneFont)}`"
-                                        x-text="sceneFields['{{ $field->field_key }}'] || '{{ $field->placeholder }}'"
-                                    ></div>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        <img
-                            x-show="activeSlide()?.overlay"
-                            :src="activeSlide()?.overlay"
-                            alt=""
-                            class="pointer-events-none absolute inset-0 h-full w-full object-cover"
-                            :style="`opacity:${Math.max(0.12, activeSlide()?.map?.highlight_strength ?? 0.16)}`"
-                        >
-                        <img
-                            x-show="activeSlide()?.mask"
-                            :src="activeSlide()?.mask"
-                            alt=""
-                            class="pointer-events-none absolute inset-0 h-full w-full object-cover mix-blend-multiply"
-                            :style="`opacity:${Math.max(0.12, (activeSlide()?.map?.highlight_strength ?? 0.16) * 0.9)}`"
-                        >
+                        <canvas
+                            x-ref="mockupCanvas"
+                            class="block h-full w-full"
+                            aria-label="Perspective preview of the selected Nikahnama mockup"
+                        ></canvas>
                     </div>
                 </div>
 
@@ -342,7 +242,7 @@
                                         type="button"
                                         class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white p-3 text-left transition hover:-translate-y-0.5 hover:shadow-[0_14px_26px_rgba(15,46,60,0.08)]"
                                         :class="{ 'border-[var(--color-primary-900)] bg-[var(--color-surface-cream)] shadow-[0_18px_35px_rgba(120,0,0,0.12)]': String(selectedMockupId) === '{{ $mockup->id }}' }"
-                                        @click="selectedMockupId = {{ $mockup->id }}; activeSlideId = 'mockup-{{ $mockup->id }}'"
+                                        @click="selectMockup({{ $mockup->id }})"
                                     >
                                         <div class="overflow-hidden rounded-[var(--radius-xl)] bg-[var(--color-surface-cream)]">
                                             <img src="{{ $mockup->thumb_image_url ?: $mockup->base_image_url }}" alt="{{ $mockup->title }}" class="aspect-[4/3] w-full object-cover">

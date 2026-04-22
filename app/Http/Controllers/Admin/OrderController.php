@@ -9,12 +9,12 @@ use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\PersonalizationMockup;
 use App\Models\PersonalizationTemplate;
+use App\Services\MockupRenderService;
 use App\Support\NikahRenderPreview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
-use Imagick;
 use Throwable;
 use Illuminate\Http\Response;
 
@@ -169,9 +169,10 @@ class OrderController extends Controller
             ->with('status', 'Personalization review updated.');
     }
 
-    public function exportPersonalizationPreview(Order $order, OrderItem $item, string $mode, string $format = 'svg'): Response
+    public function exportPersonalizationPreview(Request $request, Order $order, OrderItem $item, string $mode, string $format = 'svg'): Response
     {
         abort_unless($item->order_id === $order->id, 404);
+        $isPreviewOnly = $request->boolean('preview');
 
         $item->loadMissing([
             'product.personalizationTemplate.fields',
@@ -201,17 +202,22 @@ class OrderController extends Controller
 
         if ($format === 'png') {
             try {
-                $image = new Imagick();
-                $image->setBackgroundColor('transparent');
-                $image->readImageBlob($svg);
-                $image->setImageFormat('png32');
-                $image->setImageCompressionQuality(100);
+                $mockupRenderService = app(MockupRenderService::class);
+                $blob = $mode === 'mockup'
+                    ? $mockupRenderService->renderMockupProof(
+                        $renderPreview,
+                        view('admin.orders.personalization-proof-svg', [
+                            'order' => $order,
+                            'item' => $item,
+                            'mode' => 'flat',
+                            'renderPreview' => $renderPreview,
+                        ])->render(),
+                    )
+                    : $this->rasterizeSvgToPng($svg);
 
-                $blob = $image->getImagesBlob();
-                $image->clear();
-                $image->destroy();
-
-                $this->storeGeneratedProof($item, $order, $mode, 'png', $blob);
+                if (! $isPreviewOnly) {
+                    $this->storeGeneratedProof($item, $order, $mode, 'png', $blob);
+                }
 
                 return response($blob, 200, [
                     'Content-Type' => 'image/png',
@@ -219,7 +225,9 @@ class OrderController extends Controller
                 ]);
             } catch (Throwable $exception) {
                 $blob = $this->fallbackPngPreview($renderPreview, $mode, $item);
-                $this->storeGeneratedProof($item, $order, $mode, 'png', $blob);
+                if (! $isPreviewOnly) {
+                    $this->storeGeneratedProof($item, $order, $mode, 'png', $blob);
+                }
 
                 return response($blob, 200, [
                     'Content-Type' => 'image/png',
@@ -228,12 +236,27 @@ class OrderController extends Controller
             }
         }
 
-        $this->storeGeneratedProof($item, $order, $mode, 'svg', $svg);
+        if (! $isPreviewOnly) {
+            $this->storeGeneratedProof($item, $order, $mode, 'svg', $svg);
+        }
 
         return response($svg, 200, [
             'Content-Type' => 'image/svg+xml; charset=UTF-8',
             'Content-Disposition' => 'inline; filename="'.$order->order_number.'-'.$item->id.'-'.$mode.'-proof.svg"',
         ]);
+    }
+
+    private function rasterizeSvgToPng(string $svg): string
+    {
+        $image = app(MockupRenderService::class)->renderFlatFromSvg($svg);
+        $image->setImageFormat('png32');
+        $image->setImageCompressionQuality(100);
+
+        $blob = $image->getImagesBlob();
+        $image->clear();
+        $image->destroy();
+
+        return $blob;
     }
 
     private function fallbackPngPreview(array $renderPreview, string $mode, OrderItem $item): string

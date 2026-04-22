@@ -23,6 +23,7 @@ class PersonalizationMockupMap extends Model
         'bottom_left_x',
         'bottom_left_y',
         'normalized_coordinates',
+        'coordinate_space',
         'object_position_x',
         'object_position_y',
         'manual_rotation',

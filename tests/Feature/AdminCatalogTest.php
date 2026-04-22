@@ -6,6 +6,7 @@ use App\Models\Collection;
 use App\Models\PersonalizationMockup;
 use App\Models\PersonalizationTemplate;
 use App\Models\Product;
+use App\Support\MockupZoneNormalizer;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -199,6 +200,19 @@ it('shows the nikah personalization setup tools on the advanced product editor',
         ->assertSee('Edit Advanced customization product')
         ->assertSee('Personalization')
         ->assertSee('Signature Nikah Template');
+});
+
+it('hydrates normalized mockup map coordinates on the advanced product editor payload', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')->firstOrFail();
+    $mockup = PersonalizationMockup::with('map')->where('slug', 'signature-table-setting')->firstOrFail();
+    $normalizedMap = MockupZoneNormalizer::toImageSpace($mockup, $mockup->map);
+
+    $this->get(route('admin.catalog.products.edit', $product))
+        ->assertOk()
+        ->assertSee((string) $normalizedMap['top_left_x'], false)
+        ->assertSee((string) $normalizedMap['bottom_right_y'], false);
 });
 
 it('shows the general product editor with seo fields on create', function () {

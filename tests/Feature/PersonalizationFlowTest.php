@@ -3,6 +3,7 @@
 use App\Models\PersonalizationTemplate;
 use App\Models\PersonalizationMockup;
 use App\Models\Product;
+use App\Support\MockupZoneNormalizer;
 use App\Models\Category;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -188,14 +189,15 @@ it('hydrates existing mockup assets and saved map coordinates on the edit page',
     $this->seed(CatalogSeeder::class);
 
     $mockup = PersonalizationMockup::with('map')->where('slug', 'signature-table-setting')->firstOrFail();
+    $normalizedMap = MockupZoneNormalizer::toImageSpace($mockup, $mockup->map);
 
     $this->get(route('admin.mockups.edit', $mockup))
         ->assertOk()
         ->assertSee($mockup->base_image_url, false)
-        ->assertSee((string) $mockup->map->top_left_x, false)
-        ->assertSee((string) $mockup->map->top_right_y, false)
-        ->assertSee((string) $mockup->map->bottom_right_y, false)
-        ->assertSee((string) $mockup->map->bottom_left_x, false);
+        ->assertSee((string) $normalizedMap['top_left_x'], false)
+        ->assertSee((string) $normalizedMap['top_right_y'], false)
+        ->assertSee((string) $normalizedMap['bottom_right_y'], false)
+        ->assertSee((string) $normalizedMap['bottom_left_x'], false);
 });
 
 it('creates a mockup from the admin editor and saves normalized map data', function () {

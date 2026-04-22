@@ -1,5 +1,6 @@
 @php($isEdit = $mockup->exists)
 @php($map = $mockup->map)
+@php($editorMap = $editorMap ?? ($map?->toArray() ?? []))
 @php($template = $mockup->template)
 @php($previewData = old('preview_data', $template?->preview_data_presets ?? [
     'bride_name' => 'Amena',
@@ -62,6 +63,8 @@
         ceremonyDate: @js($previewData['ceremony_date'] ?? '12 December 2026'),
         venue: @js($previewData['venue'] ?? 'Dhaka, Bangladesh'),
         baseImageUrl: @js(old('base_image_url', $mockup->base_image_url)),
+        naturalBaseWidth: {{ (int) old('image_width', $mockup->image_width ?? 0) }},
+        naturalBaseHeight: {{ (int) old('image_height', $mockup->image_height ?? 0) }},
         maskImageUrl: @js(old('mask_image_url', $mockup->mask_image_url)),
         overlayImageUrl: @js(old('overlay_image_url', $mockup->overlay_image_url)),
         thumbImageUrl: @js(old('thumb_image_url', $mockup->thumb_image_url)),
@@ -70,16 +73,16 @@
         removeOverlayImage: {{ old('remove_overlay_image', 0) ? 'true' : 'false' }},
         removeThumbImage: {{ old('remove_thumb_image', 0) ? 'true' : 'false' }},
         defaults: {
-            top_left: { x: {{ (float) old('map.top_left_x', $map->top_left_x ?? 0.20) }}, y: {{ (float) old('map.top_left_y', $map->top_left_y ?? 0.18) }} },
-            top_right: { x: {{ (float) old('map.top_right_x', $map->top_right_x ?? 0.80) }}, y: {{ (float) old('map.top_right_y', $map->top_right_y ?? 0.18) }} },
-            bottom_right: { x: {{ (float) old('map.bottom_right_x', $map->bottom_right_x ?? 0.80) }}, y: {{ (float) old('map.bottom_right_y', $map->bottom_right_y ?? 0.82) }} },
-            bottom_left: { x: {{ (float) old('map.bottom_left_x', $map->bottom_left_x ?? 0.20) }}, y: {{ (float) old('map.bottom_left_y', $map->bottom_left_y ?? 0.82) }} },
+            top_left: { x: {{ (float) old('map.top_left_x', data_get($editorMap, 'top_left_x', 0.20)) }}, y: {{ (float) old('map.top_left_y', data_get($editorMap, 'top_left_y', 0.18)) }} },
+            top_right: { x: {{ (float) old('map.top_right_x', data_get($editorMap, 'top_right_x', 0.80)) }}, y: {{ (float) old('map.top_right_y', data_get($editorMap, 'top_right_y', 0.18)) }} },
+            bottom_right: { x: {{ (float) old('map.bottom_right_x', data_get($editorMap, 'bottom_right_x', 0.80)) }}, y: {{ (float) old('map.bottom_right_y', data_get($editorMap, 'bottom_right_y', 0.82)) }} },
+            bottom_left: { x: {{ (float) old('map.bottom_left_x', data_get($editorMap, 'bottom_left_x', 0.20)) }}, y: {{ (float) old('map.bottom_left_y', data_get($editorMap, 'bottom_left_y', 0.82)) }} },
         },
         points: {
-            top_left: { x: {{ (float) old('map.top_left_x', $map->top_left_x ?? 0.20) }}, y: {{ (float) old('map.top_left_y', $map->top_left_y ?? 0.18) }} },
-            top_right: { x: {{ (float) old('map.top_right_x', $map->top_right_x ?? 0.80) }}, y: {{ (float) old('map.top_right_y', $map->top_right_y ?? 0.18) }} },
-            bottom_right: { x: {{ (float) old('map.bottom_right_x', $map->bottom_right_x ?? 0.80) }}, y: {{ (float) old('map.bottom_right_y', $map->bottom_right_y ?? 0.82) }} },
-            bottom_left: { x: {{ (float) old('map.bottom_left_x', $map->bottom_left_x ?? 0.20) }}, y: {{ (float) old('map.bottom_left_y', $map->bottom_left_y ?? 0.82) }} },
+            top_left: { x: {{ (float) old('map.top_left_x', data_get($editorMap, 'top_left_x', 0.20)) }}, y: {{ (float) old('map.top_left_y', data_get($editorMap, 'top_left_y', 0.18)) }} },
+            top_right: { x: {{ (float) old('map.top_right_x', data_get($editorMap, 'top_right_x', 0.80)) }}, y: {{ (float) old('map.top_right_y', data_get($editorMap, 'top_right_y', 0.18)) }} },
+            bottom_right: { x: {{ (float) old('map.bottom_right_x', data_get($editorMap, 'bottom_right_x', 0.80)) }}, y: {{ (float) old('map.bottom_right_y', data_get($editorMap, 'bottom_right_y', 0.82)) }} },
+            bottom_left: { x: {{ (float) old('map.bottom_left_x', data_get($editorMap, 'bottom_left_x', 0.20)) }}, y: {{ (float) old('map.bottom_left_y', data_get($editorMap, 'bottom_left_y', 0.82)) }} },
         },
         sampleDefaults: {
             brideName: @js($previewData['bride_name'] ?? 'Amena'),
@@ -151,8 +154,43 @@
                 height: Math.max(0.12, maxY - minY),
             };
         },
+        imageBounds() {
+            const stage = this.$refs.stage;
+
+            if (! stage) {
+                return { left: 0, top: 0, width: 1, height: 1 };
+            }
+
+            const stageWidth = stage.clientWidth || 1;
+            const stageHeight = stage.clientHeight || 1;
+            const naturalWidth = this.naturalBaseWidth || stageWidth;
+            const naturalHeight = this.naturalBaseHeight || stageHeight;
+            const imageRatio = naturalWidth / Math.max(1, naturalHeight);
+            const stageRatio = stageWidth / Math.max(1, stageHeight);
+
+            let width = stageWidth;
+            let height = stageHeight;
+            let left = 0;
+            let top = 0;
+
+            if (imageRatio > stageRatio) {
+                width = stageWidth;
+                height = width / imageRatio;
+                top = (stageHeight - height) / 2;
+            } else {
+                height = stageHeight;
+                width = height * imageRatio;
+                left = (stageWidth - width) / 2;
+            }
+
+            return { left, top, width, height };
+        },
         pointStyle(key) {
-            return `left: calc(${this.points[key].x * 100}% - 11px); top: calc(${this.points[key].y * 100}% - 11px);`;
+            const bounds = this.imageBounds();
+            const x = bounds.left + (this.points[key].x * bounds.width);
+            const y = bounds.top + (this.points[key].y * bounds.height);
+
+            return `left:${x - 11}px; top:${y - 11}px;`;
         },
         pointToneStyle(key) {
             const meta = this.cornerMeta[key];
@@ -185,8 +223,9 @@
         },
         previewStyle() {
             const bounds = this.bounds();
+            const imageBounds = this.imageBounds();
 
-            return `left:${bounds.left * 100}%; top:${bounds.top * 100}%; width:${bounds.width * 100}%; height:${bounds.height * 100}%; clip-path: polygon(${this.localPolygon()}); opacity:${this.previewOpacity}; transform: rotate(${this.manualRotation}deg); transform-origin: center center; filter: drop-shadow(0 18px 24px rgba(0,48,73,${this.shadowStrength * 0.35}));`;
+            return `left:${imageBounds.left + (bounds.left * imageBounds.width)}px; top:${imageBounds.top + (bounds.top * imageBounds.height)}px; width:${bounds.width * imageBounds.width}px; height:${bounds.height * imageBounds.height}px; clip-path: polygon(${this.localPolygon()}); opacity:${this.previewOpacity}; transform: rotate(${this.manualRotation}deg); transform-origin: center center; filter: drop-shadow(0 18px 24px rgba(0,48,73,${this.shadowStrength * 0.35}));`;
         },
         previewImageStyle() {
             const fitMode = this.fitMode === 'cover' ? 'cover' : 'fill';
@@ -234,8 +273,9 @@
             if (this.draggingHandle) {
                 const stage = this.$refs.stage;
                 const rect = stage.getBoundingClientRect();
-                const x = this.clamp((event.clientX - rect.left) / rect.width);
-                const y = this.clamp((event.clientY - rect.top) / rect.height);
+                const imageBounds = this.imageBounds();
+                const x = this.clamp((event.clientX - rect.left - imageBounds.left) / imageBounds.width);
+                const y = this.clamp((event.clientY - rect.top - imageBounds.top) / imageBounds.height);
                 this.points[this.draggingHandle].x = Number(x.toFixed(4));
                 this.points[this.draggingHandle].y = Number(y.toFixed(4));
                 this.markDirty();
@@ -309,6 +349,14 @@
             this.venue = this.sampleDefaults.venue;
             this.markDirty();
         },
+        syncBaseImageMetrics(event) {
+            const image = event?.target;
+
+            if (! image) return;
+
+            this.naturalBaseWidth = image.naturalWidth || this.naturalBaseWidth || 0;
+            this.naturalBaseHeight = image.naturalHeight || this.naturalBaseHeight || 0;
+        },
         swapAssetPreview(key, event) {
             const file = event.target.files?.[0];
             if (! file) return;
@@ -352,6 +400,11 @@
                 overlayImageUrl: 'removeOverlayImage',
                 thumbImageUrl: 'removeThumbImage',
             }[key]] = true;
+
+            if (key === 'baseImageUrl') {
+                this.naturalBaseWidth = 0;
+                this.naturalBaseHeight = 0;
+            }
             this.markDirty();
         },
     }"
@@ -365,6 +418,8 @@
     @if ($isEdit)
         @method('PUT')
     @endif
+    <input type="hidden" name="image_width" :value="naturalBaseWidth || ''">
+    <input type="hidden" name="image_height" :value="naturalBaseHeight || ''">
 
     <section class="surface-card px-6 py-6 md:px-8">
         <div class="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
@@ -385,6 +440,23 @@
             </div>
         </div>
     </section>
+
+    @if (($map->coordinate_space ?? 'stage') !== 'image')
+        <section class="surface-card-soft px-5 py-4">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Legacy map detected</p>
+                    <p class="mt-2 max-w-3xl text-sm leading-7 text-[var(--color-text-soft)]">
+                        This mockup was mapped before image-space coordinates were introduced. The editor is already showing the corrected image-space points.
+                        Save once to persist the upgraded coordinates so storefront preview and proof export stay aligned.
+                    </p>
+                </div>
+                <span class="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]">
+                    Current image: {{ $mockup->image_width ?: 'Unknown' }} × {{ $mockup->image_height ?: 'Unknown' }}
+                </span>
+            </div>
+        </section>
+    @endif
 
     <section class="grid gap-5 xl:grid-cols-2 2xl:grid-cols-[1.05fr_1.1fr_0.9fr]">
         <div class="surface-card-soft px-5 py-5">
@@ -632,10 +704,12 @@
                     <div class="absolute inset-0" :style="baseTransform()">
                         <template x-if="baseImageUrl">
                             <img
+                                x-ref="stageImage"
                                 :src="baseImageUrl"
                                 src="{{ old('base_image_url', $mockup->base_image_url) }}"
                                 alt="{{ $mockup->title ?: 'Mockup base' }}"
                                 class="h-full w-full bg-[var(--bg-section-soft)] object-contain"
+                                @load="syncBaseImageMetrics($event)"
                             >
                         </template>
                         <template x-if="!baseImageUrl">
@@ -669,7 +743,7 @@
                                 :src="overlayImageUrl"
                                 src="{{ old('overlay_image_url', $mockup->overlay_image_url) }}"
                                 alt=""
-                                class="pointer-events-none absolute inset-0 h-full w-full object-cover"
+                                class="pointer-events-none absolute inset-0 h-full w-full object-contain"
                                 :style="`opacity:${Math.max(0.12, highlightStrength)}`"
                             >
                         </template>
@@ -679,14 +753,14 @@
                                 :src="maskImageUrl"
                                 src="{{ old('mask_image_url', $mockup->mask_image_url) }}"
                                 alt=""
-                                class="pointer-events-none absolute inset-0 h-full w-full object-cover mix-blend-multiply"
+                                class="pointer-events-none absolute inset-0 h-full w-full object-contain mix-blend-multiply"
                                 :style="`opacity:${Math.max(0.12, highlightStrength * 0.9)}`"
                             >
                         </template>
 
                         <svg class="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 100 100" preserveAspectRatio="none">
                             <polygon
-                                :points="`${points.top_left.x * 100},${points.top_left.y * 100} ${points.top_right.x * 100},${points.top_right.y * 100} ${points.bottom_right.x * 100},${points.bottom_right.y * 100} ${points.bottom_left.x * 100},${points.bottom_left.y * 100}`"
+                                :points="(() => { const bounds = imageBounds(); return `${((bounds.left + (points.top_left.x * bounds.width)) / ($refs.stage?.clientWidth || 1)) * 100},${((bounds.top + (points.top_left.y * bounds.height)) / ($refs.stage?.clientHeight || 1)) * 100} ${((bounds.left + (points.top_right.x * bounds.width)) / ($refs.stage?.clientWidth || 1)) * 100},${((bounds.top + (points.top_right.y * bounds.height)) / ($refs.stage?.clientHeight || 1)) * 100} ${((bounds.left + (points.bottom_right.x * bounds.width)) / ($refs.stage?.clientWidth || 1)) * 100},${((bounds.top + (points.bottom_right.y * bounds.height)) / ($refs.stage?.clientHeight || 1)) * 100} ${((bounds.left + (points.bottom_left.x * bounds.width)) / ($refs.stage?.clientWidth || 1)) * 100},${((bounds.top + (points.bottom_left.y * bounds.height)) / ($refs.stage?.clientHeight || 1)) * 100}`; })()"
                                 fill="rgba(102,155,188,0.12)"
                                 stroke="rgba(120,0,0,0.78)"
                                 stroke-width="0.45"
@@ -757,7 +831,7 @@
                         <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)] p-3">
                             <div class="relative aspect-[4/3] overflow-hidden rounded-[16px] bg-white">
                                 <template x-if="baseImageUrl">
-                                    <img :src="baseImageUrl" alt="" class="h-full w-full bg-[var(--bg-section-soft)] object-contain">
+                                    <img :src="baseImageUrl" alt="" class="h-full w-full bg-[var(--bg-section-soft)] object-contain" @load="syncBaseImageMetrics($event)">
                                 </template>
                                 <div class="absolute inset-0 pointer-events-none" :style="previewStyle()">
                                     <div class="relative h-full w-full overflow-hidden bg-white">
@@ -795,6 +869,7 @@
                 <div class="mt-6 grid gap-4">
                     <input type="hidden" name="map[map_type]" value="quad">
                     <input type="hidden" name="map[normalized_coordinates]" value="1">
+                    <input type="hidden" name="map[coordinate_space]" value="image">
 
                     <label class="field-shell">
                         <span class="text-sm font-medium text-[var(--color-secondary-900)]">Fit mode</span>
@@ -840,7 +915,7 @@
                                         max="1"
                                         step="0.0001"
                                         name="map[{{ $key }}_x]"
-                                        value="{{ old('map.'.$key.'_x', data_get($map, $key.'_x')) }}"
+                                        value="{{ old('map.'.$key.'_x', data_get($editorMap, $key.'_x')) }}"
                                         x-model.number="points.{{ $key }}.x"
                                         class="field-input"
                                         data-corner-input="{{ $key }}"
@@ -856,7 +931,7 @@
                                         max="1"
                                         step="0.0001"
                                         name="map[{{ $key }}_y]"
-                                        value="{{ old('map.'.$key.'_y', data_get($map, $key.'_y')) }}"
+                                        value="{{ old('map.'.$key.'_y', data_get($editorMap, $key.'_y')) }}"
                                         x-model.number="points.{{ $key }}.y"
                                         class="field-input"
                                         @click.stop

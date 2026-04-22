@@ -10,11 +10,240 @@ const STATUS_OPTIONS = [
     { value: 'archived', label: 'Archived' },
 ];
 const EXISTING_IMAGE_LABELS = ['front', 'detail', 'lifestyle', 'mockup', 'size-guide', 'gallery'];
+let perspectiveModuleLoader = null;
+const stagePreviewImageCache = new Map();
 const DEFAULT_FIELDS = [
     { label: 'Bride name', field_key: 'bride_name', type: 'text', is_required: true },
     { label: 'Groom name', field_key: 'groom_name', type: 'text', is_required: true },
     { label: 'Nikah date', field_key: 'nikah_date', type: 'date', is_required: true },
 ];
+
+function createCanvas(width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(width));
+    canvas.height = Math.max(1, Math.round(height));
+
+    return canvas;
+}
+
+function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+}
+
+function getContainGeometry(image, width, height) {
+    const sourceRatio = image.naturalWidth / Math.max(1, image.naturalHeight);
+    const targetRatio = width / Math.max(1, height);
+
+    let drawWidth = width;
+    let drawHeight = height;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (sourceRatio > targetRatio) {
+        drawWidth = width;
+        drawHeight = drawWidth / sourceRatio;
+        offsetY = (height - drawHeight) / 2;
+    } else {
+        drawHeight = height;
+        drawWidth = drawHeight * sourceRatio;
+        offsetX = (width - drawWidth) / 2;
+    }
+
+    return { drawWidth, drawHeight, offsetX, offsetY };
+}
+
+function drawContainedImage(ctx, image, width, height) {
+    const { drawWidth, drawHeight, offsetX, offsetY } = getContainGeometry(image, width, height);
+    ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+
+    return { drawWidth, drawHeight, offsetX, offsetY };
+}
+
+async function loadPerspectiveModule() {
+    if (!perspectiveModuleLoader) {
+        perspectiveModuleLoader = import('perspectivejs').then((module) => module.default ?? module);
+    }
+
+    return perspectiveModuleLoader;
+}
+
+async function loadStageImage(url) {
+    if (!url) {
+        return null;
+    }
+
+    if (stagePreviewImageCache.has(url)) {
+        return stagePreviewImageCache.get(url);
+    }
+
+    const promise = new Promise((resolve, reject) => {
+        const image = new Image();
+        image.decoding = 'async';
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = url;
+    });
+
+    stagePreviewImageCache.set(url, promise);
+
+    return promise;
+}
+
+function getZonePoints(map, geometry) {
+    if (!map || !geometry) {
+        return [];
+    }
+
+    return [
+        [geometry.offsetX + (Number(map.top_left_x || 0) * geometry.drawWidth), geometry.offsetY + (Number(map.top_left_y || 0) * geometry.drawHeight)],
+        [geometry.offsetX + (Number(map.top_right_x || 0) * geometry.drawWidth), geometry.offsetY + (Number(map.top_right_y || 0) * geometry.drawHeight)],
+        [geometry.offsetX + (Number(map.bottom_right_x || 0) * geometry.drawWidth), geometry.offsetY + (Number(map.bottom_right_y || 0) * geometry.drawHeight)],
+        [geometry.offsetX + (Number(map.bottom_left_x || 0) * geometry.drawWidth), geometry.offsetY + (Number(map.bottom_left_y || 0) * geometry.drawHeight)],
+    ];
+}
+
+function MockupStagePreview({
+    sceneUrl,
+    overlayUrl,
+    maskUrl,
+    certificateUrl,
+    map,
+    title,
+    compact = false,
+}) {
+    const stageRef = useRef(null);
+    const canvasRef = useRef(null);
+    const [zoneOverlay, setZoneOverlay] = useState({ points: [], label: null, hasZone: false });
+
+    useEffect(() => {
+        let cancelled = false;
+        const stage = stageRef.current;
+        const canvas = canvasRef.current;
+
+        if (!stage || !canvas) {
+            return undefined;
+        }
+
+        const renderPreview = async () => {
+            const width = Math.max(1, Math.round(stage.clientWidth));
+            const height = Math.max(1, Math.round(stage.clientHeight));
+
+            if (!width || !height) {
+                return;
+            }
+
+            const devicePixelRatio = window.devicePixelRatio || 1;
+            canvas.width = Math.round(width * devicePixelRatio);
+            canvas.height = Math.round(height * devicePixelRatio);
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+            ctx.clearRect(0, 0, width, height);
+
+            try {
+                const [sceneImage, overlayImage, maskImage, certificateImage, Perspective] = await Promise.all([
+                    loadStageImage(sceneUrl),
+                    loadStageImage(overlayUrl),
+                    loadStageImage(maskUrl),
+                    loadStageImage(certificateUrl),
+                    map && certificateUrl ? loadPerspectiveModule() : Promise.resolve(null),
+                ]);
+
+                if (cancelled || !sceneImage) {
+                    return;
+                }
+
+                const geometry = drawContainedImage(ctx, sceneImage, width, height);
+                const zonePoints = getZonePoints(map, geometry);
+
+                if (zonePoints.length === 4 && certificateImage && Perspective) {
+                    ctx.save();
+                    ctx.globalAlpha = clamp(Number(map?.opacity ?? 0.96), 0.1, 1);
+                    const perspective = new Perspective(ctx, certificateImage);
+                    perspective.draw(zonePoints);
+                    ctx.restore();
+                }
+
+                if (overlayImage) {
+                    ctx.save();
+                    ctx.globalAlpha = clamp(Number(map?.highlight_strength ?? 0.14), 0.12, 1);
+                    drawContainedImage(ctx, overlayImage, width, height);
+                    ctx.restore();
+                }
+
+                if (maskImage) {
+                    ctx.save();
+                    ctx.globalAlpha = clamp(Number(map?.highlight_strength ?? 0.14) * 0.9, 0.12, 1);
+                    drawContainedImage(ctx, maskImage, width, height);
+                    ctx.restore();
+                }
+
+                if (!cancelled) {
+                    if (zonePoints.length === 4) {
+                        const xs = zonePoints.map((point) => point[0]);
+                        const ys = zonePoints.map((point) => point[1]);
+                        setZoneOverlay({
+                            points: zonePoints,
+                            hasZone: true,
+                            label: {
+                                left: Math.min(...xs) + 10,
+                                top: Math.min(...ys) + 10,
+                            },
+                        });
+                    } else {
+                        setZoneOverlay({ points: [], label: null, hasZone: false });
+                    }
+                }
+            } catch (error) {
+                if (!cancelled) {
+                    setZoneOverlay({ points: [], label: null, hasZone: false });
+                }
+            }
+        };
+
+        const resizeObserver = new ResizeObserver(() => {
+            renderPreview().catch(() => {});
+        });
+
+        resizeObserver.observe(stage);
+        renderPreview().catch(() => {});
+
+        return () => {
+            cancelled = true;
+            resizeObserver.disconnect();
+        };
+    }, [certificateUrl, map, maskUrl, overlayUrl, sceneUrl]);
+
+    return (
+        <div ref={stageRef} className={`nikah-stage ${compact ? 'nikah-stage--sidebar' : ''}`}>
+            <canvas ref={canvasRef} className="nikah-stage__canvas" aria-label={title || 'Mockup preview canvas'} />
+            <div className="nikah-stage__hud" aria-hidden="true">
+                {zoneOverlay.hasZone && zoneOverlay.points.length === 4 ? (
+                    <>
+                        <svg className="nikah-stage__hud-svg" viewBox={`0 0 ${Math.max(1, Math.round(stageRef.current?.clientWidth || 1))} ${Math.max(1, Math.round(stageRef.current?.clientHeight || 1))}`} preserveAspectRatio="none">
+                            <polygon
+                                className="nikah-stage__zone-polygon"
+                                points={zoneOverlay.points.map((point) => point.join(',')).join(' ')}
+                            />
+                        </svg>
+                        {zoneOverlay.label ? (
+                            <span
+                                className="nikah-stage__zone-badge"
+                                style={{ left: `${zoneOverlay.label.left}px`, top: `${zoneOverlay.label.top}px` }}
+                            >
+                                Zone defined ✓
+                            </span>
+                        ) : null}
+                    </>
+                ) : (
+                    <span className="nikah-stage__zone-badge nikah-stage__zone-badge--missing">Zone missing</span>
+                )}
+            </div>
+        </div>
+    );
+}
 
 function uid(prefix) {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -1378,34 +1607,14 @@ function NikahProductForm({ payload }) {
                                             <strong>Active frame</strong>
                                             <span>{activeFrame?.title || 'Choose a frame'}</span>
                                         </div>
-                                        <div className="nikah-stage">
-                                            {activeFrame?.base_image_url ? <img src={activeFrame.base_image_url} alt={activeFrame.title} className="nikah-stage__scene" /> : null}
-                                            {designThumbnail ? (
-                                                <div
-                                                    className="nikah-stage__certificate"
-                                                    style={{
-                                                        left: `${zoneBox.left}%`,
-                                                        top: `${zoneBox.top}%`,
-                                                        width: `${zoneBox.width}%`,
-                                                        height: `${zoneBox.height}%`,
-                                                    }}
-                                                >
-                                                    <img src={designThumbnail} alt={selectedDesign?.name || 'Selected design'} />
-                                                </div>
-                                            ) : null}
-                                            <div
-                                                className={`nikah-stage__zone ${zoneBox.hasZone ? 'is-defined' : 'is-missing'}`}
-                                                style={{
-                                                    left: `${zoneBox.left}%`,
-                                                    top: `${zoneBox.top}%`,
-                                                    width: `${zoneBox.width}%`,
-                                                    height: `${zoneBox.height}%`,
-                                                }}
-                                            >
-                                                <span>{zoneBox.hasZone ? 'Zone defined ✓' : 'Zone missing'}</span>
-                                            </div>
-                                            {activeFrame?.overlay_image_url ? <img src={activeFrame.overlay_image_url} alt="" className="nikah-stage__overlay" /> : null}
-                                        </div>
+                                        <MockupStagePreview
+                                            sceneUrl={activeFrame?.base_image_url}
+                                            overlayUrl={activeFrame?.overlay_image_url}
+                                            maskUrl={activeFrame?.mask_image_url}
+                                            certificateUrl={designThumbnail}
+                                            map={activeFrame?.map}
+                                            title={activeFrame?.title}
+                                        />
                                     </div>
 
                                     <div className="nikah-frame-grid">
@@ -1636,23 +1845,15 @@ function NikahProductForm({ payload }) {
                                 </div>
 
                                 <div className="nikah-preview-card">
-                                    <div className="nikah-stage nikah-stage--sidebar">
-                                        {activeFrame?.base_image_url ? <img src={activeFrame.base_image_url} alt={activeFrame.title} className="nikah-stage__scene" /> : null}
-                                        {designThumbnail ? (
-                                            <div
-                                                className="nikah-stage__certificate"
-                                                style={{
-                                                    left: `${zoneBox.left}%`,
-                                                    top: `${zoneBox.top}%`,
-                                                    width: `${zoneBox.width}%`,
-                                                    height: `${zoneBox.height}%`,
-                                                }}
-                                            >
-                                                <img src={designThumbnail} alt={selectedDesign?.name || 'Selected design'} />
-                                            </div>
-                                        ) : null}
-                                        {activeFrame?.overlay_image_url ? <img src={activeFrame.overlay_image_url} alt="" className="nikah-stage__overlay" /> : null}
-                                    </div>
+                                    <MockupStagePreview
+                                        sceneUrl={activeFrame?.base_image_url}
+                                        overlayUrl={activeFrame?.overlay_image_url}
+                                        maskUrl={activeFrame?.mask_image_url}
+                                        certificateUrl={designThumbnail}
+                                        map={activeFrame?.map}
+                                        title={activeFrame?.title}
+                                        compact
+                                    />
 
                                     <div className="nikah-preview-card__meta">
                                         <strong>{productName || 'Untitled Nikahnama'}</strong>

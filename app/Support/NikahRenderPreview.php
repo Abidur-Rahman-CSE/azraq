@@ -7,6 +7,7 @@ use App\Models\PersonalizationFont;
 use App\Models\PersonalizationMockup;
 use App\Models\PersonalizationTemplate;
 use App\Models\Product;
+use App\Support\MockupZoneNormalizer;
 
 class NikahRenderPreview
 {
@@ -61,6 +62,10 @@ class NikahRenderPreview
             ];
         })->values()->all();
 
+        $normalizedMap = $mockup?->map
+            ? MockupZoneNormalizer::toImageSpace($mockup, $mockup->map)
+            : null;
+
         return [
             'template' => [
                 'id' => $template->id,
@@ -78,7 +83,7 @@ class NikahRenderPreview
                 'css_font_family' => $font?->css_font_family,
             ],
             'flat' => [
-                'image_url' => $template->preview_image_url ?: $template->base_template_url,
+                'image_url' => $template->base_template_url ?: $template->preview_image_url,
                 'text_layers' => $textLayers,
             ],
             'mockup' => $mockup ? [
@@ -89,14 +94,14 @@ class NikahRenderPreview
                 'mask_image_url' => $mockup->mask_image_url,
                 'render_mode' => $mockup->render_mode,
                 'map' => $mockup->map ? [
-                    'top_left_x' => (float) $mockup->map->top_left_x,
-                    'top_left_y' => (float) $mockup->map->top_left_y,
-                    'top_right_x' => (float) $mockup->map->top_right_x,
-                    'top_right_y' => (float) $mockup->map->top_right_y,
-                    'bottom_right_x' => (float) $mockup->map->bottom_right_x,
-                    'bottom_right_y' => (float) $mockup->map->bottom_right_y,
-                    'bottom_left_x' => (float) $mockup->map->bottom_left_x,
-                    'bottom_left_y' => (float) $mockup->map->bottom_left_y,
+                    'top_left_x' => (float) ($normalizedMap['top_left_x'] ?? 0.2),
+                    'top_left_y' => (float) ($normalizedMap['top_left_y'] ?? 0.18),
+                    'top_right_x' => (float) ($normalizedMap['top_right_x'] ?? 0.8),
+                    'top_right_y' => (float) ($normalizedMap['top_right_y'] ?? 0.18),
+                    'bottom_right_x' => (float) ($normalizedMap['bottom_right_x'] ?? 0.8),
+                    'bottom_right_y' => (float) ($normalizedMap['bottom_right_y'] ?? 0.82),
+                    'bottom_left_x' => (float) ($normalizedMap['bottom_left_x'] ?? 0.2),
+                    'bottom_left_y' => (float) ($normalizedMap['bottom_left_y'] ?? 0.82),
                     'opacity' => (float) ($mockup->map->opacity ?? 0.95),
                     'shadow_strength' => (float) ($mockup->map->shadow_strength ?? 0.18),
                     'highlight_strength' => (float) ($mockup->map->highlight_strength ?? 0.12),

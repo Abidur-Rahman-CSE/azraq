@@ -832,61 +832,41 @@
     min-height: 220px;
 }
 
-.nikah-stage__scene,
-.nikah-stage__overlay {
+.nikah-stage__canvas,
+.nikah-stage__hud,
+.nikah-stage__hud-svg {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-}
-
-.nikah-stage__overlay {
-    pointer-events: none;
-}
-
-.nikah-stage__certificate,
-.nikah-stage__zone {
-    position: absolute;
-}
-
-.nikah-stage__certificate {
-    overflow: hidden;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.94);
-    box-shadow: 0 16px 28px rgba(15, 46, 60, 0.12);
-}
-
-.nikah-stage__certificate img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
     display: block;
 }
 
-.nikah-stage__zone {
-    border: 1.5px dashed #2f6fe4;
-    border-radius: 8px;
+.nikah-stage__hud {
     pointer-events: none;
 }
 
-.nikah-stage__zone.is-missing {
-    border-color: #d28a1f;
+.nikah-stage__zone-polygon {
+    fill: none;
+    stroke: #2f6fe4;
+    stroke-width: 1.5px;
+    stroke-dasharray: 6 4;
 }
 
-.nikah-stage__zone span {
+.nikah-stage__zone-badge {
     position: absolute;
-    top: 0.45rem;
-    left: 0.45rem;
     border-radius: 999px;
     background: rgba(255, 255, 255, 0.96);
     padding: 0.3rem 0.55rem;
     color: #2f6fe4;
     font-size: 0.68rem;
     font-weight: 700;
+    box-shadow: 0 8px 16px rgba(15, 46, 60, 0.08);
 }
 
-.nikah-stage__zone.is-missing span {
+.nikah-stage__zone-badge--missing {
+    left: 0.75rem;
+    top: 0.75rem;
     color: #d28a1f;
 }
 
