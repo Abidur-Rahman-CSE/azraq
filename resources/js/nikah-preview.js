@@ -71,6 +71,46 @@ function drawContainedImage(ctx, image, width, height) {
     return { drawWidth, drawHeight, offsetX, offsetY };
 }
 
+function drawCoverImage(ctx, image, width, height) {
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+    const sourceRatio = sourceWidth / Math.max(1, sourceHeight);
+    const targetRatio = width / Math.max(1, height);
+
+    let drawWidth = width;
+    let drawHeight = height;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    if (sourceRatio > targetRatio) {
+        drawHeight = height;
+        drawWidth = height * sourceRatio;
+        offsetX = (width - drawWidth) / 2;
+    } else {
+        drawWidth = width;
+        drawHeight = width / sourceRatio;
+        offsetY = (height - drawHeight) / 2;
+    }
+
+    ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+
+    return { drawWidth, drawHeight, offsetX, offsetY };
+}
+
+async function canvasToPerspectiveSource(canvas) {
+    if (window.createImageBitmap) {
+        return window.createImageBitmap(canvas);
+    }
+
+    return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.decoding = 'async';
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = canvas.toDataURL('image/png');
+    });
+}
+
 function measureTextWithSpacing(ctx, text, letterSpacing) {
     if (!text) {
         return 0;
@@ -129,8 +169,8 @@ function wrapTextLines(ctx, text, maxWidth, letterSpacing, allowMultiline = true
 }
 
 function fitTextBlock(ctx, text, layer, fontStyle) {
-    const width = Math.max(40, layer.widthPx);
-    const height = Math.max(24, layer.heightPx);
+    const width = Math.max(18, Math.max(24, layer.widthPx) - 12);
+    const height = Math.max(14, Math.max(18, layer.heightPx) - 10);
     const minSize = Math.max(8, Number(layer.font_size_min || 12));
     const maxSize = Math.max(minSize, Number(layer.font_size_max || 24));
     const lineHeight = Math.max(1, Number(fontStyle.lineHeight || layer.line_height || 1.2));
@@ -193,10 +233,27 @@ function drawLineWithSpacing(ctx, text, x, y, align, letterSpacing) {
 }
 
 function buildFieldLayer(field, width, height) {
+    const fontScale = Number(field.font_scale || 1);
+
     return {
         ...field,
         widthPx: (width * Number(field.width || 50)) / 100,
         heightPx: (height * Number(field.height || 8)) / 100,
+        font_size_min: Math.max(8, Number(field.font_size_min || 12) * fontScale),
+        font_size_max: Math.max(8, Number(field.font_size_max || 24) * fontScale),
+        letter_spacing: Number(field.letter_spacing || 0) * fontScale,
+    };
+}
+
+function exportCanvasSize(template, fallbackImage) {
+    const ratioWidth = Math.max(1, Number(template.export_ratio_width || 9));
+    const ratioHeight = Math.max(1, Number(template.export_ratio_height || 13));
+    const fallbackWidth = fallbackImage?.naturalWidth || fallbackImage?.width || 2400;
+    const targetWidth = Math.max(2400, Math.min(3200, Number(template.export_width || fallbackWidth || 2400)));
+
+    return {
+        width: Math.round(targetWidth),
+        height: Math.round(targetWidth * (ratioHeight / ratioWidth)),
     };
 }
 
@@ -267,19 +324,21 @@ const NikahPreview = {
         }
 
         const stage = visibleCanvas.parentElement;
-        const width = Math.max(1, Math.round(stage?.clientWidth || visibleCanvas.clientWidth || 1));
-        const height = Math.max(1, Math.round(stage?.clientHeight || visibleCanvas.clientHeight || 1));
-        const devicePixelRatio = window.devicePixelRatio || 1;
+        const displayWidth = Math.max(1, Math.round(stage?.clientWidth || visibleCanvas.clientWidth || 1));
+        const displayHeight = Math.max(1, Math.round(stage?.clientHeight || visibleCanvas.clientHeight || 1));
+        const renderScale = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
+        const width = Math.round(displayWidth * renderScale);
+        const height = Math.round(displayHeight * renderScale);
 
-        visibleCanvas.width = Math.round(width * devicePixelRatio);
-        visibleCanvas.height = Math.round(height * devicePixelRatio);
-        visibleCanvas.style.width = `${width}px`;
-        visibleCanvas.style.height = `${height}px`;
+        visibleCanvas.width = width;
+        visibleCanvas.height = height;
+        visibleCanvas.style.width = `${displayWidth}px`;
+        visibleCanvas.style.height = `${displayHeight}px`;
 
         const ctx = visibleCanvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
-        ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, width, height);
 
         const flatCanvas = await this.renderFlat(fields, fontKey, fieldFonts);
@@ -309,11 +368,15 @@ const NikahPreview = {
         const geometry = drawContainedImage(ctx, backgroundImage, width, height);
         const points = getAdminMapPoints(scene, geometry);
 
-        ctx.save();
-        ctx.globalAlpha = clamp(Number(scene.map?.opacity ?? scene.opacity ?? 0.96), 0.1, 1);
-        const perspective = new Perspective(ctx, flatCanvas);
-        perspective.draw(points);
-        ctx.restore();
+        if (points.length === 4) {
+            const certificateImage = await canvasToPerspectiveSource(flatCanvas);
+
+            ctx.save();
+            ctx.globalAlpha = clamp(Number(scene.map?.opacity ?? scene.opacity ?? 0.96), 0.1, 1);
+            const perspective = new Perspective(ctx, certificateImage);
+            perspective.draw(points);
+            ctx.restore();
+        }
 
         if (overlayImage) {
             ctx.save();
@@ -333,26 +396,29 @@ const NikahPreview = {
     },
 
     async renderFlat(fields, fontKey, fieldFonts = {}) {
-        const baseUrl = this.template.preview_image_url || this.template.base_template_url;
+        const snapshotUrl = this.template.rendered_preview_url || this.template.thumbnail_image_url;
+        const baseUrl = this.template.base_template_url || this.template.preview_image_url || snapshotUrl;
         const baseImage = await loadImage(baseUrl);
 
         if (!baseImage) {
             return null;
         }
 
-        const width = baseImage.naturalWidth || baseImage.width;
-        const height = baseImage.naturalHeight || baseImage.height;
+        const { width, height } = exportCanvasSize(this.template, baseImage);
         const canvas = createCanvas(width, height);
         const ctx = canvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
 
-        ctx.drawImage(baseImage, 0, 0, width, height);
+        ctx.fillStyle = '#FDF0D5';
+        ctx.fillRect(0, 0, width, height);
+        drawCoverImage(ctx, baseImage, width, height);
 
         const sortedLayers = [...(this.template.fields ?? [])].sort((left, right) => Number(left.z_index || 1) - Number(right.z_index || 1));
+        const fontScale = Math.max(1, width / Math.max(1, Number(this.template.editor_canvas_width || 980)));
 
         sortedLayers.forEach((field) => {
-            const layer = buildFieldLayer(field, width, height);
+            const layer = buildFieldLayer({ ...field, font_scale: fontScale }, width, height);
             const selectedFontKey = fieldFonts[field.name] ?? fieldFonts[field.field_key] ?? fontKey;
             const selectedFont = this.fontConfig(selectedFontKey);
             const fontStyle = {
@@ -366,7 +432,9 @@ const NikahPreview = {
                 maxLines: Number(field.settings?.max_lines || 3),
                 overflowBehavior: field.settings?.overflow_behavior || 'shrink_then_wrap',
             };
-            const rawText = `${fields[field.name] ?? fields[field.field_key] ?? field.placeholder ?? ''}`.trim();
+            const fieldKey = field.name ?? field.field_key;
+            const fieldValue = fields[fieldKey] ?? fields[field.field_key] ?? fields[field.name];
+            const rawText = `${fieldValue || field.default_value || field.preview_sample_value || this.template.preview_data_presets?.[fieldKey] || field.placeholder || ''}`.trim();
             const text = applyTextTransform(rawText, fontStyle.textTransform);
 
             if (!text) {
@@ -379,9 +447,10 @@ const NikahPreview = {
             const lineHeight = Math.max(1, Number(fontStyle.lineHeight || 1.2));
             const totalHeight = fontSize * lineHeight * lines.length;
             const boxLeft = x - (layer.widthPx / 2);
-            const startY = y - (totalHeight / 2) + fontSize;
+            const boxTop = y - (layer.heightPx / 2);
+            const startY = boxTop + Math.max(4, (layer.heightPx - totalHeight) / 2) + (fontSize * 0.82);
             const align = field.text_align === 'start' ? 'left' : (field.text_align === 'end' ? 'right' : 'center');
-            const drawX = align === 'left' ? boxLeft : (align === 'right' ? boxLeft + layer.widthPx : x);
+            const drawX = align === 'left' ? boxLeft + 6 : (align === 'right' ? boxLeft + layer.widthPx - 6 : x);
 
             ctx.save();
             ctx.translate(x, y);

@@ -25,15 +25,26 @@
         ->unique()
         ->values();
 
+    $previewPresets = collect($template?->preview_data_presets ?? []);
+
     $templatePayload = $product->is_customizable && $template
         ? [
             'base_template_url' => $template->base_template_url,
             'preview_image_url' => $template->preview_image_url ?: $template->base_template_url,
+            'rendered_preview_url' => $template->thumbnail_image_url
+                ? $template->thumbnail_image_url.'?v='.urlencode((string) optional($template->updated_at)->timestamp)
+                : ($template->preview_image_url ?: $template->base_template_url),
+            'export_ratio_width' => (int) ($template->export_ratio_width ?: 9),
+            'export_ratio_height' => (int) ($template->export_ratio_height ?: 13),
+            'editor_canvas_width' => 980,
+            'preview_data_presets' => $template->preview_data_presets ?? [],
             'fields' => $template->fields->map(fn ($field) => [
                 'name' => $field->field_key,
                 'field_key' => $field->field_key,
                 'label' => $field->label,
                 'placeholder' => $field->placeholder,
+                'default_value' => $field->default_value,
+                'preview_sample_value' => $field->preview_sample_value,
                 'position_x' => (float) $field->position_x,
                 'position_y' => (float) $field->position_y,
                 'width' => (float) $field->width,
@@ -83,7 +94,9 @@
         ? $template->fields->mapWithKeys(fn ($field) => [
             $field->field_key => old(
                 'personalization.'.$field->field_key,
-                $field->default_value ?? $field->preview_sample_value ?? ''
+                $field->default_value
+                    ?? $field->preview_sample_value
+                    ?? $previewPresets->get($field->field_key, '')
             ),
         ])->all()
         : [];
