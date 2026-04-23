@@ -15,9 +15,21 @@ class NikahRenderPreview
         Product $product,
         array $personalization = [],
         ?PersonalizationFont $font = null,
-        ?PersonalizationTemplate $template = null,
+        array|PersonalizationTemplate|null $fieldFonts = [],
+        PersonalizationTemplate|PersonalizationMockup|null $template = null,
         ?PersonalizationMockup $mockup = null,
     ): ?array {
+        if ($fieldFonts instanceof PersonalizationTemplate || $fieldFonts === null) {
+            $mockup = $template instanceof PersonalizationMockup ? $template : $mockup;
+            $template = $fieldFonts;
+            $fieldFonts = [];
+        }
+
+        if ($template instanceof PersonalizationMockup) {
+            $mockup = $template;
+            $template = null;
+        }
+
         $product->loadMissing([
             'personalizationTemplate.fields',
             'personalizationTemplate.fonts',
@@ -39,8 +51,18 @@ class NikahRenderPreview
             ?? $template->mockups->where('is_active', true)->first()
             ?? $template->mockups->first();
 
-        $textLayers = $template->fields->map(function ($field) use ($personalization) {
+        $textLayers = $template->fields->map(function ($field) use ($personalization, $fieldFonts, $font) {
             $value = $personalization[$field->field_key] ?? $field->default_value ?? $field->preview_sample_value ?? $field->placeholder;
+            $selectedFieldFont = $fieldFonts[$field->field_key] ?? null;
+            $resolvedFont = $selectedFieldFont instanceof PersonalizationFont ? $selectedFieldFont : $font;
+            $settings = $field->settings ?? [];
+
+            if ($resolvedFont) {
+                $settings['font_family_override'] = $resolvedFont->resolved_font_family;
+                $settings['font_weight'] = $resolvedFont->font_weight_default ?: ($settings['font_weight'] ?? '600');
+                $settings['font_style'] = $resolvedFont->font_style_default ?: ($settings['font_style'] ?? 'normal');
+                $settings['text_transform'] = $resolvedFont->text_transform_default ?: ($settings['text_transform'] ?? 'none');
+            }
 
             return [
                 'key' => $field->field_key,
@@ -59,7 +81,7 @@ class NikahRenderPreview
                 'font_size_min' => (int) $field->font_size_min,
                 'font_size_max' => (int) $field->font_size_max,
                 'z_index' => (int) ($field->z_index ?? 1),
-                'settings' => $field->settings ?? [],
+                'settings' => $settings,
             ];
         })->values()->all();
 
@@ -83,6 +105,14 @@ class NikahRenderPreview
                 'name' => $font?->name,
                 'css_font_family' => $font?->css_font_family,
             ],
+            'font_selection' => collect($fieldFonts)
+                ->mapWithKeys(fn ($selectedFont, $fieldKey) => [$fieldKey => $selectedFont instanceof PersonalizationFont ? [
+                    'id' => $selectedFont->id,
+                    'name' => $selectedFont->name,
+                    'css_font_family' => $selectedFont->css_font_family,
+                ] : null])
+                ->filter()
+                ->all(),
             'flat' => [
                 'image_url' => $template->base_template_url ?: $template->preview_image_url,
                 'text_layers' => $textLayers,
@@ -137,10 +167,25 @@ class NikahRenderPreview
         $font = $template?->fonts?->firstWhere('name', $fontName)
             ?? $product->personalizationTemplate?->fonts?->firstWhere('name', $fontName);
 
+        $fieldFonts = collect($meta['font_selection'] ?? [])
+            ->mapWithKeys(function ($selection, $fieldKey) use ($template, $product) {
+                $fontName = data_get($selection, 'name');
+                $fontId = data_get($selection, 'id');
+                $resolvedFont = ($fontId ? $template?->fonts?->firstWhere('id', $fontId) : null)
+                    ?? ($fontId ? $product->personalizationTemplate?->fonts?->firstWhere('id', $fontId) : null)
+                    ?? ($fontName ? $template?->fonts?->firstWhere('name', $fontName) : null)
+                    ?? ($fontName ? $product->personalizationTemplate?->fonts?->firstWhere('name', $fontName) : null);
+
+                return [$fieldKey => $resolvedFont];
+            })
+            ->filter()
+            ->all();
+
         return self::buildForProduct(
             $product,
             $meta['personalization'] ?? [],
             $font,
+            $fieldFonts,
             $template,
             $mockup,
         );

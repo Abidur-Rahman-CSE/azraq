@@ -67,6 +67,8 @@ function getContainGeometry(image, width, height) {
 function drawContainedImage(ctx, image, width, height) {
     const { drawWidth, drawHeight, offsetX, offsetY } = getContainGeometry(image, width, height);
     ctx.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+
+    return { drawWidth, drawHeight, offsetX, offsetY };
 }
 
 function measureTextWithSpacing(ctx, text, letterSpacing) {
@@ -209,6 +211,37 @@ function resolvePoint(point, scene, drawWidth, drawHeight, offsetX, offsetY) {
     ];
 }
 
+function resolveNaturalPoint(point, scene, width, height) {
+    const x = Number(point?.x || 0);
+    const y = Number(point?.y || 0);
+    const normalized = x <= 1 && y <= 1;
+
+    return [
+        (normalized ? x : x / Math.max(1, Number(scene.image_width || width || 1))) * width,
+        (normalized ? y : y / Math.max(1, Number(scene.image_height || height || 1))) * height,
+    ];
+}
+
+function getAdminMapPoints(scene, geometry) {
+    const map = scene.map;
+
+    if (map) {
+        return [
+            [geometry.offsetX + (Number(map.top_left_x || 0) * geometry.drawWidth), geometry.offsetY + (Number(map.top_left_y || 0) * geometry.drawHeight)],
+            [geometry.offsetX + (Number(map.top_right_x || 0) * geometry.drawWidth), geometry.offsetY + (Number(map.top_right_y || 0) * geometry.drawHeight)],
+            [geometry.offsetX + (Number(map.bottom_right_x || 0) * geometry.drawWidth), geometry.offsetY + (Number(map.bottom_right_y || 0) * geometry.drawHeight)],
+            [geometry.offsetX + (Number(map.bottom_left_x || 0) * geometry.drawWidth), geometry.offsetY + (Number(map.bottom_left_y || 0) * geometry.drawHeight)],
+        ];
+    }
+
+    return [
+        resolvePoint(scene.zone_points?.tl, scene, geometry.drawWidth, geometry.drawHeight, geometry.offsetX, geometry.offsetY),
+        resolvePoint(scene.zone_points?.tr, scene, geometry.drawWidth, geometry.drawHeight, geometry.offsetX, geometry.offsetY),
+        resolvePoint(scene.zone_points?.br, scene, geometry.drawWidth, geometry.drawHeight, geometry.offsetX, geometry.offsetY),
+        resolvePoint(scene.zone_points?.bl, scene, geometry.drawWidth, geometry.drawHeight, geometry.offsetX, geometry.offsetY),
+    ];
+}
+
 const NikahPreview = {
     canvasId: 'nikah-preview-canvas',
     mockups: [],
@@ -226,7 +259,7 @@ const NikahPreview = {
         return this.fonts.find((font) => `${font.key}` === `${key}`) ?? this.fonts[0] ?? {};
     },
 
-    async render(fields, fontKey, mockupIndex = 0, mode = 'flat') {
+    async render(fields, fontKey, mockupIndex = 0, mode = 'flat', fieldFonts = {}) {
         const visibleCanvas = document.getElementById(this.canvasId);
 
         if (!visibleCanvas) {
@@ -244,10 +277,12 @@ const NikahPreview = {
         visibleCanvas.style.height = `${height}px`;
 
         const ctx = visibleCanvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
         ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
         ctx.clearRect(0, 0, width, height);
 
-        const flatCanvas = await this.renderFlat(fields, fontKey);
+        const flatCanvas = await this.renderFlat(fields, fontKey, fieldFonts);
 
         if (!flatCanvas) {
             return null;
@@ -259,10 +294,11 @@ const NikahPreview = {
         }
 
         const scene = this.mockups[mockupIndex];
-        const [backgroundImage, overlayImage, Perspective] = await Promise.all([
-            loadImage(scene.image_url),
-            loadImage(scene.overlay_url),
-            loadPerspective(),
+        const [backgroundImage, overlayImage, maskImage, Perspective] = await Promise.all([
+            loadImage(scene.base_image_url || scene.image_url),
+            loadImage(scene.overlay_image_url || scene.overlay_url),
+            loadImage(scene.mask_image_url || scene.mask_url),
+            (scene.map || scene.zone_points) ? loadPerspective() : Promise.resolve(null),
         ]);
 
         if (!backgroundImage || !Perspective) {
@@ -270,33 +306,33 @@ const NikahPreview = {
             return flatCanvas;
         }
 
-        drawContainedImage(ctx, backgroundImage, width, height);
-
-        const { drawWidth, drawHeight, offsetX, offsetY } = getContainGeometry(backgroundImage, width, height);
-        const points = [
-            resolvePoint(scene.zone_points?.tl, scene, drawWidth, drawHeight, offsetX, offsetY),
-            resolvePoint(scene.zone_points?.tr, scene, drawWidth, drawHeight, offsetX, offsetY),
-            resolvePoint(scene.zone_points?.br, scene, drawWidth, drawHeight, offsetX, offsetY),
-            resolvePoint(scene.zone_points?.bl, scene, drawWidth, drawHeight, offsetX, offsetY),
-        ];
+        const geometry = drawContainedImage(ctx, backgroundImage, width, height);
+        const points = getAdminMapPoints(scene, geometry);
 
         ctx.save();
-        ctx.globalAlpha = clamp(Number(scene.opacity ?? 0.96), 0.1, 1);
+        ctx.globalAlpha = clamp(Number(scene.map?.opacity ?? scene.opacity ?? 0.96), 0.1, 1);
         const perspective = new Perspective(ctx, flatCanvas);
         perspective.draw(points);
         ctx.restore();
 
         if (overlayImage) {
             ctx.save();
-            ctx.globalAlpha = clamp(Number(scene.highlight_strength ?? 0.14), 0.1, 1);
+            ctx.globalAlpha = clamp(Number(scene.map?.highlight_strength ?? scene.highlight_strength ?? 0.14), 0.12, 1);
             drawContainedImage(ctx, overlayImage, width, height);
+            ctx.restore();
+        }
+
+        if (maskImage) {
+            ctx.save();
+            ctx.globalAlpha = clamp(Number(scene.map?.highlight_strength ?? scene.highlight_strength ?? 0.14) * 0.9, 0.12, 1);
+            drawContainedImage(ctx, maskImage, width, height);
             ctx.restore();
         }
 
         return flatCanvas;
     },
 
-    async renderFlat(fields, fontKey) {
+    async renderFlat(fields, fontKey, fieldFonts = {}) {
         const baseUrl = this.template.preview_image_url || this.template.base_template_url;
         const baseImage = await loadImage(baseUrl);
 
@@ -308,21 +344,24 @@ const NikahPreview = {
         const height = baseImage.naturalHeight || baseImage.height;
         const canvas = createCanvas(width, height);
         const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
 
         ctx.drawImage(baseImage, 0, 0, width, height);
 
-        const font = this.fontConfig(fontKey);
         const sortedLayers = [...(this.template.fields ?? [])].sort((left, right) => Number(left.z_index || 1) - Number(right.z_index || 1));
 
         sortedLayers.forEach((field) => {
             const layer = buildFieldLayer(field, width, height);
+            const selectedFontKey = fieldFonts[field.name] ?? fieldFonts[field.field_key] ?? fontKey;
+            const selectedFont = this.fontConfig(selectedFontKey);
             const fontStyle = {
-                fontFamily: field.settings?.font_family_override || font.css_family || 'serif',
-                fontWeight: field.settings?.font_weight || font.font_weight || '600',
-                fontStyle: field.settings?.font_style || 'normal',
-                lineHeight: Number(field.line_height || 1.2),
-                letterSpacing: Number(field.letter_spacing ?? 0),
-                textTransform: field.settings?.text_transform || 'none',
+                fontFamily: field.settings?.font_family_override || selectedFont.css_family || 'serif',
+                fontWeight: field.settings?.font_weight || selectedFont.font_weight || '600',
+                fontStyle: field.settings?.font_style || selectedFont.font_style || 'normal',
+                lineHeight: Number(selectedFont.line_height || field.line_height || 1.2),
+                letterSpacing: Number(selectedFont.letter_spacing ?? field.letter_spacing ?? 0),
+                textTransform: field.settings?.text_transform || selectedFont.text_transform || 'none',
                 allowMultiline: Boolean(field.settings?.allow_multiline ?? true),
                 maxLines: Number(field.settings?.max_lines || 3),
                 overflowBehavior: field.settings?.overflow_behavior || 'shrink_then_wrap',
@@ -372,8 +411,10 @@ export function registerNikahPreview(Alpine) {
         isCustomizable: Boolean(config.isCustomizable),
         mode: 'flat',
         activeMockup: 0,
+        activePreviewIndex: 0,
         activeImage: 0,
         fields: cloneData(config.fields ?? {}),
+        fieldFonts: cloneData(config.fieldFonts ?? {}),
         activeFont: config.activeFont ?? null,
         previewReady: false,
         selectedVariant: config.selectedVariant ?? '',
@@ -387,17 +428,113 @@ export function registerNikahPreview(Alpine) {
         get activeGeneralImage() {
             return config.generalImages?.[this.activeImage] ?? config.generalImages?.[0] ?? null;
         },
+        get previewCount() {
+            return Math.max(1, (this.hasFlatPreview ? 1 : 0) + (config.mockups?.length ?? 0));
+        },
+        get hasFlatPreview() {
+            return Boolean(config.showFlatPreviewFirst ?? false);
+        },
+        get generalImageCount() {
+            return config.generalImages?.length ?? 0;
+        },
+        get currentPreviewTitle() {
+            if (!this.isCustomizable) {
+                return this.activeGeneralImage?.label ?? 'Product image';
+            }
+
+            if (this.hasFlatPreview && this.activePreviewIndex === 0) {
+                return 'Flat certificate preview';
+            }
+
+            return config.mockups?.[this.activeMockup]?.name ?? 'Selected mockup preview';
+        },
+        get previewPositionLabel() {
+            if (this.isCustomizable) {
+                return `${this.activePreviewIndex + 1} / ${this.previewCount}`;
+            }
+
+            return `${this.activeImage + 1} / ${Math.max(1, this.generalImageCount)}`;
+        },
         switchMode(mode) {
-            this.mode = mode;
-            this.renderPreview();
+            if (mode === 'flat') {
+                this.selectPreview(0);
+                return;
+            }
+
+            this.selectPreview(Math.max(1, this.activePreviewIndex || 1));
         },
         selectMockup(index) {
             this.activeMockup = index;
             this.mode = 'mockup';
+            this.activePreviewIndex = index + 1;
+            this.renderPreview();
+        },
+        selectPreview(index) {
+            if (!this.isCustomizable) {
+                this.selectImage(index);
+                return;
+            }
+
+            this.activePreviewIndex = index;
+
+            if (index === 0) {
+                if (this.hasFlatPreview) {
+                    this.mode = 'flat';
+                } else {
+                    this.activeMockup = 0;
+                    this.mode = (config.mockups?.length ?? 0) > 0 ? 'mockup' : 'flat';
+                }
+            } else {
+                this.activeMockup = Math.max(0, index - (this.hasFlatPreview ? 1 : 0));
+                this.mode = 'mockup';
+            }
+
             this.renderPreview();
         },
         selectImage(index) {
             this.activeImage = index;
+        },
+        nextPreview() {
+            if (this.isCustomizable) {
+                if (this.previewCount <= 1) {
+                    return;
+                }
+
+                this.selectPreview((this.activePreviewIndex + 1) % this.previewCount);
+                return;
+            }
+
+            if (this.generalImageCount <= 1) {
+                return;
+            }
+
+            this.selectImage((this.activeImage + 1) % this.generalImageCount);
+        },
+        previousPreview() {
+            if (this.isCustomizable) {
+                if (this.previewCount <= 1) {
+                    return;
+                }
+
+                this.selectPreview((this.activePreviewIndex - 1 + this.previewCount) % this.previewCount);
+                return;
+            }
+
+            if (this.generalImageCount <= 1) {
+                return;
+            }
+
+            this.selectImage((this.activeImage - 1 + this.generalImageCount) % this.generalImageCount);
+        },
+        primaryFontId() {
+            const selectedFont = Object.values(this.fieldFonts ?? {}).find((value) => `${value ?? ''}`.trim().length > 0);
+
+            return selectedFont || this.activeFont || '';
+        },
+        setFieldFont(fieldKey, fontId) {
+            this.fieldFonts[fieldKey] = `${fontId}`;
+            this.activeFont = this.primaryFontId();
+            this.renderPreview();
         },
         async renderPreview() {
             if (!this.isCustomizable) {
@@ -405,7 +542,7 @@ export function registerNikahPreview(Alpine) {
             }
 
             this.previewReady = false;
-            await window.NikahPreview.render(this.fields, this.activeFont, this.activeMockup, this.mode);
+            await window.NikahPreview.render(this.fields, this.activeFont, this.activeMockup, this.mode, this.fieldFonts);
             this.previewReady = true;
         },
         observeStickyBar() {
@@ -436,6 +573,19 @@ export function registerNikahPreview(Alpine) {
                         template: config.template ?? {},
                         fonts: config.fonts ?? [],
                     });
+
+                    this.activeFont = this.primaryFontId() || config.activeFont || null;
+                    const defaultMockupIndex = (config.mockups ?? []).findIndex((mockup) => `${mockup.id}` === `${config.defaultMockupId}`);
+
+                    if ((config.galleryDefaultSource === 'selected_mockup' || !this.hasFlatPreview) && defaultMockupIndex >= 0) {
+                        this.activeMockup = defaultMockupIndex;
+                        this.activePreviewIndex = defaultMockupIndex + (this.hasFlatPreview ? 1 : 0);
+                        this.mode = 'mockup';
+                    } else if (!this.hasFlatPreview && (config.mockups?.length ?? 0) > 0) {
+                        this.activeMockup = 0;
+                        this.activePreviewIndex = 0;
+                        this.mode = 'mockup';
+                    }
 
                     this.renderPreview();
                 }

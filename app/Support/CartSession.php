@@ -18,7 +18,11 @@ class CartSession
 
         $productIds = $cart->pluck('product_id')->filter()->all();
         $variantIds = $cart->pluck('variant_id')->filter()->all();
-        $fontIds = $cart->pluck('font_id')->filter()->all();
+        $fontIds = $cart->pluck('font_id')
+            ->merge($cart->pluck('font_selection')->flatten())
+            ->filter()
+            ->unique()
+            ->all();
         $mockupIds = $cart->pluck('mockup_id')->filter()->all();
 
         $products = Product::with(['category', 'images', 'bundleItems.childProduct.images'])->whereIn('id', $productIds)->get()->keyBy('id');
@@ -31,6 +35,9 @@ class CartSession
             $variant = $item['variant_id'] ? $variants->get($item['variant_id']) : null;
             $font = $item['font_id'] ? $fonts->get($item['font_id']) : null;
             $mockup = $item['mockup_id'] ? $mockups->get($item['mockup_id']) : null;
+            $fontSelectionFonts = collect($item['font_selection'] ?? [])
+                ->mapWithKeys(fn ($fontId, $fieldKey) => [$fieldKey => $fonts->get($fontId)])
+                ->filter();
             $unitPrice = (float) ($variant?->price ?: $product?->price ?: 0);
             $quantity = (int) $item['quantity'];
 
@@ -39,6 +46,7 @@ class CartSession
                 'product' => $product,
                 'variant' => $variant,
                 'font' => $font,
+                'font_selection_fonts' => $fontSelectionFonts,
                 'mockup' => $mockup,
                 'unit_price' => $unitPrice,
                 'subtotal' => $unitPrice * $quantity,

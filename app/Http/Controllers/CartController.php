@@ -39,6 +39,10 @@ class CartController extends Controller
         $personalization = collect($validated['personalization'] ?? [])
             ->filter(fn ($value) => filled($value))
             ->all();
+        $fontSelection = collect($validated['font_selection'] ?? [])
+            ->filter(fn ($value) => filled($value))
+            ->map(fn ($value) => (int) $value)
+            ->all();
 
         $key = implode(':', [
             $product->id,
@@ -46,6 +50,7 @@ class CartController extends Controller
             md5((string) ($validated['custom_text'] ?? '')),
             md5(json_encode($personalization)),
             $validated['font_id'] ?? 'no-font',
+            md5(json_encode($fontSelection)),
             $validated['mockup_id'] ?? 'no-mockup',
         ]);
 
@@ -78,6 +83,7 @@ class CartController extends Controller
                 'quantity' => (int) $validated['quantity'],
                 'custom_text' => $validated['custom_text'] ?? null,
                 'font_id' => $validated['font_id'] ?? null,
+                'font_selection' => $fontSelection,
                 'mockup_id' => $validated['mockup_id'] ?? null,
                 'mockup_title' => $mockup?->title,
                 'proof_note' => $validated['proof_note'] ?? null,

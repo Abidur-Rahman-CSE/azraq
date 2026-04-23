@@ -24,6 +24,7 @@ class ProductDetailController extends Controller
             'personalizationTemplate.fields',
             'personalizationTemplate.fonts',
             'personalizationMockups.map',
+            'personalizationMockups.template',
             'reviews' => fn ($query) => $query->where('is_approved', true)->latest()->limit(4),
             'relatedProducts.category',
             'relatedProducts.tags',
@@ -52,11 +53,15 @@ class ProductDetailController extends Controller
 
         if ($product->type === ProductType::AdvancedPersonalized && $product->personalizationTemplate) {
             $template = $product->personalizationTemplate;
-            $mockups = $product->personalizationMockups
-                ->where('is_active', true)
-                ->values();
+            $mockups = $product->include_mockup_gallery
+                ? $product->personalizationMockups
+                    ->where('is_active', true)
+                    ->values()
+                : collect();
+            $defaultMockupId = $mockups->firstWhere('pivot.is_default', true)?->id
+                ?? $mockups->first()?->id;
 
-            return view('storefront.products.show', [
+            return view('products.show', [
                 'product' => $product,
                 'template' => $template,
                 'fonts' => $template->fonts
@@ -66,13 +71,38 @@ class ProductDetailController extends Controller
                 'mockups' => $mockups->map(function ($mockup) {
                     $map = $mockup->map;
                     $normalizedMap = MockupZoneNormalizer::toImageSpace($mockup, $map);
+                    $mapPayload = $map ? [
+                        'top_left_x' => (float) ($normalizedMap['top_left_x'] ?? 0.2),
+                        'top_left_y' => (float) ($normalizedMap['top_left_y'] ?? 0.18),
+                        'top_right_x' => (float) ($normalizedMap['top_right_x'] ?? 0.8),
+                        'top_right_y' => (float) ($normalizedMap['top_right_y'] ?? 0.18),
+                        'bottom_right_x' => (float) ($normalizedMap['bottom_right_x'] ?? 0.8),
+                        'bottom_right_y' => (float) ($normalizedMap['bottom_right_y'] ?? 0.82),
+                        'bottom_left_x' => (float) ($normalizedMap['bottom_left_x'] ?? 0.2),
+                        'bottom_left_y' => (float) ($normalizedMap['bottom_left_y'] ?? 0.82),
+                        'opacity' => (float) ($map->opacity ?? 0.95),
+                        'highlight_strength' => (float) ($map->highlight_strength ?? 0.12),
+                        'manual_rotation' => (float) ($map->manual_rotation ?? 0),
+                        'fit_mode' => $map->fit_mode ?? 'stretch',
+                    ] : null;
 
                     return [
                         'id' => $mockup->id,
                         'name' => $mockup->title,
+                        'title' => $mockup->title,
                         'thumbnail_url' => $mockup->thumb_image_url ?: $mockup->base_image_url,
+                        'thumb_image_url' => $mockup->thumb_image_url ?: $mockup->base_image_url,
                         'image_url' => $mockup->base_image_url,
+                        'base_image_url' => $mockup->base_image_url,
                         'overlay_url' => $mockup->overlay_image_url ?: $mockup->mask_image_url,
+                        'overlay_image_url' => $mockup->overlay_image_url,
+                        'mask_url' => $mockup->mask_image_url,
+                        'mask_image_url' => $mockup->mask_image_url,
+                        'render_mode' => $mockup->render_mode,
+                        'template_name' => $mockup->template?->name,
+                        'is_default' => (bool) ($mockup->pivot?->is_default ?? false),
+                        'sort_order' => (int) ($mockup->pivot?->sort_order ?? $mockup->sort_order ?? 0),
+                        'map' => $mapPayload,
                         'zone_points' => [
                             'tl' => [
                                 'x' => (float) ($normalizedMap['top_left_x'] ?? 0.2),
@@ -103,6 +133,8 @@ class ProductDetailController extends Controller
                 'faqs' => $faqs,
                 'related_products' => $product->relatedProducts->values(),
                 'recentlyViewed' => $recentlyViewed,
+                'defaultMockupId' => $defaultMockupId,
+                'showFlatPreviewFirst' => false,
             ]);
         }
 
@@ -129,7 +161,7 @@ class ProductDetailController extends Controller
                 'recentlyViewed' => $recentlyViewed,
                 'bundleValue' => $product->bundleItems->sum(fn ($item) => (float) $item->childProduct?->price * $item->quantity),
             ]),
-            default => view('storefront.products.show', [
+            default => view('products.show', [
                 'product' => $product,
                 'template' => null,
                 'fonts' => collect(),
@@ -137,6 +169,8 @@ class ProductDetailController extends Controller
                 'faqs' => $faqs,
                 'related_products' => $product->relatedProducts->values(),
                 'recentlyViewed' => $recentlyViewed,
+                'defaultMockupId' => null,
+                'showFlatPreviewFirst' => false,
             ]),
         };
     }

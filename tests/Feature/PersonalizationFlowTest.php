@@ -19,8 +19,8 @@ it('shows the advanced personalized product detail page', function () {
         ->assertOk()
         ->assertSee('Signature Nikah Nama')
         ->assertSee('Preview gallery')
-        ->assertSee('Flat certificate preview')
         ->assertSee('Signature table setting')
+        ->assertDontSee('Flat certificate preview')
         ->assertSee('Choose a font')
         ->assertSee('Bride Name')
         ->assertSee('Add personalized order');

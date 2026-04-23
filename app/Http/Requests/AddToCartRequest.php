@@ -23,6 +23,8 @@ class AddToCartRequest extends FormRequest
             'variant_id' => ['nullable', 'integer', 'exists:product_variants,id'],
             'custom_text' => ['nullable', 'string', 'max:120'],
             'font_id' => ['nullable', 'integer', 'exists:personalization_fonts,id'],
+            'font_selection' => ['nullable', 'array'],
+            'font_selection.*' => ['nullable', 'integer', 'exists:personalization_fonts,id'],
             'mockup_id' => ['nullable', 'integer', 'exists:personalization_mockups,id'],
             'proof_note' => ['nullable', 'string', 'max:500'],
             'personalization' => ['nullable', 'array'],
@@ -56,6 +58,17 @@ class AddToCartRequest extends FormRequest
                     $validator->errors()->add('font_id', 'The selected font is not available for this product.');
                 }
             }
+
+            collect($this->input('font_selection', []))
+                ->filter(fn ($fontId) => filled($fontId))
+                ->each(function ($fontId, $fieldKey) use ($validator, $product): void {
+                    $font = PersonalizationFont::query()->find((int) $fontId);
+                    $templateId = $product->personalizationTemplate?->id;
+
+                    if (! $font || ! $templateId || $font->personalization_template_id !== $templateId || ! $font->is_active) {
+                        $validator->errors()->add('font_selection.'.$fieldKey, 'The selected font is not available for this field.');
+                    }
+                });
 
             if ($this->filled('mockup_id')) {
                 $mockup = PersonalizationMockup::query()->find($this->integer('mockup_id'));

@@ -94,6 +94,7 @@ class CheckoutController extends Controller
                         $product,
                         $item['personalization'] ?? [],
                         $item['font'],
+                        $item['font_selection_fonts']?->all() ?? [],
                         null,
                         $item['mockup'] ?? null,
                     )
@@ -115,6 +116,13 @@ class CheckoutController extends Controller
                         'variant_name' => $variant?->name,
                         'custom_text' => $item['custom_text'] ?? null,
                         'font' => $item['font']?->name,
+                        'font_selection' => collect($item['font_selection_fonts'] ?? [])
+                            ->mapWithKeys(fn ($font, $fieldKey) => [$fieldKey => [
+                                'id' => $font?->id,
+                                'name' => $font?->name,
+                            ]])
+                            ->filter(fn ($font) => filled($font['id'] ?? null))
+                            ->all(),
                         'mockup_id' => $item['mockup']?->id,
                         'mockup' => $item['mockup']?->title,
                         'proof_note' => $item['proof_note'] ?? null,
