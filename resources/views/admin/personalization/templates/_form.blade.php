@@ -1085,6 +1085,7 @@ document.addEventListener('alpine:init', () => {
         selectedPreset: '',
         draggingContext: null,
         measureContext: null,
+        previewTextScale: 0.55,
         nextFieldId: 1,
         nextFontId: 1,
         fieldPresets: [
@@ -1708,8 +1709,9 @@ document.addEventListener('alpine:init', () => {
         },
         canvasFieldTextStyle(field) {
             const fit = this.fieldFit(field);
+            const previewFontSize = Math.max(8, Number((fit.fontSize * this.previewTextScale).toFixed(2)));
 
-            return `color:${field.text_color || '#780000'}; font-size:${fit.fontSize}px; letter-spacing:${Number(field.letter_spacing || 0)}px; line-height:${Number(field.line_height || 1.2)}; font-weight:${field.settings.font_weight || '600'}; font-family:${field.settings.font_family_override || '"Poppins", sans-serif'}; text-transform:${field.settings.text_transform || 'none'};`;
+            return `color:${field.text_color || '#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing || 0)}px; line-height:${Number(field.line_height || 1.2)}; font-weight:${field.settings.font_weight || '600'}; font-family:${field.settings.font_family_override || '"Poppins", sans-serif'}; text-transform:${field.settings.text_transform || 'none'};`;
         },
         fieldPreviewText(field) {
             return this.sampleValue(field.field_key, field.preview_sample_value || field.default_value || field.placeholder || 'Sample text');

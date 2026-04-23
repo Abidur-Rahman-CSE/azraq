@@ -615,6 +615,25 @@ export function registerNikahPreview(Alpine) {
 
             return config.mockups?.[this.activeMockup]?.name ?? 'Selected mockup preview';
         },
+        get activePreviewAspect() {
+            if (!this.isCustomizable) {
+                return '4 / 5';
+            }
+
+            if (this.mode === 'flat') {
+                const template = config.template ?? {};
+                const width = Math.max(1, Number(template.export_ratio_width || 9));
+                const height = Math.max(1, Number(template.export_ratio_height || 13));
+
+                return `${width} / ${height}`;
+            }
+
+            const scene = config.mockups?.[this.activeMockup] ?? {};
+            const width = Math.max(1, Number(scene.image_width || 4));
+            const height = Math.max(1, Number(scene.image_height || 5));
+
+            return `${width} / ${height}`;
+        },
         get previewPositionLabel() {
             if (this.isCustomizable) {
                 return `${this.activePreviewIndex + 1} / ${this.previewCount}`;

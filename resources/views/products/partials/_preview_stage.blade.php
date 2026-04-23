@@ -33,7 +33,7 @@
                         </span>
                     </div>
 
-                    <div class="aspect-[4/5] w-full">
+                    <div class="w-full" :style="`aspect-ratio: ${activePreviewAspect}`">
                         <canvas id="nikah-preview-canvas" aria-label="Certificate preview" class="block h-full w-full"></canvas>
                     </div>
                 @else

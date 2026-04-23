@@ -37,7 +37,7 @@
             'export_ratio_width' => (int) ($template->export_ratio_width ?: 9),
             'export_ratio_height' => (int) ($template->export_ratio_height ?: 13),
             'editor_canvas_width' => 980,
-            'storefront_text_scale' => 1,
+            'storefront_text_scale' => 1.08,
             'preview_data_presets' => $template->preview_data_presets ?? [],
             'fields' => $template->fields->map(fn ($field) => [
                 'name' => $field->field_key,
