@@ -223,8 +223,8 @@ function wrapTextLines(ctx, text, maxWidth, letterSpacing, allowMultiline = true
 }
 
 function fitTextBlock(ctx, text, layer, fontStyle) {
-    const width = Math.max(18, Math.max(24, layer.widthPx) - 12);
-    const height = Math.max(14, Math.max(18, layer.heightPx) - 10);
+    const width = Math.max(18, Math.max(24, layer.widthPx) - Number(layer.safeInsetX || 12));
+    const height = Math.max(14, Math.max(18, layer.heightPx) - Number(layer.safeInsetY || 10));
     const minSize = Math.max(8, Number(layer.font_size_min || 12));
     const maxSize = Math.max(minSize, Number(layer.font_size_max || 24));
     const lineHeight = Math.max(1, Number(fontStyle.lineHeight || layer.line_height || 1.2));
@@ -298,6 +298,8 @@ function drawLineWithSpacing(ctx, text, x, y, align, letterSpacing) {
 
 function buildFieldLayer(field, width, height) {
     const fontScale = Number(field.font_scale || 1);
+    const safeInsetX = 18 * fontScale;
+    const safeInsetY = 10 * fontScale;
 
     return {
         ...field,
@@ -306,6 +308,8 @@ function buildFieldLayer(field, width, height) {
         font_size_min: Math.max(8, Number(field.font_size_min || 12) * fontScale),
         font_size_max: Math.max(8, Number(field.font_size_max || 24) * fontScale),
         letter_spacing: Number(field.letter_spacing || 0) * fontScale,
+        safeInsetX,
+        safeInsetY,
     };
 }
 
@@ -535,10 +539,13 @@ const NikahPreview = {
             const totalHeight = fontSize * lineHeight * lines.length;
             const boxLeft = x - (layer.widthPx / 2);
             const boxTop = y - (layer.heightPx / 2);
+            const contentPadX = Number(layer.safeInsetX || 12) / 2;
+            const contentLeft = boxLeft + contentPadX;
+            const contentWidth = Math.max(18, layer.widthPx - Number(layer.safeInsetX || 12));
             const verticalOffset = Math.max(4, (layer.heightPx - totalHeight) / 2);
             const startY = boxTop + verticalOffset + (fontSize * 0.82);
             const align = field.text_align === 'start' ? 'left' : (field.text_align === 'end' ? 'right' : 'center');
-            const drawX = align === 'left' ? boxLeft + 6 : (align === 'right' ? boxLeft + layer.widthPx - 6 : x);
+            const drawX = align === 'left' ? contentLeft : (align === 'right' ? contentLeft + contentWidth : x);
 
             ctx.save();
             ctx.translate(x, y);
@@ -549,7 +556,7 @@ const NikahPreview = {
             ctx.textAlign = align;
             ctx.font = fontDeclaration(fontStyle, fontSize);
             ctx.beginPath();
-            ctx.rect(boxLeft, -height, layer.widthPx, height * 3);
+            ctx.rect(contentLeft, -height, contentWidth, height * 3);
             ctx.clip();
 
             lines.forEach((line, index) => {
