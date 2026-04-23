@@ -121,6 +121,23 @@ function measureTextWithSpacing(ctx, text, letterSpacing) {
     return ctx.measureText(text).width + Math.max(0, text.length - 1) * spacing;
 }
 
+function fontDeclaration(fontStyle, fontSize) {
+    return `${fontStyle.fontStyle || 'normal'} ${fontStyle.fontWeight || '600'} ${fontSize}px ${fontStyle.fontFamily}`;
+}
+
+async function ensureCanvasFont(fontStyle, text, fontSize) {
+    if (!document.fonts?.load) {
+        return;
+    }
+
+    try {
+        await document.fonts.load(fontDeclaration(fontStyle, fontSize), text || 'Preview');
+        await document.fonts.ready;
+    } catch (error) {
+        // Canvas can still render with a fallback font if the browser rejects a custom family string.
+    }
+}
+
 function applyTextTransform(text, textTransform) {
     const value = `${text ?? ''}`;
 
@@ -134,6 +151,30 @@ function applyTextTransform(text, textTransform) {
         default:
             return value;
     }
+}
+
+function splitLongWord(ctx, word, maxWidth, letterSpacing) {
+    const characters = [...`${word ?? ''}`];
+    const chunks = [];
+    let current = '';
+
+    characters.forEach((character) => {
+        const next = `${current}${character}`;
+
+        if (current && measureTextWithSpacing(ctx, next, letterSpacing) > maxWidth) {
+            chunks.push(current);
+            current = character;
+            return;
+        }
+
+        current = next;
+    });
+
+    if (current) {
+        chunks.push(current);
+    }
+
+    return chunks;
 }
 
 function wrapTextLines(ctx, text, maxWidth, letterSpacing, allowMultiline = true) {
@@ -151,6 +192,19 @@ function wrapTextLines(ctx, text, maxWidth, letterSpacing, allowMultiline = true
         let currentLine = '';
 
         words.forEach((word) => {
+            if (measureTextWithSpacing(ctx, word, letterSpacing) > maxWidth) {
+                if (currentLine) {
+                    lines.push(currentLine);
+                    currentLine = '';
+                }
+
+                const chunks = splitLongWord(ctx, word, maxWidth, letterSpacing);
+                lines.push(...chunks.slice(0, -1));
+                currentLine = chunks[chunks.length - 1] || '';
+
+                return;
+            }
+
             const nextLine = currentLine ? `${currentLine} ${word}` : word;
 
             if (measureTextWithSpacing(ctx, nextLine, letterSpacing) <= maxWidth || !currentLine) {
@@ -178,23 +232,33 @@ function fitTextBlock(ctx, text, layer, fontStyle) {
     const allowMultiline = Boolean(fontStyle.allowMultiline);
     const maxLines = Math.max(1, Number(fontStyle.maxLines || 1));
     const canWrap = allowMultiline && fontStyle.overflowBehavior !== 'shrink_only';
+    const drawCanWrap = fontStyle.fitMode === 'admin_width_wrap' ? allowMultiline : canWrap;
+    const resolveDrawLines = (fontSize, lines) => {
+        if (fontStyle.fitMode !== 'admin_width_wrap') {
+            return lines;
+        }
+
+        ctx.font = fontDeclaration(fontStyle, fontSize);
+
+        return wrapTextLines(ctx, text, width, letterSpacing, drawCanWrap);
+    };
 
     for (let fontSize = maxSize; fontSize >= minSize; fontSize -= 1) {
-        ctx.font = `${fontStyle.fontStyle || 'normal'} ${fontStyle.fontWeight || '600'} ${fontSize}px ${fontStyle.fontFamily}`;
+        ctx.font = fontDeclaration(fontStyle, fontSize);
         const lines = wrapTextLines(ctx, text, width, letterSpacing, canWrap);
         const tallestLine = fontSize * lineHeight * lines.length;
         const widestLine = Math.max(...lines.map((line) => measureTextWithSpacing(ctx, line, letterSpacing)));
 
         if (lines.length <= maxLines && tallestLine <= height && widestLine <= width) {
-            return { fontSize, lines };
+            return { fontSize, lines: resolveDrawLines(fontSize, lines) };
         }
     }
 
-    ctx.font = `${fontStyle.fontStyle || 'normal'} ${fontStyle.fontWeight || '600'} ${minSize}px ${fontStyle.fontFamily}`;
+    ctx.font = fontDeclaration(fontStyle, minSize);
 
     return {
         fontSize: minSize,
-        lines: wrapTextLines(ctx, text, width, letterSpacing, canWrap).slice(0, maxLines),
+        lines: resolveDrawLines(minSize, wrapTextLines(ctx, text, width, letterSpacing, canWrap).slice(0, maxLines)),
     };
 }
 
@@ -341,7 +405,10 @@ const NikahPreview = {
         ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, width, height);
 
-        const flatCanvas = await this.renderFlat(fields, fontKey, fieldFonts);
+        const flatCanvas = await this.renderFlat(fields, fontKey, fieldFonts, {
+            mode,
+            scene: this.mockups[mockupIndex] ?? null,
+        });
 
         if (!flatCanvas) {
             return null;
@@ -395,7 +462,7 @@ const NikahPreview = {
         return flatCanvas;
     },
 
-    async renderFlat(fields, fontKey, fieldFonts = {}) {
+    async renderFlat(fields, fontKey, fieldFonts = {}, options = {}) {
         const snapshotUrl = this.template.rendered_preview_url || this.template.thumbnail_image_url;
         const baseUrl = this.template.base_template_url || this.template.preview_image_url || snapshotUrl;
         const baseImage = await loadImage(baseUrl);
@@ -415,22 +482,41 @@ const NikahPreview = {
         drawCoverImage(ctx, baseImage, width, height);
 
         const sortedLayers = [...(this.template.fields ?? [])].sort((left, right) => Number(left.z_index || 1) - Number(right.z_index || 1));
-        const fontScale = Math.max(1, width / Math.max(1, Number(this.template.editor_canvas_width || 980)));
+        const editorCanvasWidth = Math.max(1, Number(this.template.editor_canvas_width || 980));
+        const baseFontScale = Math.max(1, width / editorCanvasWidth);
+        const storefrontTextScale = options.mode === 'mockup'
+            ? clamp(Number(this.template.storefront_text_scale || 1), 1, 3)
+            : 1;
+        const fontScale = baseFontScale * storefrontTextScale;
 
-        sortedLayers.forEach((field) => {
+        for (const field of sortedLayers) {
             const layer = buildFieldLayer({ ...field, font_scale: fontScale }, width, height);
-            const selectedFontKey = fieldFonts[field.name] ?? fieldFonts[field.field_key] ?? fontKey;
+            const fieldFontKey = fieldFonts[field.name] ?? fieldFonts[field.field_key];
+            const hasFieldFont = `${fieldFontKey ?? ''}`.trim().length > 0;
+            const selectedFontKey = hasFieldFont ? fieldFontKey : fontKey;
             const selectedFont = this.fontConfig(selectedFontKey);
+            const selectedLetterSpacing = hasFieldFont
+                ? (selectedFont.letter_spacing ?? field.letter_spacing ?? 0)
+                : (field.letter_spacing ?? 0);
             const fontStyle = {
-                fontFamily: field.settings?.font_family_override || selectedFont.css_family || 'serif',
-                fontWeight: field.settings?.font_weight || selectedFont.font_weight || '600',
-                fontStyle: field.settings?.font_style || selectedFont.font_style || 'normal',
-                lineHeight: Number(selectedFont.line_height || field.line_height || 1.2),
-                letterSpacing: Number(selectedFont.letter_spacing ?? field.letter_spacing ?? 0),
-                textTransform: field.settings?.text_transform || selectedFont.text_transform || 'none',
+                fontFamily: hasFieldFont
+                    ? (selectedFont.css_family || field.settings?.font_family_override || 'serif')
+                    : (field.settings?.font_family_override || '"Poppins", sans-serif'),
+                fontWeight: hasFieldFont
+                    ? (selectedFont.font_weight || field.settings?.font_weight || '600')
+                    : (field.settings?.font_weight || '600'),
+                fontStyle: hasFieldFont
+                    ? (selectedFont.font_style || field.settings?.font_style || 'normal')
+                    : (field.settings?.font_style || 'normal'),
+                lineHeight: Number((hasFieldFont ? selectedFont.line_height : null) || field.line_height || 1.2),
+                letterSpacing: Number(selectedLetterSpacing || 0) * fontScale,
+                textTransform: hasFieldFont
+                    ? (selectedFont.text_transform || field.settings?.text_transform || 'none')
+                    : (field.settings?.text_transform || 'none'),
                 allowMultiline: Boolean(field.settings?.allow_multiline ?? true),
                 maxLines: Number(field.settings?.max_lines || 3),
                 overflowBehavior: field.settings?.overflow_behavior || 'shrink_then_wrap',
+                fitMode: 'admin_width_wrap',
             };
             const fieldKey = field.name ?? field.field_key;
             const fieldValue = fields[fieldKey] ?? fields[field.field_key] ?? fields[field.name];
@@ -438,17 +524,19 @@ const NikahPreview = {
             const text = applyTextTransform(rawText, fontStyle.textTransform);
 
             if (!text) {
-                return;
+                continue;
             }
 
             const x = (width * Number(field.position_x || 50)) / 100;
             const y = (height * Number(field.position_y || 50)) / 100;
+            await ensureCanvasFont(fontStyle, text, Number(layer.font_size_max || 24));
             const { fontSize, lines } = fitTextBlock(ctx, text, layer, fontStyle);
             const lineHeight = Math.max(1, Number(fontStyle.lineHeight || 1.2));
             const totalHeight = fontSize * lineHeight * lines.length;
             const boxLeft = x - (layer.widthPx / 2);
             const boxTop = y - (layer.heightPx / 2);
-            const startY = boxTop + Math.max(4, (layer.heightPx - totalHeight) / 2) + (fontSize * 0.82);
+            const verticalOffset = Math.max(4, (layer.heightPx - totalHeight) / 2);
+            const startY = boxTop + verticalOffset + (fontSize * 0.82);
             const align = field.text_align === 'start' ? 'left' : (field.text_align === 'end' ? 'right' : 'center');
             const drawX = align === 'left' ? boxLeft + 6 : (align === 'right' ? boxLeft + layer.widthPx - 6 : x);
 
@@ -459,7 +547,10 @@ const NikahPreview = {
             ctx.fillStyle = field.text_color || '#8B2635';
             ctx.textBaseline = 'alphabetic';
             ctx.textAlign = align;
-            ctx.font = `${fontStyle.fontStyle || 'normal'} ${fontStyle.fontWeight || '600'} ${fontSize}px ${fontStyle.fontFamily}`;
+            ctx.font = fontDeclaration(fontStyle, fontSize);
+            ctx.beginPath();
+            ctx.rect(boxLeft, -height, layer.widthPx, height * 3);
+            ctx.clip();
 
             lines.forEach((line, index) => {
                 const lineY = startY + (index * fontSize * lineHeight);
@@ -467,7 +558,7 @@ const NikahPreview = {
             });
 
             ctx.restore();
-        });
+        }
 
         return canvas;
     },
@@ -601,7 +692,7 @@ export function registerNikahPreview(Alpine) {
             return selectedFont || this.activeFont || '';
         },
         setFieldFont(fieldKey, fontId) {
-            this.fieldFonts[fieldKey] = `${fontId}`;
+            this.fieldFonts = { ...(this.fieldFonts ?? {}), [fieldKey]: `${fontId}` };
             this.activeFont = this.primaryFontId();
             this.renderPreview();
         },

@@ -37,6 +37,7 @@
             'export_ratio_width' => (int) ($template->export_ratio_width ?: 9),
             'export_ratio_height' => (int) ($template->export_ratio_height ?: 13),
             'editor_canvas_width' => 980,
+            'storefront_text_scale' => 1,
             'preview_data_presets' => $template->preview_data_presets ?? [],
             'fields' => $template->fields->map(fn ($field) => [
                 'name' => $field->field_key,
@@ -86,7 +87,7 @@
         ? $template->fields
             ->filter(fn ($field) => str($field->field_key)->contains(['bride', 'groom']))
             ->mapWithKeys(fn ($field) => [
-                $field->field_key => (string) old('font_selection.'.$field->field_key, old('font_id', $defaultFont['key'] ?? '')),
+                $field->field_key => (string) old('font_selection.'.$field->field_key, ''),
             ])->all()
         : [];
 
