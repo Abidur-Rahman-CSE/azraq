@@ -552,7 +552,7 @@
                                         @mousedown.prevent="beginDragById(field.id, $event)"
                                     >
                                         <div
-                                            class="flex h-full w-full items-center justify-center overflow-hidden rounded-[22px] px-3 text-center"
+                                            class="flex h-full w-full items-center justify-center overflow-hidden rounded-[22px] px-[6px] text-center"
                                             :class="canvasFieldClass(field)"
                                             :style="canvasFieldInnerStyle(field)"
                                         >
