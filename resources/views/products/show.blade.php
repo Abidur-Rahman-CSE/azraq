@@ -209,7 +209,7 @@
     </x-slot:head>
 
     <div
-        class="bg-[#FAFAF8]"
+        class="bg-[var(--color-surface-base)] text-[var(--text-main)]"
         x-data="storefrontPdp({
             isCustomizable: @js($product->is_customizable),
             canvasId: 'nikah-preview-canvas',
@@ -235,14 +235,14 @@
         })"
     >
         <div class="mx-auto max-w-screen-xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-            <nav class="flex flex-wrap items-center gap-1 text-xs text-[#8C7F74]">
-                <a href="{{ route('home') }}" class="transition duration-200 ease-out hover:text-[#8B2635] hover:underline">Home</a>
+            <nav class="flex flex-wrap items-center gap-1 text-xs text-[var(--text-muted)]">
+                <a href="{{ route('home') }}" class="transition duration-200 ease-out hover:text-[var(--accent-primary)] hover:underline">Home</a>
                 <span>/</span>
                 @if ($product->category)
-                    <a href="{{ route('categories.show', $product->category) }}" class="transition duration-200 ease-out hover:text-[#8B2635] hover:underline">{{ $product->category->name }}</a>
+                    <a href="{{ route('categories.show', $product->category) }}" class="transition duration-200 ease-out hover:text-[var(--accent-primary)] hover:underline">{{ $product->category->name }}</a>
                     <span>/</span>
                 @endif
-                <span class="text-[#3D3730]">{{ $product->name }}</span>
+                <span class="text-[var(--text-main)]">{{ $product->name }}</span>
             </nav>
 
             <div class="mt-6 grid gap-8 lg:grid-cols-[minmax(0,55fr)_minmax(0,45fr)] lg:items-start">
@@ -285,7 +285,7 @@
             ])
 
             <div
-                class="sticky bottom-0 z-30 mt-6 border-t border-[#E8E3DC] bg-white/95 px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] shadow-[0_-2px_20px_rgba(0,0,0,0.05)] backdrop-blur lg:hidden"
+                class="surface-card sticky bottom-0 z-30 mt-6 border-t px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
                 x-show="showStickyBar"
                 x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="translate-y-full opacity-0"
@@ -296,12 +296,12 @@
             >
                 <div class="flex items-center gap-3">
                     <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-medium text-[#2C2C3E]">{{ $product->name }}</p>
-                        <p class="text-sm font-semibold text-[#8B2635]" x-text="formatMoney(displayPrice)">BDT {{ number_format((float) $product->price, 0) }}</p>
+                        <p class="truncate text-sm font-medium text-[var(--text-main)]">{{ $product->name }}</p>
+                        <p class="text-sm font-semibold text-[var(--accent-primary)]" x-text="formatMoney(displayPrice)">BDT {{ number_format((float) $product->price, 0) }}</p>
                     </div>
                     <button
                         type="button"
-                        class="rounded-lg bg-[#8B2635] px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-out hover:bg-[#6D1D29]"
+                        class="button-primary !rounded-[var(--radius-lg)] !px-5 !py-2.5 !text-sm"
                         @click="$refs.mainOrderForm?.requestSubmit()"
                     >
                         {{ $product->is_customizable ? 'Add to cart' : 'Add to cart' }}
