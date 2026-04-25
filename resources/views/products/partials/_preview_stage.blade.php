@@ -1,182 +1,142 @@
 @php
-    $firstGeneralImage = $generalImages->first();
-    $mockupItems = $mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []);
-    $showFlatPreview = (bool) ($showFlatPreview ?? false);
-    $customPreviewCount = $mockupItems->count() + ($showFlatPreview ? 1 : 0);
+    $mockupItems = $mockups instanceof \Illuminate\Support\Collection ? $mockups->values() : collect($mockups ?? [])->values();
+    $generalImages = $generalImages instanceof \Illuminate\Support\Collection ? $generalImages->values() : collect($generalImages ?? [])->values();
+    $flatThumb = $template?->preview_image_url ?: $template?->base_template_url ?: $product->featured_image_url;
+    $showFlatPreview = $product->is_customizable;
 @endphp
 
-<section class="space-y-5 lg:sticky lg:top-28 lg:self-start">
-    <x-storefront.product-breadcrumbs :product="$product" />
-
-    <div class="rounded-[1.75rem] border border-[#E8E3DC] bg-[linear-gradient(180deg,#FFFFFF_0%,#FCFAF6_100%)] p-4 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-6">
-        <div class="mb-5 flex items-start justify-between gap-4">
+<section class="space-y-4 lg:self-start">
+    <div class="overflow-hidden rounded-xl border border-[#E8E3DC] bg-white p-4 shadow-[0_2px_20px_rgba(0,0,0,0.05)] sm:p-5">
+        <div class="mb-4 flex items-center justify-between gap-3">
             <div>
-                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#C4A882]">{{ $product->is_customizable ? 'Preview gallery' : 'Product gallery' }}</p>
-                <h2 class="mt-2 font-serif text-xl font-semibold text-[#2C2C3E]">Active frame</h2>
-                <p class="mt-1 text-sm text-[#8C7F74]" x-text="currentPreviewTitle">{{ $product->is_customizable ? ($mockupItems->first()['name'] ?? 'Selected mockup preview') : 'A closer look at the piece' }}</p>
+                <p class="text-xs font-medium uppercase tracking-[0.18em] text-[#8C7F74]">Preview gallery</p>
+                <p class="mt-1 text-sm font-medium text-[#2C2C3E]" x-text="currentPreviewTitle">
+                    {{ $product->is_customizable ? ($mockupItems->first()['name'] ?? 'Template preview') : ($generalImages->first()['label'] ?? $product->name) }}
+                </p>
             </div>
-            @if ($product->is_customizable)
-                <p class="max-w-[13rem] text-right text-xs leading-5 text-[#8C7F74]">Nikahnama will be composited at the saved zone position.</p>
+            @if ($product->is_customizable && $mockupItems->isNotEmpty())
+                <p class="hidden text-xs text-[#8C7F74] lg:block">⊕ Hover to zoom</p>
             @endif
         </div>
 
-        <div class="rounded-[1.4rem] border border-[rgba(196,168,130,0.3)] bg-[#FBF8F3] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:p-5">
-            <div class="relative overflow-hidden rounded-[1.2rem] border border-[#E8E3DC] bg-[#F5F2EC] shadow-[0_10px_28px_rgba(44,44,62,0.08)]">
+        <div
+            id="preview-stage"
+            x-ref="previewStage"
+            class="group relative overflow-hidden rounded-xl border border-[#E8E3DC] bg-[#F5F2EC]"
+        >
+            <div class="absolute left-3 top-3 z-10" x-cloak x-show="hasInput" x-transition.opacity.duration.200ms>
+                <span class="inline-flex items-center rounded-full border border-[#E8E3DC] bg-white/95 px-3 py-1 text-[11px] font-medium text-[#8B2635] shadow-sm">
+                    Live preview
+                </span>
+            </div>
+
+            <div class="absolute right-3 top-3 z-10 hidden rounded-full bg-white/90 px-3 py-1 text-[11px] text-[#8C7F74] shadow-sm lg:block">
+                ⊕ Hover to zoom
+            </div>
+
+            <div class="aspect-[4/5] w-full">
                 @if ($product->is_customizable)
-                    <div class="absolute left-4 top-4 z-10">
-                        <span
-                            class="rounded-full border border-[rgba(139,38,53,0.12)] bg-[#FAF8F5] px-3 py-1 text-xs font-semibold text-[#8B2635] shadow-sm"
-                            x-show="hasInput"
-                            x-transition.opacity.duration.200ms
-                        >
-                            Live preview
-                        </span>
-                    </div>
-
-                    <div class="w-full" :style="`aspect-ratio: ${activePreviewAspect}`">
-                        <canvas id="nikah-preview-canvas" aria-label="Certificate preview" class="block h-full w-full"></canvas>
-                    </div>
+                    <canvas
+                        id="nikah-preview-canvas"
+                        x-ref="previewCanvas"
+                        aria-label="Certificate preview"
+                        class="block h-full w-full origin-center transform-gpu transition-transform duration-300 ease-out"
+                    ></canvas>
                 @else
-                    <div class="aspect-[4/5] w-full">
-                        <img
-                            :src="activeGeneralImage?.url || @js(data_get($firstGeneralImage, 'url'))"
-                            :alt="activeGeneralImage?.alt || @js(data_get($firstGeneralImage, 'alt', $product->name))"
-                            class="h-full w-full object-cover transition duration-200 ease-out"
-                        >
-                    </div>
+                    <img
+                        :src="activeGeneralImage?.url || @js($generalImages->first()['url'] ?? $product->featured_image_url)"
+                        :alt="activeGeneralImage?.alt || @js($generalImages->first()['alt'] ?? $product->name)"
+                        class="block h-full w-full object-cover transition duration-200 ease-out"
+                    >
                 @endif
+            </div>
 
-                @if ($product->is_customizable ? ($customPreviewCount > 1) : ($generalImages->count() > 1))
+            <template x-if="{{ $product->is_customizable ? 'previewCount > 1' : 'generalImageCount > 1' }}">
+                <div>
                     <button
                         type="button"
-                        class="absolute left-4 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-sm bg-[rgba(175,175,175,0.72)] text-3xl text-white transition duration-200 ease-out hover:bg-[rgba(120,120,120,0.88)]"
+                        class="absolute left-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-lg bg-white/75 text-3xl text-[#3D3730] shadow-sm backdrop-blur transition duration-200 ease-out hover:bg-white"
                         @click="previousPreview()"
-                        aria-label="Show previous preview"
+                        aria-label="Previous preview"
                     >
                         ‹
                     </button>
                     <button
                         type="button"
-                        class="absolute right-4 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-sm bg-[rgba(175,175,175,0.72)] text-3xl text-white transition duration-200 ease-out hover:bg-[rgba(120,120,120,0.88)]"
+                        class="absolute right-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-lg bg-white/75 text-3xl text-[#3D3730] shadow-sm backdrop-blur transition duration-200 ease-out hover:bg-white"
                         @click="nextPreview()"
-                        aria-label="Show next preview"
+                        aria-label="Next preview"
                     >
                         ›
                     </button>
-                @endif
-
-                <div class="absolute bottom-4 left-4 rounded-full bg-[rgba(255,255,255,0.88)] px-3 py-1.5 text-xs font-semibold tracking-[0.18em] text-[#2C2C3E] shadow-sm">
-                    <span x-text="previewPositionLabel">{{ $product->is_customizable ? '1 / '.max(1, $customPreviewCount) : '1 / '.$generalImages->count() }}</span>
                 </div>
-            </div>
+            </template>
         </div>
 
-        <div class="mt-3 flex items-center gap-4 text-sm text-[#2C2C3E]">
-            @if ($product->is_customizable)
-                @php($previewCount = $customPreviewCount)
-                @for ($previewIndex = 0; $previewIndex < $previewCount; $previewIndex++)
-                    <button
-                        type="button"
-                        class="font-medium transition duration-200 ease-out"
-                        :class="activePreviewIndex === {{ $previewIndex }} ? 'text-[#2C2C3E]' : 'text-[#8C7F74]'"
-                        @click="selectPreview({{ $previewIndex }})"
+        <div class="mt-4 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            @if ($product->is_customizable && $showFlatPreview)
+                <button
+                    type="button"
+                    class="w-[72px] shrink-0 snap-start"
+                    @click="selectThumb(0)"
+                    aria-label="Select template preview"
+                >
+                    <div
+                        class="overflow-hidden rounded-lg border-2 bg-[#F5F2EC] transition-all duration-200 ease-out"
+                        :class="activeThumb === 0 ? 'scale-105 border-[#C4A882]' : 'border-transparent'"
                     >
-                        {{ $previewIndex + 1 }}
-                    </button>
-                @endfor
+                        <img src="{{ $flatThumb }}" alt="Template preview" class="h-[72px] w-[72px] object-cover">
+                    </div>
+                </button>
             @endif
-        </div>
 
-        <div class="mt-5 grid gap-3 sm:grid-cols-2">
-            @if ($product->is_customizable)
-                @if ($showFlatPreview)
-                    <article class="rounded-xl border border-[#E8E3DC] bg-white p-2 transition duration-200 ease-out" :class="activePreviewIndex === 0 ? 'border-[#C4A882] shadow-[0_12px_28px_rgba(210,138,31,0.14)]' : ''">
-                        <button
-                            type="button"
-                            class="block w-full overflow-hidden rounded-[10px] bg-[#F5F2EC]"
-                            @click="selectPreview(0)"
-                            aria-label="Select flat certificate preview"
-                        >
-                            <img src="{{ $template?->preview_image_url ?: $template?->base_template_url }}" alt="Flat certificate preview" class="aspect-[4/3] w-full object-cover">
-                        </button>
-                        <div class="mt-2 grid gap-1">
-                            <strong class="text-sm text-[#2C2C3E]">Flat certificate preview</strong>
-                            <span class="text-xs text-[#8C7F74]">Template flat proof · Zone source</span>
-                            <button type="button" class="mt-1 w-fit rounded-full border border-[#E8E3DC] bg-white px-3 py-1.5 text-xs font-semibold text-[#2C2C3E]" @click="selectPreview(0)">
-                                <span x-text="activePreviewIndex === 0 ? 'Active frame' : 'Make active'">Make active</span>
-                            </button>
-                        </div>
-                    </article>
-                @endif
+            @foreach ($mockupItems as $index => $mockup)
+                @php($thumbIndex = $showFlatPreview ? $index + 1 : $index)
+                <button
+                    type="button"
+                    class="w-[72px] shrink-0 snap-start"
+                    @click="selectThumb({{ $thumbIndex }})"
+                    aria-label="Select {{ $mockup['name'] ?? 'Scene preview' }}"
+                >
+                    <div
+                        class="overflow-hidden rounded-lg border-2 bg-[#F5F2EC] transition-all duration-200 ease-out"
+                        :class="activeThumb === {{ $thumbIndex }} ? 'scale-105 border-[#C4A882]' : 'border-transparent'"
+                    >
+                        <img src="{{ $mockup['thumbnail_url'] ?? $mockup['image_url'] ?? $flatThumb }}" alt="{{ $mockup['name'] ?? 'Scene preview' }}" class="h-[72px] w-[72px] object-cover">
+                    </div>
+                </button>
+            @endforeach
 
-                @foreach ($mockupItems as $index => $mockup)
-                    @php($previewIndex = $index + ($showFlatPreview ? 1 : 0))
-                    <article class="rounded-xl border border-[#E8E3DC] bg-white p-2 transition duration-200 ease-out" :class="activePreviewIndex === {{ $previewIndex }} ? 'border-[#C4A882] shadow-[0_12px_28px_rgba(210,138,31,0.14)]' : ''">
-                        <button
-                            type="button"
-                            class="block w-full overflow-hidden rounded-[10px] bg-[#F5F2EC]"
-                            @click="selectPreview({{ $previewIndex }})"
-                            aria-label="Select {{ $mockup['name'] ?? 'Scene preview' }} preview"
-                        >
-                            <img src="{{ $mockup['thumbnail_url'] ?? null }}" alt="{{ $mockup['name'] ?? 'Scene preview' }}" class="aspect-[4/3] w-full object-cover">
-                        </button>
-                        <div class="mt-2 grid gap-1">
-                            <strong class="text-sm text-[#2C2C3E]">{{ $mockup['name'] ?? 'Scene preview' }}</strong>
-                            <span class="text-xs text-[#8C7F74]">
-                                {{ filled($mockup['template_name'] ?? null) ? $mockup['template_name'].' · ' : 'Reusable scene · ' }}
-                                {{ filled($mockup['map'] ?? null) ? 'Zone mapped' : 'Zone pending' }}
-                            </span>
-                            <div class="mt-1 flex flex-wrap gap-2">
-                                <button type="button" class="rounded-full border border-[#E8E3DC] bg-white px-3 py-1.5 text-xs font-semibold text-[#2C2C3E]" @click="selectPreview({{ $previewIndex }})">
-                                    <span x-text="activePreviewIndex === {{ $previewIndex }} ? 'Active frame' : 'Make active'">Make active</span>
-                                </button>
-                                @if ($mockup['is_default'] ?? false)
-                                    <span class="rounded-full border border-[rgba(47,111,228,0.22)] bg-[rgba(47,111,228,0.08)] px-3 py-1.5 text-xs font-semibold text-[#2F6FE4]">Selected</span>
-                                @endif
-                            </div>
-                        </div>
-                    </article>
-                @endforeach
-
-                @if ($customPreviewCount === 0)
-                    <article class="rounded-xl border border-dashed border-[#E8E3DC] bg-[#FAF8F5] p-5 text-sm text-[#8C7F74]">
-                        No storefront mockup is selected yet. Add mockups from Admin > Advanced customization to show them here.
-                    </article>
-                @endif
-            @else
+            @if (! $product->is_customizable)
                 @foreach ($generalImages as $index => $image)
                     <button
                         type="button"
-                        class="w-[120px] flex-none overflow-hidden rounded-sm border border-[#E8E3DC] bg-white transition duration-200 ease-out"
-                        :class="activeImage === {{ $index }} ? 'ring-2 ring-[#C4A882]' : ''"
+                        class="w-[72px] shrink-0 snap-start"
                         @click="selectImage({{ $index }})"
-                        aria-label="Select {{ $image['label'] }} image"
+                        aria-label="Select {{ $image['label'] ?? $product->name }} image"
                     >
-                        <img src="{{ $image['thumb'] }}" alt="{{ $image['alt'] }}" class="aspect-[5/4] w-full object-cover">
+                        <div
+                            class="overflow-hidden rounded-lg border-2 bg-[#F5F2EC] transition-all duration-200 ease-out"
+                            :class="activeImage === {{ $index }} ? 'scale-105 border-[#C4A882]' : 'border-transparent'"
+                        >
+                            <img src="{{ $image['thumb'] ?? $image['url'] }}" alt="{{ $image['alt'] ?? $product->name }}" class="h-[72px] w-[72px] object-cover">
+                        </div>
                     </button>
                 @endforeach
             @endif
         </div>
 
         @if ($product->is_customizable)
-            <div class="mt-4 rounded-2xl border border-dashed border-[rgba(196,168,130,0.5)] bg-[rgba(250,248,245,0.9)] px-4 py-3">
-                <p class="text-sm italic text-[#8C7F74]">Your names update live and stay consistent across every preview image.</p>
-            </div>
-        @endif
-    </div>
-
-    @if ($recentlyViewed->isNotEmpty())
-        <div class="rounded-[1.75rem] border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-6">
-            <div class="flex items-center justify-between gap-3">
-                <h2 class="font-serif text-xl font-semibold text-[#2C2C3E]">Recently viewed</h2>
-                <a href="{{ route('shop.index') }}" class="text-sm font-medium text-[#8B2635]">Continue browsing</a>
-            </div>
-
-            <div class="mt-4 grid gap-4">
-                @foreach ($recentlyViewed as $recentProduct)
-                    <x-storefront.listing-card :product="$recentProduct" />
+            <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                @if ($showFlatPreview)
+                    <p class="text-[10px] text-[#5F5C58] sm:col-span-2 lg:col-span-1">Template preview</p>
+                @endif
+                @foreach ($mockupItems as $index => $mockup)
+                    <p class="text-[10px] text-[#5F5C58] {{ $showFlatPreview && $index > 2 ? 'hidden lg:block' : '' }}">{{ $mockup['name'] ?? 'Scene preview' }}</p>
                 @endforeach
             </div>
-        </div>
-    @endif
+
+            <p class="mt-2 text-center text-xs italic text-[#8C7F74]">Your names and date update live in the preview</p>
+        @endif
+    </div>
 </section>

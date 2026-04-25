@@ -499,9 +499,6 @@ const NikahPreview = {
             const hasFieldFont = `${fieldFontKey ?? ''}`.trim().length > 0;
             const selectedFontKey = hasFieldFont ? fieldFontKey : fontKey;
             const selectedFont = this.fontConfig(selectedFontKey);
-            const selectedLetterSpacing = hasFieldFont
-                ? (selectedFont.letter_spacing ?? field.letter_spacing ?? 0)
-                : (field.letter_spacing ?? 0);
             const fontStyle = {
                 fontFamily: hasFieldFont
                     ? (selectedFont.css_family || field.settings?.font_family_override || 'serif')
@@ -512,8 +509,8 @@ const NikahPreview = {
                 fontStyle: hasFieldFont
                     ? (selectedFont.font_style || field.settings?.font_style || 'normal')
                     : (field.settings?.font_style || 'normal'),
-                lineHeight: Number((hasFieldFont ? selectedFont.line_height : null) || field.line_height || 1.2),
-                letterSpacing: Number(selectedLetterSpacing || 0) * fontScale,
+                lineHeight: Number(field.line_height || 1.2),
+                letterSpacing: Number(field.letter_spacing || 0) * fontScale,
                 textTransform: hasFieldFont
                     ? (selectedFont.text_transform || field.settings?.text_transform || 'none')
                     : (field.settings?.text_transform || 'none'),
@@ -574,23 +571,77 @@ const NikahPreview = {
 window.NikahPreview = NikahPreview;
 
 export function registerNikahPreview(Alpine) {
+    const moneyFormatter = new Intl.NumberFormat('en-BD', {
+        style: 'currency',
+        currency: 'BDT',
+        maximumFractionDigits: 0,
+    });
+
     Alpine.data('storefrontPdp', (config) => ({
         isCustomizable: Boolean(config.isCustomizable),
         mode: 'flat',
         activeMockup: 0,
+        activeThumb: 0,
         activePreviewIndex: 0,
         activeImage: 0,
         fields: cloneData(config.fields ?? {}),
         fieldFonts: cloneData(config.fieldFonts ?? {}),
         activeFont: config.activeFont ?? null,
         previewReady: false,
+        proofNote: config.proofNote ?? '',
         selectedVariant: config.selectedVariant ?? '',
+        selectedVariants: cloneData(config.selectedVariants ?? {}),
+        variants: cloneData(config.variants ?? []),
+        variantGroups: cloneData(config.variantGroups ?? []),
         quantity: Number(config.quantity ?? 1) || 1,
+        submitting: false,
         showStickyBar: false,
+        zoomInstance: null,
         stickyObserver: null,
+        recentlyViewedItems: [],
         onResize: null,
+        formatMoney(value) {
+            const amount = Number(value ?? 0);
+
+            return moneyFormatter.format(Number.isFinite(amount) ? amount : 0).replace('.00', '');
+        },
         get hasInput() {
             return Object.values(this.fields).some((value) => `${value ?? ''}`.trim().length > 0);
+        },
+        get currentMockup() {
+            return config.mockups?.[this.activeMockup] ?? null;
+        },
+        get activeVariant() {
+            if (this.selectedVariant) {
+                return this.variants.find((variant) => `${variant.id}` === `${this.selectedVariant}`) ?? null;
+            }
+
+            if (this.variantGroups.length && this.variants.length) {
+                const selected = Object.entries(this.selectedVariants ?? {});
+
+                return this.variants.find((variant) => selected.every(([groupKey, groupValue]) => {
+                    const optionValues = variant.option_values ?? {};
+
+                    return `${optionValues[groupKey] ?? ''}` === `${groupValue}`;
+                })) ?? null;
+            }
+
+            return this.variants.find((variant) => variant.is_default) ?? this.variants[0] ?? null;
+        },
+        get displayPrice() {
+            return Number(this.activeVariant?.price ?? config.basePrice ?? 0);
+        },
+        get displayComparePrice() {
+            const compare = this.activeVariant?.compare_at_price ?? config.baseComparePrice ?? null;
+
+            return compare ? Number(compare) : null;
+        },
+        get savePercent() {
+            if (!this.displayComparePrice || this.displayComparePrice <= this.displayPrice) {
+                return 0;
+            }
+
+            return Math.round(((this.displayComparePrice - this.displayPrice) / this.displayComparePrice) * 100);
         },
         get activeGeneralImage() {
             return config.generalImages?.[this.activeImage] ?? config.generalImages?.[0] ?? null;
@@ -609,8 +660,8 @@ export function registerNikahPreview(Alpine) {
                 return this.activeGeneralImage?.label ?? 'Product image';
             }
 
-            if (this.hasFlatPreview && this.activePreviewIndex === 0) {
-                return 'Flat certificate preview';
+            if (this.hasFlatPreview && this.activeThumb === 0) {
+                return 'Template preview';
             }
 
             return config.mockups?.[this.activeMockup]?.name ?? 'Selected mockup preview';
@@ -636,31 +687,77 @@ export function registerNikahPreview(Alpine) {
         },
         get previewPositionLabel() {
             if (this.isCustomizable) {
-                return `${this.activePreviewIndex + 1} / ${this.previewCount}`;
+                return `${this.activeThumb + 1} / ${this.previewCount}`;
             }
 
             return `${this.activeImage + 1} / ${Math.max(1, this.generalImageCount)}`;
         },
-        switchMode(mode) {
-            if (mode === 'flat') {
-                this.selectPreview(0);
+        initializeVariantState() {
+            if (this.variantGroups.length) {
+                this.variantGroups.forEach((group) => {
+                    if (this.selectedVariants[group.key]) {
+                        return;
+                    }
+
+                    const firstAvailable = (group.values ?? []).find((value) => value.available !== false);
+
+                    if (firstAvailable) {
+                        this.selectedVariants[group.key] = firstAvailable.label ?? firstAvailable.value;
+                    }
+                });
+            }
+
+            if (!this.selectedVariant && this.activeVariant?.id) {
+                this.selectedVariant = `${this.activeVariant.id}`;
+            }
+        },
+        selectVariant(option, value, variantId = null) {
+            this.selectedVariants = { ...(this.selectedVariants ?? {}), [option]: value };
+
+            if (variantId) {
+                this.selectedVariant = `${variantId}`;
                 return;
             }
 
-            this.selectPreview(Math.max(1, this.activePreviewIndex || 1));
+            if (!this.variants.length) {
+                return;
+            }
+
+            const match = this.variants.find((variant) => {
+                const optionValues = variant.option_values ?? {};
+
+                return Object.entries(this.selectedVariants).every(([groupKey, groupValue]) => `${optionValues[groupKey] ?? ''}` === `${groupValue}`);
+            });
+
+            if (match) {
+                this.selectedVariant = `${match.id}`;
+            }
+        },
+        openSizeGuide() {
+            document.getElementById('shipping-care-policy')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        },
+        switchMode(mode) {
+            if (mode === 'flat') {
+                this.selectThumb(0);
+                return;
+            }
+
+            this.selectThumb(Math.max(1, this.activeThumb || 1));
         },
         selectMockup(index) {
             this.activeMockup = index;
             this.mode = 'mockup';
-            this.activePreviewIndex = index + 1;
+            this.activeThumb = index + (this.hasFlatPreview ? 1 : 0);
+            this.activePreviewIndex = this.activeThumb;
             this.renderPreview();
         },
-        selectPreview(index) {
+        selectThumb(index) {
             if (!this.isCustomizable) {
                 this.selectImage(index);
                 return;
             }
 
+            this.activeThumb = index;
             this.activePreviewIndex = index;
 
             if (index === 0) {
@@ -677,6 +774,9 @@ export function registerNikahPreview(Alpine) {
 
             this.renderPreview();
         },
+        selectPreview(index) {
+            this.selectThumb(index);
+        },
         selectImage(index) {
             this.activeImage = index;
         },
@@ -686,7 +786,7 @@ export function registerNikahPreview(Alpine) {
                     return;
                 }
 
-                this.selectPreview((this.activePreviewIndex + 1) % this.previewCount);
+                this.selectThumb((this.activeThumb + 1) % this.previewCount);
                 return;
             }
 
@@ -702,7 +802,7 @@ export function registerNikahPreview(Alpine) {
                     return;
                 }
 
-                this.selectPreview((this.activePreviewIndex - 1 + this.previewCount) % this.previewCount);
+                this.selectThumb((this.activeThumb - 1 + this.previewCount) % this.previewCount);
                 return;
             }
 
@@ -715,7 +815,20 @@ export function registerNikahPreview(Alpine) {
         primaryFontId() {
             const selectedFont = Object.values(this.fieldFonts ?? {}).find((value) => `${value ?? ''}`.trim().length > 0);
 
-            return selectedFont || this.activeFont || '';
+            return this.activeFont || selectedFont || '';
+        },
+        applyNameFont(fontId) {
+            this.activeFont = `${fontId}`;
+            const nextFieldFonts = { ...(this.fieldFonts ?? {}) };
+
+            Object.keys(this.fields ?? {}).forEach((fieldKey) => {
+                if (/bride|groom/i.test(fieldKey)) {
+                    nextFieldFonts[fieldKey] = `${fontId}`;
+                }
+            });
+
+            this.fieldFonts = nextFieldFonts;
+            this.renderPreview();
         },
         setFieldFont(fieldKey, fontId) {
             this.fieldFonts = { ...(this.fieldFonts ?? {}), [fieldKey]: `${fontId}` };
@@ -730,6 +843,31 @@ export function registerNikahPreview(Alpine) {
             this.previewReady = false;
             await window.NikahPreview.render(this.fields, this.activeFont, this.activeMockup, this.mode, this.fieldFonts);
             this.previewReady = true;
+        },
+        syncRecentlyViewed() {
+            const key = 'recently_viewed_products';
+            const current = config.currentProduct ?? null;
+
+            if (!current?.id) {
+                return;
+            }
+
+            try {
+                const existing = JSON.parse(window.localStorage.getItem(key) ?? '[]');
+                const next = [current, ...existing.filter((item) => `${item.id}` !== `${current.id}`)].slice(0, 8);
+
+                window.localStorage.setItem(key, JSON.stringify(next));
+                this.recentlyViewedItems = next.filter((item) => `${item.id}` !== `${current.id}`).slice(0, 8);
+            } catch (error) {
+                this.recentlyViewedItems = [];
+            }
+        },
+        initZoom() {
+            if (!this.isCustomizable || !this.$refs.previewStage || !this.$refs.previewCanvas || !window.initPdpZoom) {
+                return;
+            }
+
+            this.zoomInstance = window.initPdpZoom(this.$refs.previewStage, this.$refs.previewCanvas);
         },
         observeStickyBar() {
             if (!this.$refs.ctaAnchor) {
@@ -747,6 +885,8 @@ export function registerNikahPreview(Alpine) {
         },
         init() {
             this.$nextTick(() => {
+                this.initializeVariantState();
+                this.syncRecentlyViewed();
                 this.observeStickyBar();
 
                 if (this.isCustomizable) {
@@ -765,14 +905,17 @@ export function registerNikahPreview(Alpine) {
 
                     if ((config.galleryDefaultSource === 'selected_mockup' || !this.hasFlatPreview) && defaultMockupIndex >= 0) {
                         this.activeMockup = defaultMockupIndex;
-                        this.activePreviewIndex = defaultMockupIndex + (this.hasFlatPreview ? 1 : 0);
+                        this.activeThumb = defaultMockupIndex + (this.hasFlatPreview ? 1 : 0);
+                        this.activePreviewIndex = this.activeThumb;
                         this.mode = 'mockup';
                     } else if (!this.hasFlatPreview && (config.mockups?.length ?? 0) > 0) {
                         this.activeMockup = 0;
+                        this.activeThumb = 0;
                         this.activePreviewIndex = 0;
                         this.mode = 'mockup';
                     }
 
+                    this.initZoom();
                     this.renderPreview();
                 }
             });
@@ -789,6 +932,7 @@ export function registerNikahPreview(Alpine) {
         },
         destroy() {
             this.stickyObserver?.disconnect();
+            this.zoomInstance?.destroy?.();
 
             if (this.onResize) {
                 window.removeEventListener('resize', this.onResize);

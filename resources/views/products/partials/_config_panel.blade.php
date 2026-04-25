@@ -1,227 +1,231 @@
 @php
     $orderedFields = $template->fields
-        ->sortBy(fn ($field) => str($field->field_key)->contains('groom') ? 0 : (str($field->field_key)->contains('bride') ? 1 : 10 + (int) ($field->position ?? 0)))
+        ->sortBy(fn ($field) => (int) ($field->position ?? 0))
         ->values();
-    $nameFields = $orderedFields->filter(fn ($field) => str($field->field_key)->contains(['groom', 'bride']))->values();
-    $detailFields = $orderedFields->reject(fn ($field) => str($field->field_key)->contains(['groom', 'bride']))->values();
+    $proofNoteLabel = $template->proof_note_label ?: 'Add special instructions';
 @endphp
 
-<section class="space-y-5 text-[#3D3730]">
-    <div class="rounded-[1.85rem] border border-[#E8E3DC] bg-[linear-gradient(180deg,#FFFFFF_0%,#FCFAF6_100%)] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-8">
+<section class="space-y-4 text-[#3D3730] lg:sticky lg:top-[80px]">
+    <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)] sm:p-6">
         <div class="flex flex-wrap gap-2">
-            @foreach ($badgeItems as $badge)
-                <span class="rounded-full border border-[rgba(139,38,53,0.12)] bg-[#FAF8F5] px-3 py-1 text-xs font-semibold text-[#8B2635]">{{ $badge }}</span>
+            @foreach ($badgeItems as $index => $badge)
+                @php
+                    $badgeClasses = match ($index) {
+                        0 => 'bg-[#F5EDD8] text-[#8B6914]',
+                        1 => 'bg-[#F5E6E8] text-[#8B2635]',
+                        default => 'bg-[#EEECEA] text-[#5F5C58]',
+                    };
+                @endphp
+                <span class="rounded-full px-2.5 py-0.5 text-[10px] font-medium {{ $badgeClasses }}">{{ $badge }}</span>
             @endforeach
         </div>
 
-        <p class="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-[#C4A882]">Ceremonial keepsake</p>
-        <h1 class="mt-3 max-w-2xl font-serif text-3xl font-semibold leading-tight text-[#2C2C3E] sm:text-[2.15rem]">{{ $product->name }}</h1>
+        <h1 class="mt-2 font-serif text-[26px] font-semibold leading-tight text-[#2C2C3E]">{{ $product->name }}</h1>
 
-        <div class="mt-5 flex flex-wrap items-end gap-3">
-            <p class="text-3xl font-semibold tracking-tight text-[#8B2635]">BDT {{ number_format((float) $product->price, 0) }}</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+            <span class="text-2xl font-semibold text-[#8B2635]" x-text="formatMoney(displayPrice)">BDT {{ number_format((float) $product->price, 0) }}</span>
             @if ($product->compare_at_price)
-                <p class="text-sm text-[#8C7F74] line-through">BDT {{ number_format((float) $product->compare_at_price, 0) }}</p>
+                <span class="text-sm text-[#8C7F74] line-through" x-show="displayComparePrice" x-text="formatMoney(displayComparePrice)">BDT {{ number_format((float) $product->compare_at_price, 0) }}</span>
+                <span class="rounded-full bg-[#F5E6E8] px-2 py-0.5 text-xs font-medium text-[#8B2635]" x-show="savePercent > 0" x-text="`SAVE ${savePercent}%`"></span>
             @endif
         </div>
 
-        <p class="mt-3 inline-flex rounded-full bg-[rgba(139,38,53,0.07)] px-3 py-1 text-sm font-medium text-[#8B2635]">Custom proof included before printing</p>
-        <p class="mt-5 max-w-2xl text-sm leading-7 text-[#8C7F74]">{{ $shortDescription }}</p>
+        <p class="mt-1 text-xs text-[#C4A882]">Custom proof included before printing</p>
+        <p class="mt-2 text-sm leading-relaxed text-[#5F5C58]">{{ $shortDescription }}</p>
     </div>
 
-    <form method="POST" action="{{ route('cart.store', $product) }}" class="space-y-5" x-ref="mainProductForm">
+    <form id="order-form" method="POST" action="{{ route('cart.store', $product) }}" class="space-y-4" x-ref="mainOrderForm" @submit="submitting = true">
         @csrf
         <input type="hidden" name="quantity" value="1">
         <input type="hidden" name="font_id" :value="primaryFontId()">
+        <input type="hidden" name="proof_note" :value="proofNote">
         @if (($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []))->isNotEmpty())
-            <input type="hidden" name="mockup_id" :value="window.__MOCKUPS__?.[activeMockup]?.id ?? ''">
+            <input type="hidden" name="mockup_id" :value="currentMockup?.id || ''">
         @endif
 
-        <div class="rounded-[1.45rem] border border-[#E8E3DC] bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-7">
-            <div class="flex items-center justify-between gap-3">
-                <h2 class="font-serif text-2xl font-semibold text-[#2C2C3E]">Personalise your certificate</h2>
-                <span class="rounded-full bg-[#FAF8F5] px-3 py-1 text-xs font-semibold text-[#C4A882]">Step 1</span>
+        @include('products.partials._variant_selectors', [
+            'variantGroups' => $variantGroups,
+            'simpleVariants' => $simpleVariants,
+        ])
+
+        <div class="my-5 flex items-center gap-3">
+            <div class="h-px flex-1 bg-[#E8E3DC]"></div>
+            <span class="text-xs uppercase tracking-[0.3em] text-[#8C7F74]">Personalise</span>
+            <div class="h-px flex-1 bg-[#E8E3DC]"></div>
+        </div>
+
+        <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)]">
+            <div class="mb-4 flex items-center gap-3">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#F5E6E8] text-sm font-semibold text-[#8B2635]">1</span>
+                <h2 class="text-base font-semibold text-[#2C2C3E]">Personalise your certificate</h2>
             </div>
 
-            <div class="mt-6 space-y-6">
-                @foreach ($nameFields as $field)
+            <div class="space-y-4">
+                @foreach ($orderedFields as $field)
                     @php
                         $fieldName = 'personalization.'.$field->field_key;
-                        $fontFieldError = 'font_selection.'.$field->field_key;
-                        $availableFonts = $fonts
-                            ->filter(function ($font) use ($field) {
-                                $recommendedFor = str($font->recommended_for ?? 'all')->lower()->replace(' ', '');
-                                $fieldKey = str($field->field_key)->lower()->replace(' ', '');
-
-                                return $recommendedFor->isEmpty()
-                                    || $recommendedFor->contains('all')
-                                    || $recommendedFor->contains($fieldKey);
-                            })
-                            ->take(8)
-                            ->values();
+                        $fieldKey = $field->field_key;
+                        $isDate = str($field->field_key)->contains('date') || $field->type === 'date';
+                        $fieldMax = $field->max_length ?: 100;
                     @endphp
-
-                    <div class="space-y-2">
-                        <div class="flex items-center justify-between gap-3">
-                            <label for="field-{{ $field->field_key }}" class="text-xs font-semibold uppercase tracking-[0.18em] text-[#2C2C3E]">{{ $field->label }}</label>
+                    <div class="field-group">
+                        <div class="mb-1 flex items-baseline justify-between gap-3">
+                            <label for="field-{{ $fieldKey }}" class="text-[10px] font-medium uppercase tracking-[0.14em] text-[#8C7F74]">
+                                {{ $field->label }}
+                                @if ($field->is_required)
+                                    <span class="text-[#8B2635]">*</span>
+                                @endif
+                            </label>
                             @if ($field->max_length)
-                                <span class="text-xs text-[#8C7F74]">
-                                    <span x-text="`${(fields['{{ $field->field_key }}'] || '').length}`">0</span>/{{ $field->max_length }}
-                                </span>
+                                <span class="text-[10px] text-[#8C7F74]" x-text="`${(fields['{{ $fieldKey }}'] || '').length}/{{ $field->max_length }}`">{{ strlen((string) old($fieldName, '')) }}/{{ $field->max_length }}</span>
                             @endif
                         </div>
 
-                        <input
-                            id="field-{{ $field->field_key }}"
-                            type="text"
-                            name="personalization[{{ $field->field_key }}]"
-                            value="{{ old($fieldName, $field->default_value ?? $field->preview_sample_value ?? '') }}"
-                            maxlength="{{ $field->max_length }}"
-                            placeholder="{{ $field->placeholder }}"
-                            x-model="fields['{{ $field->field_key }}']"
-                            @input.debounce.200ms="renderPreview()"
-                            class="w-full rounded-xl border border-[#D9D2CA] bg-[#FFFFFF] px-4 py-3 text-sm text-[#3D3730] outline-none transition duration-200 ease-out placeholder:text-[#8C7F74] focus:border-[#C4A882] focus:ring-2 focus:ring-[#C4A882]/25"
-                        >
-
-                        <input type="hidden" name="font_selection[{{ $field->field_key }}]" :value="fieldFonts['{{ $field->field_key }}'] || ''">
-
-                        <div class="pt-1">
-                            <p class="text-sm font-medium text-[#2C2C3E]">Choose a font</p>
-                            <div class="mt-3 flex flex-wrap gap-3">
-                                @foreach ($availableFonts as $font)
-                                    <button
-                                        type="button"
-                                        class="relative flex h-[84px] w-[84px] items-center justify-center rounded-2xl border bg-white text-[#2C2C3E] transition duration-200 ease-out"
-                                        :class="fieldFonts['{{ $field->field_key }}'] === '{{ $font->id }}' ? 'border-[#2C2C3E] shadow-[0_10px_18px_rgba(44,44,62,0.12)]' : 'border-[#E8E3DC]'"
-                                        @click="setFieldFont('{{ $field->field_key }}', '{{ $font->id }}')"
-                                        aria-label="Choose {{ $font->name }} for {{ $field->label }}"
-                                    >
-                                        <span class="text-[2rem] leading-none" style="font-family: {{ $font->font_family ?: $font->css_font_family }};">Abc</span>
-                                        <span class="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-tl-xl rounded-br-[15px] bg-[#2C2C3E] text-xs font-semibold text-white" x-show="fieldFonts['{{ $field->field_key }}'] === '{{ $font->id }}'">✓</span>
-                                    </button>
-                                @endforeach
-                            </div>
-                        </div>
-
-                        @if ($field->help_text || $errors->has($fieldName) || $errors->has($fontFieldError))
-                            <div class="flex items-start justify-between gap-3 text-xs">
-                                @if ($field->help_text)
-                                    <p class="italic text-[#8C7F74]">{{ $field->help_text }}</p>
-                                @endif
-                                <div class="text-right">
-                                    @error($fieldName)
-                                        <p class="font-medium text-red-700">{{ $message }}</p>
-                                    @enderror
-                                    @error($fontFieldError)
-                                        <p class="font-medium text-red-700">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                            </div>
+                        @if ($isDate)
+                            <input
+                                id="field-{{ $fieldKey }}"
+                                type="date"
+                                name="personalization[{{ $fieldKey }}]"
+                                value="{{ old($fieldName, $field->default_value ?? '') }}"
+                                x-model="fields['{{ $fieldKey }}']"
+                                @change="renderPreview()"
+                                class="w-full rounded-md border border-[#DDD6CD] bg-[#FAF8F5] px-3 py-2.5 text-sm text-[#3D3730] transition duration-200 ease-out focus:border-[#C4A882] focus:outline-none focus:ring-1 focus:ring-[#C4A882]"
+                            >
+                        @else
+                            <input
+                                id="field-{{ $fieldKey }}"
+                                type="text"
+                                name="personalization[{{ $fieldKey }}]"
+                                value="{{ old($fieldName, $field->default_value ?? $field->preview_sample_value ?? '') }}"
+                                x-model="fields['{{ $fieldKey }}']"
+                                @input.debounce.150ms="renderPreview()"
+                                placeholder="{{ $field->placeholder }}"
+                                maxlength="{{ $fieldMax }}"
+                                class="w-full rounded-md border border-[#DDD6CD] bg-[#FAF8F5] px-3 py-2.5 text-sm text-[#3D3730] transition duration-200 ease-out placeholder:text-[#C4B9B0] focus:border-[#C4A882] focus:outline-none focus:ring-1 focus:ring-[#C4A882]"
+                            >
                         @endif
+
+                        @if ($field->help_text)
+                            <p class="mt-1 text-[10px] italic text-[#8C7F74]">{{ $field->help_text }}</p>
+                        @endif
+
+                        @error($fieldName)
+                            <p class="mt-1 text-[11px] text-[#8B2635]">{{ $message }}</p>
+                        @enderror
                     </div>
                 @endforeach
             </div>
         </div>
 
-        @if ($detailFields->isNotEmpty())
-            <div class="rounded-[1.45rem] border border-[#E8E3DC] bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-7">
-                <div class="flex items-center justify-between gap-3">
-                    <h2 class="font-serif text-2xl font-semibold text-[#2C2C3E]">Additional details</h2>
-                    <span class="rounded-full bg-[#FAF8F5] px-3 py-1 text-xs font-semibold text-[#C4A882]">Step 2</span>
-                </div>
-
-                <div class="mt-6 space-y-5">
-                    @foreach ($detailFields as $field)
-                        @php
-                            $fieldName = 'personalization.'.$field->field_key;
-                            $isDate = str($field->field_key)->contains('date');
-                        @endphp
-                        <div class="space-y-2">
-                            <div class="flex items-center justify-between gap-3">
-                                <label for="field-{{ $field->field_key }}" class="text-xs font-semibold uppercase tracking-[0.18em] text-[#C4A882]">{{ $field->label }}</label>
-                                @if ($field->max_length)
-                                    <span class="text-xs text-[#8C7F74]">Max {{ $field->max_length }}</span>
-                                @endif
-                            </div>
-
-                            @if ($isDate)
-                                <input
-                                    id="field-{{ $field->field_key }}"
-                                    type="date"
-                                    name="personalization[{{ $field->field_key }}]"
-                                    value="{{ old($fieldName) }}"
-                                    x-model="fields['{{ $field->field_key }}']"
-                                    @input.debounce.200ms="renderPreview()"
-                                    class="w-full rounded-xl border border-[#E8E3DC] bg-[#FAF8F5] px-4 py-3 text-sm text-[#3D3730] outline-none transition duration-200 ease-out focus:border-[#C4A882] focus:ring-2 focus:ring-[#C4A882]/30"
-                                >
-                            @else
-                                <input
-                                    id="field-{{ $field->field_key }}"
-                                    type="text"
-                                    name="personalization[{{ $field->field_key }}]"
-                                    value="{{ old($fieldName, $field->default_value ?? $field->preview_sample_value ?? '') }}"
-                                    maxlength="{{ $field->max_length }}"
-                                    placeholder="{{ $field->placeholder }}"
-                                    x-model="fields['{{ $field->field_key }}']"
-                                    @input.debounce.200ms="renderPreview()"
-                                    class="w-full rounded-xl border border-[#E8E3DC] bg-[#FAF8F5] px-4 py-3 text-sm text-[#3D3730] outline-none transition duration-200 ease-out placeholder:text-[#8C7F74] focus:border-[#C4A882] focus:ring-2 focus:ring-[#C4A882]/30"
-                                >
-                            @endif
-
-                            @if ($field->help_text || $errors->has($fieldName))
-                                <div class="flex items-start justify-between gap-3 text-xs">
-                                    @if ($field->help_text)
-                                        <p class="italic text-[#8C7F74]">{{ $field->help_text }}</p>
-                                    @endif
-                                    @error($fieldName)
-                                        <p class="font-medium text-red-700">{{ $message }}</p>
-                                    @enderror
-                                </div>
-                            @endif
-                        </div>
-                    @endforeach
-                </div>
-
-                @error('mockup_id')
-                    <p class="mt-4 text-sm font-medium text-red-700">{{ $message }}</p>
-                @enderror
+        <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)]">
+            <div class="mb-4 flex items-center gap-3">
+                <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#F5E6E8] text-sm font-semibold text-[#8B2635]">2</span>
+                <h2 class="text-base font-semibold text-[#2C2C3E]">Choose a font</h2>
             </div>
-        @endif
 
-        <div class="rounded-[1.45rem] border border-[#E8E3DC] bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-7" x-data="{ open: false }">
-            <button type="button" class="flex w-full items-center justify-between gap-3 text-left" @click="open = !open">
-                <span class="font-serif text-xl font-semibold text-[#2C2C3E]">Add special instructions +</span>
-                <span class="text-sm text-[#8C7F74]" x-text="open ? 'Hide' : 'Optional'"></span>
-            </button>
-
-            <div class="mt-4 space-y-3" x-show="open" x-transition.duration.200ms>
-                <textarea
-                    name="proof_note"
-                    rows="4"
-                    placeholder="Mention any spelling, hierarchy, or formatting preferences..."
-                    class="w-full rounded-xl border border-[#E8E3DC] bg-[#FAF8F5] px-4 py-3 text-sm text-[#3D3730] outline-none transition duration-200 ease-out placeholder:text-[#8C7F74] focus:border-[#C4A882] focus:ring-2 focus:ring-[#C4A882]/30"
-                >{{ old('proof_note') }}</textarea>
-                <p class="text-sm text-[#8C7F74]">Our designer reviews all proofs before production</p>
+            <div class="flex flex-wrap gap-2">
+                @foreach ($fonts as $font)
+                    <button
+                        type="button"
+                        class="min-w-[96px] rounded-lg border p-3 text-left transition-all duration-200 ease-out"
+                        :class="activeFont === '{{ $font->id }}' ? 'border-[#C4A882] bg-[#FBF8F1]' : 'border-[#E8E3DC] hover:border-[#C4A882]'"
+                        @click="applyNameFont('{{ $font->id }}')"
+                        aria-label="Choose {{ $font->name }}"
+                    >
+                        <span class="block text-lg leading-none text-[#2C2C3E]" style="font-family: {{ $font->font_family ?: $font->css_font_family }};">
+                            <span x-text="fields.groom_name || fields.groom || 'Ahmad Ali'">Ahmad Ali</span>
+                        </span>
+                        <span class="mt-2 block text-[10px] uppercase tracking-[0.12em] text-[#8C7F74]">{{ $font->preview_label ?: $font->name }}</span>
+                    </button>
+                @endforeach
             </div>
         </div>
 
-        <div class="rounded-[1.55rem] border border-[#E8E3DC] bg-[linear-gradient(180deg,#FFFFFF_0%,#FCFAF6_100%)] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-7" x-ref="ctaAnchor">
-            <div class="mb-5 flex items-center justify-between gap-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#C4A882]">Final step</p>
-                    <p class="mt-2 font-serif text-xl font-semibold text-[#2C2C3E]">Submit your personalised order</p>
+        @if (($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []))->isNotEmpty())
+            <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)]">
+                <div class="mb-3 flex items-center gap-3">
+                    <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#F5E6E8] text-sm font-semibold text-[#8B2635]">3</span>
+                    <div>
+                        <h2 class="text-base font-semibold text-[#2C2C3E]">Preview in your space</h2>
+                        <p class="text-xs text-[#8C7F74]">Select a scene to see your certificate displayed</p>
+                    </div>
                 </div>
-                <p class="text-right text-sm leading-6 text-[#8C7F74]">We send a proof before anything goes to print.</p>
-            </div>
 
-            <div class="space-y-3">
-                <button type="submit" class="w-full rounded-xl bg-[#8B2635] px-5 py-4 text-base font-semibold text-white shadow-[0_12px_24px_rgba(139,38,53,0.18)] transition duration-200 ease-out hover:bg-[#6D1D29]">Add personalized order</button>
-                <button type="submit" name="buy_now" value="1" class="w-full rounded-xl border border-[#8B2635] px-5 py-4 text-base font-semibold text-[#8B2635] transition duration-200 ease-out hover:bg-[#FAF8F5]">Buy it now</button>
+                <div class="grid grid-cols-3 gap-2">
+                    @foreach (($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? [])) as $index => $mockup)
+                        <button
+                            type="button"
+                            class="group text-left"
+                            @click="selectMockup({{ $index }})"
+                            aria-label="Preview in {{ $mockup['name'] ?? 'Scene preview' }}"
+                        >
+                            <div class="relative overflow-hidden rounded-lg border-2 transition-all duration-200 ease-out" :class="activeMockup === {{ $index }} && mode === 'mockup' ? 'border-[#C4A882]' : 'border-transparent group-hover:border-[#C4A882]/50'">
+                                <img src="{{ $mockup['thumbnail_url'] ?? $mockup['image_url'] }}" alt="{{ $mockup['name'] ?? 'Scene preview' }}" class="aspect-[3/4] w-full object-cover">
+                                <span x-cloak x-show="activeMockup === {{ $index }} && mode === 'mockup'" class="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#8B2635] text-[10px] text-white">✓</span>
+                            </div>
+                            <span class="mt-1 block truncate text-center text-[10px] text-[#5F5C58]">{{ $mockup['name'] ?? 'Scene preview' }}</span>
+                        </button>
+                    @endforeach
+                </div>
             </div>
+        @endif
 
-            <div class="mt-5 grid gap-3 text-sm text-[#3D3730] sm:grid-cols-3">
-                <div class="rounded-xl bg-[#FAF8F5] px-4 py-3">✓ Proof sent before production</div>
-                <div class="rounded-xl bg-[#FAF8F5] px-4 py-3">✓ Secure checkout</div>
-                <div class="rounded-xl bg-[#FAF8F5] px-4 py-3">✓ Carefully packaged & posted</div>
+        <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)]" x-data="{ open: false }">
+            <button type="button" class="flex w-full items-center justify-between gap-3 text-left text-sm text-[#8B2635]" @click="open = !open">
+                <span>{{ $proofNoteLabel }} +</span>
+                <span class="text-lg transition-transform duration-200" :class="open ? 'rotate-45' : ''">+</span>
+            </button>
+
+            <div x-cloak x-show="open" x-transition.duration.200ms class="mt-3">
+                <textarea
+                    name="proof_note_visible"
+                    x-model="proofNote"
+                    rows="4"
+                    placeholder="Mention any spelling, hierarchy, or formatting preferences..."
+                    class="w-full resize-none rounded-md border border-[#DDD6CD] bg-[#FAF8F5] px-3 py-2.5 text-sm text-[#3D3730] transition duration-200 ease-out focus:border-[#C4A882] focus:outline-none focus:ring-1 focus:ring-[#C4A882]"
+                ></textarea>
+                <p class="mt-1 text-[10px] italic text-[#8C7F74]">Our designer reviews every proof before production</p>
+            </div>
+        </div>
+
+        <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)]" x-ref="ctaAnchor">
+            <button
+                type="submit"
+                class="relative mt-0 w-full overflow-hidden rounded-xl bg-[#8B2635] py-4 text-base font-medium text-white transition-all duration-200 ease-out hover:bg-[#6D1D29] active:scale-[0.98]"
+            >
+                <span x-show="!submitting">Add personalized order</span>
+                <span x-cloak x-show="submitting" class="absolute inset-0 flex items-center justify-center bg-[#8B2635]">
+                    <svg class="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25"></circle>
+                        <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" class="opacity-90"></path>
+                    </svg>
+                </span>
+            </button>
+
+            <button
+                type="submit"
+                name="buy_now"
+                value="1"
+                class="mt-2 w-full rounded-xl border border-[#8B2635] py-3.5 text-sm font-medium text-[#8B2635] transition-all duration-200 ease-out hover:bg-[#F5E6E8]"
+            >
+                Buy it now
+            </button>
+
+            <div class="mt-4 border-t border-[#F0EBE3] pt-4">
+                <div class="grid gap-2 text-[11px] text-[#5F5C58] sm:grid-cols-3">
+                    <div class="flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-[#C4A882]" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.4 11.2 3.2 8l1.1-1.1 2.1 2.1 5-5L12.5 5z"/></svg>
+                        <span>Proof before production</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-[#C4A882]" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a3 3 0 0 0-3 3v2H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1V4a3 3 0 0 0-3-3Zm-1.5 5V4a1.5 1.5 0 0 1 3 0v2h-3Z"/></svg>
+                        <span>Secure checkout</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-[#C4A882]" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 4.5 8 1l6 3.5V12L8 15l-6-3V4.5Zm2 .7V11l4 2.2 4-2.2V5.2L8 3 4 5.2Z"/></svg>
+                        <span>Carefully packaged</span>
+                    </div>
+                </div>
             </div>
         </div>
     </form>

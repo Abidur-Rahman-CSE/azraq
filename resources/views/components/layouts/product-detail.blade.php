@@ -27,9 +27,7 @@
         <div class="pointer-events-none absolute -left-10 bottom-24 h-56 w-56 rounded-full bg-[rgba(44,44,62,0.04)] blur-3xl"></div>
 
         <div class="container-shell relative">
-            <div class="grid gap-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] xl:gap-12">
-                {{ $slot }}
-            </div>
+            {{ $slot }}
         </div>
     </div>
 </x-layouts.storefront>

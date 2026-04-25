@@ -1,79 +1,91 @@
-<section class="space-y-5 text-[#3D3730]">
-    <div class="rounded-[1.85rem] border border-[#E8E3DC] bg-[linear-gradient(180deg,#FFFFFF_0%,#FCFAF6_100%)] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-8">
+<section class="space-y-4 text-[#3D3730] lg:sticky lg:top-[80px]">
+    <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)] sm:p-6">
         <div class="flex flex-wrap gap-2">
-            @foreach ($badgeItems as $badge)
-                <span class="rounded-full border border-[rgba(139,38,53,0.12)] bg-[#FAF8F5] px-3 py-1 text-xs font-semibold text-[#8B2635]">{{ $badge }}</span>
+            @foreach ($badgeItems as $index => $badge)
+                @php
+                    $badgeClasses = match ($index) {
+                        0 => 'bg-[#F5EDD8] text-[#8B6914]',
+                        1 => 'bg-[#F5E6E8] text-[#8B2635]',
+                        default => 'bg-[#EEECEA] text-[#5F5C58]',
+                    };
+                @endphp
+                <span class="rounded-full px-2.5 py-0.5 text-[10px] font-medium {{ $badgeClasses }}">{{ $badge }}</span>
             @endforeach
         </div>
 
-        <p class="mt-5 text-xs font-semibold uppercase tracking-[0.2em] text-[#C4A882]">{{ $product->category?->name ?: 'Storefront selection' }}</p>
-        <h1 class="mt-3 max-w-2xl font-serif text-3xl font-semibold leading-tight text-[#2C2C3E] sm:text-[2.15rem]">{{ $product->name }}</h1>
+        <h1 class="mt-2 font-serif text-[26px] font-semibold leading-tight text-[#2C2C3E]">{{ $product->name }}</h1>
 
-        <div class="mt-5 flex flex-wrap items-end gap-3">
-            <p class="text-3xl font-semibold tracking-tight text-[#8B2635]">BDT {{ number_format((float) $product->price, 0) }}</p>
+        <div class="mt-3 flex flex-wrap items-center gap-2">
+            <span class="text-2xl font-semibold text-[#8B2635]" x-text="formatMoney(displayPrice)">BDT {{ number_format((float) $product->price, 0) }}</span>
             @if ($product->compare_at_price)
-                <p class="text-sm text-[#8C7F74] line-through">BDT {{ number_format((float) $product->compare_at_price, 0) }}</p>
+                <span class="text-sm text-[#8C7F74] line-through" x-show="displayComparePrice" x-text="formatMoney(displayComparePrice)">BDT {{ number_format((float) $product->compare_at_price, 0) }}</span>
+                <span class="rounded-full bg-[#F5E6E8] px-2 py-0.5 text-xs font-medium text-[#8B2635]" x-show="savePercent > 0" x-text="`SAVE ${savePercent}%`"></span>
             @endif
         </div>
 
-        <p class="mt-5 max-w-2xl text-sm leading-7 text-[#8C7F74]">{{ $shortDescription }}</p>
+        <p class="mt-2 text-sm leading-relaxed text-[#5F5C58]">{{ $shortDescription }}</p>
     </div>
 
-    <form method="POST" action="{{ route('cart.store', $product) }}" class="space-y-5" x-ref="mainProductForm">
+    <form id="order-form" method="POST" action="{{ route('cart.store', $product) }}" class="space-y-4" x-ref="mainOrderForm" @submit="submitting = true">
         @csrf
 
-        @if ($product->variants->isNotEmpty())
-            <div class="rounded-[1.45rem] border border-[#E8E3DC] bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-7">
-                <h2 class="font-serif text-2xl font-semibold text-[#2C2C3E]">Choose a variant</h2>
-                <div class="mt-5 flex flex-wrap gap-3">
-                    @foreach ($product->variants as $variant)
-                        <label class="cursor-pointer">
-                            <input type="radio" name="variant_id" value="{{ $variant->id }}" class="sr-only" x-model="selectedVariant" @checked(old('variant_id', $product->variants->firstWhere('is_default', true)?->id) == $variant->id)>
-                            <span
-                                class="inline-flex rounded-full border px-4 py-3 text-sm font-medium transition duration-200 ease-out"
-                                :class="selectedVariant === '{{ $variant->id }}' ? 'border-[#8B2635] bg-[#8B2635] text-white' : 'border-[#E8E3DC] bg-[#FAF8F5] text-[#3D3730]'"
-                            >
-                                {{ $variant->name }}
-                            </span>
-                        </label>
-                    @endforeach
-                </div>
-                @error('variant_id')
-                    <p class="mt-3 text-sm font-medium text-red-700">{{ $message }}</p>
-                @enderror
-            </div>
-        @endif
+        <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)]">
+            @include('products.partials._variant_selectors', [
+                'variantGroups' => $variantGroups,
+                'simpleVariants' => $simpleVariants,
+            ])
+        </div>
 
-            <div class="rounded-[1.45rem] border border-[#E8E3DC] bg-white p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-7">
-            <h2 class="font-serif text-2xl font-semibold text-[#2C2C3E]">Quantity</h2>
-            <div class="mt-5 inline-flex items-center rounded-xl border border-[#E8E3DC] bg-[#FAF8F5]">
-                <button type="button" class="px-4 py-3 text-lg text-[#8B2635]" @click="quantity = Math.max(1, quantity - 1)">−</button>
-                <input type="number" min="1" max="20" name="quantity" x-model="quantity" class="w-16 border-0 bg-transparent px-2 py-3 text-center text-base font-semibold text-[#2C2C3E] focus:outline-none focus:ring-0">
-                <button type="button" class="px-4 py-3 text-lg text-[#8B2635]" @click="quantity = Math.min(20, quantity + 1)">+</button>
+        <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)]">
+            <h2 class="text-base font-semibold text-[#2C2C3E]">Quantity</h2>
+            <div class="mt-4 inline-flex items-center overflow-hidden rounded-lg border border-[#E8E3DC]">
+                <button type="button" class="px-4 py-2.5 transition duration-200 ease-out hover:bg-[#F5F2EC]" @click="quantity = Math.max(1, quantity - 1)" aria-label="Decrease quantity">−</button>
+                <input type="number" min="1" name="quantity" x-model="quantity" class="min-w-[48px] border-0 bg-white px-4 py-2.5 text-center text-sm font-medium text-[#2C2C3E] focus:outline-none focus:ring-0">
+                <button type="button" class="px-4 py-2.5 transition duration-200 ease-out hover:bg-[#F5F2EC]" @click="quantity = quantity + 1" aria-label="Increase quantity">+</button>
             </div>
             @error('quantity')
-                <p class="mt-3 text-sm font-medium text-red-700">{{ $message }}</p>
+                <p class="mt-2 text-[11px] text-[#8B2635]">{{ $message }}</p>
             @enderror
         </div>
 
-        <div class="rounded-[1.55rem] border border-[#E8E3DC] bg-[linear-gradient(180deg,#FFFFFF_0%,#FCFAF6_100%)] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.06)] sm:p-7" x-ref="ctaAnchor">
-            <div class="mb-5 flex items-center justify-between gap-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[#C4A882]">Ready to order</p>
-                    <p class="mt-2 font-serif text-xl font-semibold text-[#2C2C3E]">Add this piece to your collection</p>
+        <div class="rounded-xl border border-[#E8E3DC] bg-white p-5 shadow-[0_2px_20px_rgba(0,0,0,0.05)]" x-ref="ctaAnchor">
+            <button
+                type="submit"
+                class="relative mt-0 w-full overflow-hidden rounded-xl bg-[#8B2635] py-4 text-base font-medium text-white transition-all duration-200 ease-out hover:bg-[#6D1D29] active:scale-[0.98]"
+            >
+                <span x-show="!submitting">Add to cart</span>
+                <span x-cloak x-show="submitting" class="absolute inset-0 flex items-center justify-center bg-[#8B2635]">
+                    <svg class="h-5 w-5 animate-spin text-white" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" class="opacity-25"></circle>
+                        <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="3" class="opacity-90"></path>
+                    </svg>
+                </span>
+            </button>
+
+            <button
+                type="submit"
+                name="buy_now"
+                value="1"
+                class="mt-2 w-full rounded-xl border border-[#8B2635] py-3.5 text-sm font-medium text-[#8B2635] transition-all duration-200 ease-out hover:bg-[#F5E6E8]"
+            >
+                Buy it now
+            </button>
+
+            <div class="mt-4 border-t border-[#F0EBE3] pt-4">
+                <div class="grid gap-2 text-[11px] text-[#5F5C58] sm:grid-cols-3">
+                    <div class="flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-[#C4A882]" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.4 11.2 3.2 8l1.1-1.1 2.1 2.1 5-5L12.5 5z"/></svg>
+                        <span>Proof before production</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-[#C4A882]" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1a3 3 0 0 0-3 3v2H4a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1h-1V4a3 3 0 0 0-3-3Zm-1.5 5V4a1.5 1.5 0 0 1 3 0v2h-3Z"/></svg>
+                        <span>Secure checkout</span>
+                    </div>
+                    <div class="flex items-center gap-1.5">
+                        <svg class="h-3.5 w-3.5 text-[#C4A882]" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M2 4.5 8 1l6 3.5V12L8 15l-6-3V4.5Zm2 .7V11l4 2.2 4-2.2V5.2L8 3 4 5.2Z"/></svg>
+                        <span>Carefully packaged</span>
+                    </div>
                 </div>
-                <p class="text-right text-sm leading-6 text-[#8C7F74]">Secure checkout with careful packaging and dispatch.</p>
-            </div>
-
-            <div class="space-y-3">
-                <button type="submit" class="w-full rounded-xl bg-[#8B2635] px-5 py-4 text-base font-semibold text-white shadow-[0_12px_24px_rgba(139,38,53,0.18)] transition duration-200 ease-out hover:bg-[#6D1D29]">Add to cart</button>
-                <button type="submit" name="buy_now" value="1" class="w-full rounded-xl border border-[#8B2635] px-5 py-4 text-base font-semibold text-[#8B2635] transition duration-200 ease-out hover:bg-[#FAF8F5]">Buy it now</button>
-            </div>
-
-            <div class="mt-5 grid gap-3 text-sm text-[#3D3730] sm:grid-cols-3">
-                <div class="rounded-xl bg-[#FAF8F5] px-4 py-3">✓ Proof sent before production</div>
-                <div class="rounded-xl bg-[#FAF8F5] px-4 py-3">✓ Secure checkout</div>
-                <div class="rounded-xl bg-[#FAF8F5] px-4 py-3">✓ Carefully packaged & posted</div>
             </div>
         </div>
     </form>
