@@ -5,7 +5,7 @@
     $proofNoteLabel = $template->proof_note_label ?: 'Add special instructions';
 @endphp
 
-<section class="space-y-4 text-[var(--text-main)] lg:sticky lg:top-[80px]">
+<section class="space-y-4 text-[var(--text-main)]">
     <div class="surface-card-featured p-5 sm:p-6">
         <div class="flex flex-wrap gap-2">
             @foreach ($badgeItems as $index => $badge)

@@ -297,7 +297,7 @@
                 <span class="text-[var(--text-main)]">{{ $product->name }}</span>
             </nav>
 
-            <div class="mt-6 grid gap-8 lg:grid-cols-[minmax(0,55fr)_minmax(0,45fr)] lg:items-start">
+            <div class="mt-6 grid gap-8 lg:grid-cols-[minmax(0,55fr)_minmax(0,45fr)]">
                 @include('products.partials._preview_stage', [
                     'product' => $product,
                     'template' => $template,

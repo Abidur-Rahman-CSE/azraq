@@ -5,7 +5,8 @@
     $showFlatPreview = $product->is_customizable;
 @endphp
 
-<section class="space-y-4 lg:self-start">
+<section class="lg:self-stretch">
+    <div class="space-y-4 lg:sticky lg:top-[88px]">
     <div class="surface-product overflow-hidden p-4 sm:p-5">
         <div class="mb-4 flex items-center justify-between gap-3">
             <div>
@@ -34,7 +35,7 @@
                 ⊕ Hover to zoom
             </div>
 
-            <div class="aspect-[4/5] w-full">
+            <div class="aspect-[4/5] w-full max-h-[58vh] lg:max-h-[500px]">
                 @if ($product->is_customizable)
                     <canvas
                         id="nikah-preview-canvas"
@@ -56,7 +57,7 @@
                     <button
                         type="button"
                         class="absolute left-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-lg bg-white/75 text-3xl text-[var(--text-main)] shadow-sm backdrop-blur transition duration-200 ease-out hover:bg-white"
-                        @click="previousPreview()"
+                        @click.stop="previousPreview()"
                         aria-label="Previous preview"
                     >
                         ‹
@@ -64,7 +65,7 @@
                     <button
                         type="button"
                         class="absolute right-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-lg bg-white/75 text-3xl text-[var(--text-main)] shadow-sm backdrop-blur transition duration-200 ease-out hover:bg-white"
-                        @click="nextPreview()"
+                        @click.stop="nextPreview()"
                         aria-label="Next preview"
                     >
                         ›
@@ -138,5 +139,6 @@
 
             <p class="mt-2 text-center text-xs italic text-[var(--text-muted)]">Your names and date update live in the preview</p>
         @endif
+    </div>
     </div>
 </section>
