@@ -124,7 +124,22 @@
         ['label' => 'Packaging', 'value' => 'Gift-ready wrapped and carefully posted'],
     ];
 
-    $variantGroups = collect(data_get($product, 'variantOptions', []))
+    $simpleVariants = $product->variants
+        ->map(fn ($variant) => [
+            'id' => $variant->id,
+            'name' => $variant->name,
+            'label' => $variant->name,
+            'value' => $variant->name,
+            'price' => (float) ($variant->price ?: $product->price),
+            'compare_at_price' => $variant->compare_at_price ? (float) $variant->compare_at_price : null,
+            'stock_quantity' => (int) $variant->stock_quantity,
+            'available' => ! $product->manage_stock || (int) $variant->stock_quantity > 0,
+            'option_values' => $variant->option_values ?? [],
+            'is_default' => (bool) $variant->is_default,
+        ])
+        ->values();
+
+    $configuredVariantGroups = collect(data_get($product, 'variantOptions', []))
         ->map(function ($group, $index) {
             $values = collect(data_get($group, 'values', []))
                 ->map(fn ($value) => [
@@ -147,20 +162,57 @@
         ->filter(fn ($group) => $group['values']->isNotEmpty())
         ->values();
 
-    $simpleVariants = $product->variants
-        ->map(fn ($variant) => [
-            'id' => $variant->id,
-            'name' => $variant->name,
-            'label' => $variant->name,
-            'value' => $variant->name,
-            'price' => (float) ($variant->price ?: $product->price),
-            'compare_at_price' => $variant->compare_at_price ? (float) $variant->compare_at_price : null,
-            'stock_quantity' => (int) $variant->stock_quantity,
-            'available' => ! $product->manage_stock || (int) $variant->stock_quantity > 0,
-            'option_values' => $variant->option_values ?? [],
-            'is_default' => (bool) $variant->is_default,
+    $derivedVariantGroups = $simpleVariants
+        ->reduce(function (\Illuminate\Support\Collection $groups, array $variant) {
+            foreach (($variant['option_values'] ?? []) as $entry) {
+                if (! is_string($entry) || ! str_contains($entry, ':')) {
+                    continue;
+                }
+
+                [$rawKey, $rawValue] = array_pad(explode(':', $entry, 2), 2, null);
+                $key = Str::of((string) $rawKey)->trim()->replace(' ', '_')->lower()->toString();
+                $value = trim((string) $rawValue);
+
+                if ($key === '' || $value === '') {
+                    continue;
+                }
+
+                if (! $groups->has($key)) {
+                    $groups->put($key, [
+                        'key' => $key,
+                        'name' => Str::headline(str_replace('_', ' ', $key)),
+                        'type' => str($key)->contains(['color', 'frame_type', 'material']) ? 'swatch' : 'pill',
+                        'values' => collect(),
+                    ]);
+                }
+
+                $group = $groups->get($key);
+
+                if (! $group['values']->contains(fn ($groupValue) => ($groupValue['value'] ?? null) === $value)) {
+                    $group['values']->push([
+                        'label' => $value,
+                        'value' => $value,
+                        'variant_id' => null,
+                        'available' => true,
+                        'tooltip' => null,
+                        'swatch' => $value,
+                    ]);
+                }
+
+                $groups->put($key, $group);
+            }
+
+            return $groups;
+        }, collect())
+        ->map(fn (array $group) => [
+            ...$group,
+            'values' => $group['values']->values(),
         ])
         ->values();
+
+    $variantGroups = $configuredVariantGroups->isNotEmpty()
+        ? $configuredVariantGroups
+        : $derivedVariantGroups;
 
     $selectedVariant = (string) old('variant_id', $product->variants->firstWhere('is_default', true)?->id);
     $selectedVariantGroups = collect(old('selected_variants', []))
@@ -209,7 +261,7 @@
     </x-slot:head>
 
     <div
-        class="bg-[var(--color-surface-base)] text-[var(--text-main)]"
+        class="text-[var(--text-main)]"
         x-data="storefrontPdp({
             isCustomizable: @js($product->is_customizable),
             canvasId: 'nikah-preview-canvas',

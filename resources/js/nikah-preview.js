@@ -313,6 +313,149 @@ function buildFieldLayer(field, width, height) {
     };
 }
 
+function normalizeOptionKey(value) {
+    return `${value ?? ''}`
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+function humanizeOptionKey(value) {
+    return `${value ?? ''}`
+        .replace(/[_-]+/g, ' ')
+        .replace(/\b\w/g, (character) => character.toUpperCase())
+        .trim();
+}
+
+function normalizeVariantOptionValues(rawOptionValues) {
+    if (Array.isArray(rawOptionValues)) {
+        return rawOptionValues.reduce((options, entry, index) => {
+            if (typeof entry !== 'string') {
+                return options;
+            }
+
+            const [rawKey, ...rawValueParts] = entry.split(':');
+
+            if (!rawValueParts.length) {
+                return options;
+            }
+
+            const key = normalizeOptionKey(rawKey || `option_${index + 1}`);
+            const value = rawValueParts.join(':').trim();
+
+            if (key && value) {
+                options[key] = value;
+            }
+
+            return options;
+        }, {});
+    }
+
+    if (rawOptionValues && typeof rawOptionValues === 'object') {
+        return Object.entries(rawOptionValues).reduce((options, [key, value]) => {
+            const normalizedKey = normalizeOptionKey(key);
+            const normalizedValue = `${value ?? ''}`.trim();
+
+            if (normalizedKey && normalizedValue) {
+                options[normalizedKey] = normalizedValue;
+            }
+
+            return options;
+        }, {});
+    }
+
+    if (typeof rawOptionValues === 'string' && rawOptionValues.trim()) {
+        return normalizeVariantOptionValues(rawOptionValues.split(',').map((entry) => entry.trim()).filter(Boolean));
+    }
+
+    return {};
+}
+
+function inferVariantGroupType(key) {
+    return /frame_type|material|color/i.test(`${key ?? ''}`) ? 'swatch' : 'pill';
+}
+
+function sanitizeVariantGroupValue(rawValue) {
+    const label = `${rawValue?.label ?? rawValue?.value ?? rawValue ?? ''}`.trim();
+    const value = `${rawValue?.value ?? rawValue?.label ?? rawValue ?? ''}`.trim();
+
+    if (!label || !value) {
+        return null;
+    }
+
+    return {
+        label,
+        value,
+        variant_id: rawValue?.variant_id ?? null,
+        available: rawValue?.available !== false,
+        tooltip: rawValue?.tooltip ?? null,
+        swatch: rawValue?.swatch ?? label,
+    };
+}
+
+function buildVariantGroups(variants, providedGroups = []) {
+    const groups = new Map();
+
+    providedGroups.forEach((rawGroup, index) => {
+        const key = normalizeOptionKey(rawGroup?.key || rawGroup?.name || `group_${index + 1}`);
+        const name = `${rawGroup?.name ?? humanizeOptionKey(key)}`.trim() || `Option ${index + 1}`;
+        const values = (rawGroup?.values ?? [])
+            .map((value) => sanitizeVariantGroupValue(value))
+            .filter(Boolean);
+
+        groups.set(key, {
+            key,
+            name,
+            type: rawGroup?.type || inferVariantGroupType(key),
+            values,
+        });
+    });
+
+    variants.forEach((variant) => {
+        Object.entries(variant.option_values ?? {}).forEach(([rawKey, rawValue]) => {
+            const key = normalizeOptionKey(rawKey);
+            const value = `${rawValue ?? ''}`.trim();
+
+            if (!key || !value) {
+                return;
+            }
+
+            if (!groups.has(key)) {
+                groups.set(key, {
+                    key,
+                    name: humanizeOptionKey(key),
+                    type: inferVariantGroupType(key),
+                    values: [],
+                });
+            }
+
+            const group = groups.get(key);
+
+            if (!group.values.some((groupValue) => `${groupValue.value}` === value)) {
+                group.values.push({
+                    label: value,
+                    value,
+                    variant_id: null,
+                    available: true,
+                    tooltip: null,
+                    swatch: value,
+                });
+            }
+        });
+    });
+
+    return Array.from(groups.values()).filter((group) => (group.values ?? []).length > 0);
+}
+
+function normalizeVariantRecord(variant) {
+    return {
+        ...variant,
+        option_values: normalizeVariantOptionValues(variant?.option_values),
+        available: variant?.available !== false,
+    };
+}
+
 function exportCanvasSize(template, fallbackImage) {
     const ratioWidth = Math.max(1, Number(template.export_ratio_width || 9));
     const ratioHeight = Math.max(1, Number(template.export_ratio_height || 13));
@@ -591,8 +734,11 @@ export function registerNikahPreview(Alpine) {
         proofNote: config.proofNote ?? '',
         selectedVariant: config.selectedVariant ?? '',
         selectedVariants: cloneData(config.selectedVariants ?? {}),
-        variants: cloneData(config.variants ?? []),
-        variantGroups: cloneData(config.variantGroups ?? []),
+        variants: (cloneData(config.variants ?? [])).map((variant) => normalizeVariantRecord(variant)),
+        variantGroups: buildVariantGroups(
+            (cloneData(config.variants ?? [])).map((variant) => normalizeVariantRecord(variant)),
+            cloneData(config.variantGroups ?? []),
+        ),
         quantity: Number(config.quantity ?? 1) || 1,
         submitting: false,
         showStickyBar: false,
@@ -611,19 +757,16 @@ export function registerNikahPreview(Alpine) {
         get currentMockup() {
             return config.mockups?.[this.activeMockup] ?? null;
         },
+        get hasGroupedVariants() {
+            return this.variantGroups.length > 0;
+        },
         get activeVariant() {
             if (this.selectedVariant) {
                 return this.variants.find((variant) => `${variant.id}` === `${this.selectedVariant}`) ?? null;
             }
 
-            if (this.variantGroups.length && this.variants.length) {
-                const selected = Object.entries(this.selectedVariants ?? {});
-
-                return this.variants.find((variant) => selected.every(([groupKey, groupValue]) => {
-                    const optionValues = variant.option_values ?? {};
-
-                    return `${optionValues[groupKey] ?? ''}` === `${groupValue}`;
-                })) ?? null;
+            if (this.hasGroupedVariants && this.variants.length) {
+                return this.findMatchingVariant(this.selectedVariants) ?? null;
             }
 
             return this.variants.find((variant) => variant.is_default) ?? this.variants[0] ?? null;
@@ -692,19 +835,130 @@ export function registerNikahPreview(Alpine) {
 
             return `${this.activeImage + 1} / ${Math.max(1, this.generalImageCount)}`;
         },
+        normalizedGroupKey(key) {
+            return normalizeOptionKey(key);
+        },
+        groupIndex(groupKey) {
+            return this.variantGroups.findIndex((group) => group.key === this.normalizedGroupKey(groupKey));
+        },
+        visibleValuesForGroup(groupKey, selection = this.selectedVariants) {
+            const normalizedKey = this.normalizedGroupKey(groupKey);
+            const groupIndex = this.groupIndex(normalizedKey);
+            const group = this.variantGroups[groupIndex];
+
+            if (!group) {
+                return [];
+            }
+
+            const priorSelections = this.variantGroups
+                .slice(0, Math.max(0, groupIndex))
+                .reduce((carry, candidateGroup) => {
+                    const selectedValue = selection?.[candidateGroup.key];
+
+                    if (`${selectedValue ?? ''}`.trim()) {
+                        carry[candidateGroup.key] = `${selectedValue}`;
+                    }
+
+                    return carry;
+                }, {});
+
+            return (group.values ?? []).filter((value) => this.variants.some((variant) => {
+                if (`${variant.option_values?.[normalizedKey] ?? ''}` !== `${value.value}`) {
+                    return false;
+                }
+
+                return Object.entries(priorSelections).every(([candidateKey, candidateValue]) => `${variant.option_values?.[candidateKey] ?? ''}` === `${candidateValue}`);
+            }));
+        },
+        selectedValueLabel(groupKey) {
+            const normalizedKey = this.normalizedGroupKey(groupKey);
+            const selectedValue = this.selectedVariants?.[normalizedKey];
+            const visibleValues = this.visibleValuesForGroup(normalizedKey, this.selectedVariants);
+            const selected = visibleValues.find((value) => `${value.value}` === `${selectedValue}`)
+                ?? this.variantGroups
+                    .find((group) => group.key === normalizedKey)
+                    ?.values?.find((value) => `${value.value}` === `${selectedValue}`);
+
+            return selected?.label ?? selectedValue ?? '—';
+        },
+        frameTypeChip(group) {
+            return /frame_type|material|color/i.test(`${group?.key ?? ''}`) || `${group?.type ?? ''}` === 'swatch';
+        },
+        swatchColor(value) {
+            const palette = {
+                black: '#1a1a1a',
+                pine: '#A0784A',
+                'natural pine wood': '#A0784A',
+                gold: '#C4A882',
+                'antique gold': '#C4A882',
+                white: '#F5F5F0',
+                brown: '#6B4226',
+                standard: '#D6C7B2',
+            };
+
+            return palette[`${value?.swatch ?? value?.label ?? value?.value ?? ''}`.trim().toLowerCase()] ?? '#CFC6BB';
+        },
+        findMatchingVariant(selection = this.selectedVariants) {
+            const requiredGroups = this.variantGroups.map((group) => group.key);
+
+            if (!requiredGroups.length) {
+                return this.variants.find((variant) => variant.is_default) ?? this.variants[0] ?? null;
+            }
+
+            return this.variants.find((variant) => requiredGroups.every((groupKey) => `${variant.option_values?.[groupKey] ?? ''}` === `${selection?.[groupKey] ?? ''}`)) ?? null;
+        },
+        syncVariantFromSelections() {
+            if (!this.hasGroupedVariants) {
+                return;
+            }
+
+            const matchedVariant = this.findMatchingVariant(this.selectedVariants);
+
+            if (matchedVariant?.id) {
+                this.selectedVariant = `${matchedVariant.id}`;
+            }
+        },
+        reconcileSelections(startIndex = 0) {
+            if (!this.hasGroupedVariants) {
+                return;
+            }
+
+            const nextSelections = { ...(this.selectedVariants ?? {}) };
+
+            this.variantGroups.forEach((group, index) => {
+                if (index < startIndex) {
+                    return;
+                }
+
+                const visibleValues = this.visibleValuesForGroup(group.key, nextSelections);
+                const currentValue = nextSelections[group.key];
+
+                if (currentValue && visibleValues.some((value) => `${value.value}` === `${currentValue}`)) {
+                    return;
+                }
+
+                if (visibleValues[0]) {
+                    nextSelections[group.key] = `${visibleValues[0].value}`;
+                    return;
+                }
+
+                delete nextSelections[group.key];
+            });
+
+            this.selectedVariants = nextSelections;
+            this.syncVariantFromSelections();
+        },
         initializeVariantState() {
-            if (this.variantGroups.length) {
-                this.variantGroups.forEach((group) => {
-                    if (this.selectedVariants[group.key]) {
-                        return;
-                    }
+            if (this.hasGroupedVariants) {
+                if (!Object.keys(this.selectedVariants ?? {}).length && this.selectedVariant) {
+                    const selected = this.variants.find((variant) => `${variant.id}` === `${this.selectedVariant}`);
 
-                    const firstAvailable = (group.values ?? []).find((value) => value.available !== false);
-
-                    if (firstAvailable) {
-                        this.selectedVariants[group.key] = firstAvailable.label ?? firstAvailable.value;
+                    if (selected?.option_values) {
+                        this.selectedVariants = { ...selected.option_values };
                     }
-                });
+                }
+
+                this.reconcileSelections(0);
             }
 
             if (!this.selectedVariant && this.activeVariant?.id) {
@@ -712,24 +966,25 @@ export function registerNikahPreview(Alpine) {
             }
         },
         selectVariant(option, value, variantId = null) {
-            this.selectedVariants = { ...(this.selectedVariants ?? {}), [option]: value };
+            const normalizedOption = this.normalizedGroupKey(option);
+            const nextSelections = { ...(this.selectedVariants ?? {}), [normalizedOption]: value };
+            const changedIndex = this.groupIndex(normalizedOption);
+
+            this.selectedVariants = nextSelections;
+
+            if (this.hasGroupedVariants) {
+                this.reconcileSelections(Math.max(0, changedIndex + 1));
+                return;
+            }
 
             if (variantId) {
                 this.selectedVariant = `${variantId}`;
                 return;
             }
 
-            if (!this.variants.length) {
-                return;
-            }
+            const match = this.variants.find((variant) => Object.entries(nextSelections).every(([groupKey, groupValue]) => `${variant.option_values?.[groupKey] ?? ''}` === `${groupValue}`));
 
-            const match = this.variants.find((variant) => {
-                const optionValues = variant.option_values ?? {};
-
-                return Object.entries(this.selectedVariants).every(([groupKey, groupValue]) => `${optionValues[groupKey] ?? ''}` === `${groupValue}`);
-            });
-
-            if (match) {
+            if (match?.id) {
                 this.selectedVariant = `${match.id}`;
             }
         },
