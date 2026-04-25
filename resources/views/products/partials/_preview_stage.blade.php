@@ -74,7 +74,7 @@
             </template>
         </div>
 
-        <div class="mt-4 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div class="mt-4 p-1 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             @if ($product->is_customizable && $showFlatPreview)
                 <button
                     type="button"
@@ -83,10 +83,12 @@
                     aria-label="Select template preview"
                 >
                     <div
-                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] p-1 transition-all duration-200 ease-out"
+                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] transition-all duration-200 ease-out"
                         :class="activeThumb === 0 ? 'scale-105 border-[var(--accent-primary)]' : 'border-transparent'"
                     >
-                        <img :src="previewThumbs.flat || @js($flatThumb)" src="{{ $flatThumb }}" alt="Template preview" class="h-[64px] w-[64px] rounded-md object-cover">
+                        <div class="flex h-[64px] w-[64px] items-center justify-center rounded-md bg-white/70">
+                            <img :src="previewThumbs.flat || @js($flatThumb)" src="{{ $flatThumb }}" alt="Template preview" class="h-full w-full rounded-md object-contain object-center">
+                        </div>
                     </div>
                 </button>
             @endif
@@ -100,10 +102,12 @@
                     aria-label="Select {{ $mockup['name'] ?? 'Scene preview' }}"
                 >
                     <div
-                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] p-1 transition-all duration-200 ease-out"
+                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] transition-all duration-200 ease-out"
                         :class="activeThumb === {{ $thumbIndex }} ? 'scale-105 border-[var(--accent-primary)]' : 'border-transparent'"
                     >
-                        <img :src="previewThumbs['mockup-{{ $index }}'] || @js($mockup['thumbnail_url'] ?? $mockup['image_url'] ?? $flatThumb)" src="{{ $mockup['thumbnail_url'] ?? $mockup['image_url'] ?? $flatThumb }}" alt="{{ $mockup['name'] ?? 'Scene preview' }}" class="h-[64px] w-[64px] rounded-md object-cover">
+                        <div class="flex h-[64px] w-[64px] items-center justify-center rounded-md bg-white/70">
+                            <img :src="previewThumbs['mockup-{{ $index }}'] || @js($mockup['thumbnail_url'] ?? $mockup['image_url'] ?? $flatThumb)" src="{{ $mockup['thumbnail_url'] ?? $mockup['image_url'] ?? $flatThumb }}" alt="{{ $mockup['name'] ?? 'Scene preview' }}" class="h-full w-full rounded-md object-contain object-center">
+                        </div>
                     </div>
                 </button>
             @endforeach
@@ -120,7 +124,9 @@
                         class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] p-1 transition-all duration-200 ease-out"
                         :class="activeImage === {{ $index }} ? 'scale-105 border-[var(--accent-primary)]' : 'border-transparent'"
                         >
-                            <img src="{{ $image['thumb'] ?? $image['url'] }}" alt="{{ $image['alt'] ?? $product->name }}" class="h-[64px] w-[64px] rounded-md object-cover">
+                            <div class="flex h-[64px] w-[64px] items-center justify-center rounded-md bg-white/70">
+                                <img src="{{ $image['thumb'] ?? $image['url'] }}" alt="{{ $image['alt'] ?? $product->name }}" class="h-full w-full rounded-md object-contain object-center">
+                            </div>
                         </div>
                     </button>
                 @endforeach

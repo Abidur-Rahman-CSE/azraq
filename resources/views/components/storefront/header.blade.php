@@ -1,11 +1,22 @@
 @php
+    use App\Models\Category;
+    use Illuminate\Support\Facades\Cache;
+
     $navItems = collect(config('commerce.storefront.nav', []));
     $mobileGroups = collect(config('commerce.storefront.mobile_nav_groups', []));
     $accountHref = route('account.index');
     $logoSrc = asset('images/logo/Azraq.svg');
+    $navCategories = Cache::remember('storefront.header.nav_categories', now()->addHours(4), function () {
+        return Category::query()
+            ->where('is_active', true)
+            ->whereNull('parent_id')
+            ->orderBy('sort_order')
+            ->orderBy('name')
+            ->get(['id', 'name', 'slug']);
+    });
 @endphp
 
-<header class="site-header" x-data="{ mobileOpen: false }">
+<header class="site-header" x-data="{ mobileOpen: false, categoriesOpen: false }">
     <div class="container-shell header-shell flex items-center justify-between gap-4 py-4 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-6">
         <div class="flex items-center gap-3">
             <button type="button" class="header-icon-button lg:hidden" x-on:click="mobileOpen = true" aria-label="Open menu">
@@ -27,16 +38,58 @@
 
         <nav class="hidden items-center justify-center gap-5 xl:flex" aria-label="Primary">
             @foreach ($navItems as $item)
-                @php($href = str_starts_with($item['href'], '/') ? url($item['href']) : $item['href'])
-                <a
-                    href="{{ $href }}"
-                    @class([
-                        'header-nav-link',
-                        'is-active' => request()->fullUrlIs($href) || request()->is(ltrim(parse_url($href, PHP_URL_PATH) ?: '', '/')),
-                    ])
-                >
-                    {{ $item['label'] }}
-                </a>
+                @if ($item['label'] === 'Categories')
+                    <div
+                        class="relative"
+                        x-data="{ open: false, closeTimer: null }"
+                        @mouseenter="clearTimeout(closeTimer); open = true"
+                        @mouseleave="closeTimer = setTimeout(() => open = false, 120)"
+                    >
+                        <button
+                            type="button"
+                            class="header-nav-link inline-flex items-center gap-2"
+                            :class="open ? 'is-active' : ''"
+                            @click="open = !open"
+                            aria-haspopup="true"
+                            :aria-expanded="open ? 'true' : 'false'"
+                        >
+                            <span>{{ $item['label'] }}</span>
+                            <svg class="h-3.5 w-3.5 transition duration-200 ease-out" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+
+                        <div
+                            x-cloak
+                            x-show="open"
+                            x-transition.opacity.duration.150ms
+                            class="absolute left-1/2 top-full z-40 mt-3 w-72 -translate-x-1/2 rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/98 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.08)] backdrop-blur"
+                        >
+                            <div class="space-y-1">
+                                @foreach ($navCategories as $category)
+                                    <a
+                                        href="{{ route('categories.show', $category) }}"
+                                        class="flex items-center justify-between rounded-[var(--radius-lg)] px-3 py-2.5 text-sm font-medium text-[var(--text-main)] transition duration-200 ease-out hover:bg-[var(--bg-section-soft)] hover:text-[var(--accent-primary)]"
+                                    >
+                                        <span>{{ $category->name }}</span>
+                                        <span class="text-[var(--text-muted)]">/</span>
+                                    </a>
+                                @endforeach
+                            </div>
+                        </div>
+                    </div>
+                @else
+                    @php($href = str_starts_with($item['href'], '/') ? url($item['href']) : $item['href'])
+                    <a
+                        href="{{ $href }}"
+                        @class([
+                            'header-nav-link',
+                            'is-active' => request()->fullUrlIs($href) || request()->is(ltrim(parse_url($href, PHP_URL_PATH) ?: '', '/')),
+                        ])
+                    >
+                        {{ $item['label'] }}
+                    </a>
+                @endif
             @endforeach
         </nav>
 
@@ -102,6 +155,18 @@
                         </div>
                     </section>
                 @endforeach
+
+                <section class="space-y-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Categories</p>
+                    <div class="space-y-2">
+                        @foreach ($navCategories as $category)
+                            <a href="{{ route('categories.show', $category) }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
+                                <span>{{ $category->name }}</span>
+                                <span class="text-[var(--text-muted)]">/</span>
+                            </a>
+                        @endforeach
+                    </div>
+                </section>
 
                 <div class="space-y-3 border-t border-[var(--border-soft)] pt-6">
                     <a href="{{ route('cart.index') }}" class="button-secondary w-full">Open Cart</a>
