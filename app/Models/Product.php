@@ -130,4 +130,69 @@ class Product extends Model
     {
         return $this->type === ProductType::AdvancedPersonalized;
     }
+
+    public function primaryImage()
+    {
+        if ($this->relationLoaded('images')) {
+            return $this->images->firstWhere('is_primary', true) ?: $this->images->first();
+        }
+
+        return $this->images()->orderByDesc('is_primary')->orderBy('position')->first();
+    }
+
+    public function defaultPersonalizationMockup(): ?PersonalizationMockup
+    {
+        if ($this->relationLoaded('personalizationMockups')) {
+            $activeMockups = $this->personalizationMockups->where('is_active', true);
+
+            return $activeMockups->firstWhere('pivot.is_default', true) ?: $activeMockups->first();
+        }
+
+        return $this->personalizationMockups()
+            ->where('is_active', true)
+            ->orderByDesc('product_personalization_mockup.is_default')
+            ->orderBy('product_personalization_mockup.sort_order')
+            ->first();
+    }
+
+    public function storefrontPreviewVersion(): string
+    {
+        $versionParts = [
+            (string) optional($this->updated_at)->timestamp,
+        ];
+
+        $template = $this->relationLoaded('personalizationTemplate')
+            ? $this->personalizationTemplate
+            : $this->personalizationTemplate()->first(['id', 'updated_at']);
+
+        if ($template) {
+            $versionParts[] = (string) optional($template->updated_at)->timestamp;
+        }
+
+        $defaultMockup = $this->defaultPersonalizationMockup();
+
+        if ($defaultMockup) {
+            $versionParts[] = (string) optional($defaultMockup->updated_at)->timestamp;
+        }
+
+        return substr(sha1(implode('|', array_filter($versionParts, fn ($part) => $part !== ''))), 0, 16);
+    }
+
+    public function getStorefrontPreviewImageUrlAttribute(): ?string
+    {
+        if ($this->is_customizable) {
+            $template = $this->relationLoaded('personalizationTemplate')
+                ? $this->personalizationTemplate
+                : $this->personalizationTemplate()->first();
+
+            if ($template) {
+                return route('products.preview.image', [
+                    'product' => $this,
+                    'v' => $this->storefrontPreviewVersion(),
+                ]);
+            }
+        }
+
+        return $this->featured_image_url ?: $this->primaryImage()?->image_url;
+    }
 }

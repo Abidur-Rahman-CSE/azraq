@@ -32,7 +32,7 @@ class ProductController extends Controller
         ];
 
         $products = Product::query()
-            ->with(['category', 'personalizationTemplate', 'images'])
+            ->with(['category', 'personalizationTemplate', 'personalizationMockups', 'images'])
             ->withCount('images')
             ->when(filled($filters['q']), function (Builder $query) use ($filters): void {
                 $query->where(function (Builder $nested) use ($filters): void {

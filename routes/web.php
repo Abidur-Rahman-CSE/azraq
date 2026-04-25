@@ -46,6 +46,7 @@ Route::get('/shop', [StorefrontController::class, 'shop'])->name('shop.index');
 Route::get('/search', [StorefrontController::class, 'search'])->name('search.index');
 Route::get('/categories/{category:slug}', [StorefrontController::class, 'category'])->name('categories.show');
 Route::get('/collections/{collection:slug}', [StorefrontController::class, 'collection'])->name('collections.show');
+Route::get('/products/{product:slug}/preview-image.png', [ProductDetailController::class, 'previewImage'])->name('products.preview.image');
 Route::get('/products/{product:slug}', [ProductDetailController::class, 'show'])->name('products.show');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');

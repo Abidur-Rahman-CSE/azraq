@@ -70,25 +70,25 @@ class StorefrontController extends Controller
                 ->all()
         );
 
-        $signatureNikah = Product::with(['category', 'tags', 'images'])
+        $signatureNikah = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->where('slug', 'signature-nikah-nama')
             ->first();
 
-        $comboSpotlight = Product::with(['category', 'tags', 'images'])
+        $comboSpotlight = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->where('type', ProductType::Bundle->value)
             ->where('status', 'active')
             ->latest()
             ->take(3)
             ->get();
 
-        $bookingHighlights = Product::with(['category', 'tags', 'images'])
+        $bookingHighlights = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->where('type', ProductType::Service->value)
             ->where('status', 'active')
             ->latest()
             ->take(3)
             ->get();
 
-        $bridalWearSpotlight = Product::with(['category', 'tags', 'images'])
+        $bridalWearSpotlight = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->whereHas('category', fn ($query) => $query->where('slug', 'customized-bridal-wear'))
             ->where('status', 'active')
             ->take(2)
@@ -119,7 +119,7 @@ class StorefrontController extends Controller
         $listingQuery = $this->productListingQuery($request);
 
         $products = (clone $listingQuery)
-            ->with(['category', 'tags', 'images'])
+            ->with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->paginate(12)
             ->withQueryString();
 
@@ -135,7 +135,7 @@ class StorefrontController extends Controller
                 fn () => Collection::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->take(3)->pluck('id')->all()
             ),
             'featuredStrip' => (clone $listingQuery)
-                ->with(['category', 'tags', 'images'])
+                ->with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
                 ->latest()
                 ->take(3)
                 ->get(),
@@ -148,7 +148,7 @@ class StorefrontController extends Controller
         $listingQuery = $this->productListingQuery($request);
 
         $products = (clone $listingQuery)
-            ->with(['category', 'tags', 'images'])
+            ->with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->paginate(12)
             ->withQueryString();
 
@@ -173,7 +173,7 @@ class StorefrontController extends Controller
         $listingQuery = $this->productListingQuery($request, $category);
 
         $products = (clone $listingQuery)
-            ->with(['category', 'tags', 'images'])
+            ->with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->paginate(12)
             ->withQueryString();
 
@@ -189,7 +189,7 @@ class StorefrontController extends Controller
                 ->take(3)
                 ->get(),
             'featuredStrip' => (clone $listingQuery)
-                ->with(['category', 'tags', 'images'])
+                ->with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
                 ->take(3)
                 ->get(),
         ]);
@@ -200,7 +200,7 @@ class StorefrontController extends Controller
         $listingQuery = $this->productListingQuery($request, null, $collection);
 
         $products = (clone $listingQuery)
-            ->with(['category', 'tags', 'images'])
+            ->with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->paginate(12)
             ->withQueryString();
 
@@ -217,7 +217,7 @@ class StorefrontController extends Controller
                 ->take(3)
                 ->get(),
             'featuredStrip' => (clone $listingQuery)
-                ->with(['category', 'tags', 'images'])
+                ->with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
                 ->take(3)
                 ->get(),
         ]);
@@ -275,7 +275,7 @@ class StorefrontController extends Controller
     {
         $ids = $this->rememberScalarList($cacheKey, $resolver);
 
-        return Product::with(['category', 'tags', 'images'])
+        return Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
             ->whereIn('id', $ids)
             ->get()
             ->sortBy(fn (Product $product) => array_search($product->id, $ids, true))

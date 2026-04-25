@@ -19,12 +19,13 @@
             <div class="grid gap-5">
                 @foreach ($products as $product)
                     @php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
+                    @php($wishlistImage = $product->storefront_preview_image_url)
                     @php($defaultVariant = $product->variants->firstWhere('is_default', true) ?: $product->variants->first())
                     <article class="surface-card p-6">
                         <div class="flex flex-col gap-5 md:flex-row md:items-start">
                             <a href="{{ route('products.show', $product) }}" class="block h-36 overflow-hidden rounded-[var(--radius-xl)] bg-[var(--color-surface-cream)] md:w-36">
-                                @if ($primaryImage)
-                                    <img src="{{ $primaryImage->image_url }}" alt="{{ $product->name }}" class="h-full w-full object-cover" loading="lazy" decoding="async">
+                                @if ($wishlistImage)
+                                    <img src="{{ $wishlistImage }}" alt="{{ $product->name }}" class="h-full w-full object-cover" loading="lazy" decoding="async">
                                 @endif
                             </a>
 

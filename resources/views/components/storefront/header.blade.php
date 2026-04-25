@@ -6,14 +6,21 @@
     $mobileGroups = collect(config('commerce.storefront.mobile_nav_groups', []));
     $accountHref = route('account.index');
     $logoSrc = asset('images/logo/Azraq.svg');
-    $navCategories = Cache::remember('storefront.header.nav_categories', now()->addHours(4), function () {
+    $navCategories = collect(Cache::remember('storefront.header.nav_categories.v2', now()->addHours(4), function () {
         return Category::query()
             ->where('is_active', true)
             ->whereNull('parent_id')
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'slug']);
-    });
+            ->get(['id', 'name', 'slug'])
+            ->map(fn (Category $category) => [
+                'id' => (int) $category->id,
+                'name' => $category->name,
+                'slug' => $category->slug,
+            ])
+            ->values()
+            ->all();
+    }));
 @endphp
 
 <header class="site-header" x-data="{ mobileOpen: false, categoriesOpen: false }">
@@ -68,10 +75,10 @@
                             <div class="space-y-1">
                                 @foreach ($navCategories as $category)
                                     <a
-                                        href="{{ route('categories.show', $category) }}"
+                                        href="{{ route('categories.show', $category['slug']) }}"
                                         class="flex items-center justify-between rounded-[var(--radius-lg)] px-3 py-2.5 text-sm font-medium text-[var(--text-main)] transition duration-200 ease-out hover:bg-[var(--bg-section-soft)] hover:text-[var(--accent-primary)]"
                                     >
-                                        <span>{{ $category->name }}</span>
+                                        <span>{{ $category['name'] }}</span>
                                         <span class="text-[var(--text-muted)]">/</span>
                                     </a>
                                 @endforeach
@@ -160,8 +167,8 @@
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Categories</p>
                     <div class="space-y-2">
                         @foreach ($navCategories as $category)
-                            <a href="{{ route('categories.show', $category) }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
-                                <span>{{ $category->name }}</span>
+                            <a href="{{ route('categories.show', $category['slug']) }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
+                                <span>{{ $category['name'] }}</span>
                                 <span class="text-[var(--text-muted)]">/</span>
                             </a>
                         @endforeach

@@ -98,7 +98,7 @@
         <section class="space-y-4">
             @forelse ($products as $product)
                 @php
-                    $thumbnail = $product->featured_image_url ?: $product->images->first()?->image_url;
+                    $thumbnail = $product->storefront_preview_image_url ?: $product->featured_image_url ?: $product->images->first()?->image_url;
                     $isLowStock = $product->manage_stock && $product->stock_quantity <= $product->low_stock_threshold;
                     $isOutOfStock = $product->manage_stock && $product->stock_quantity <= 0;
                 @endphp

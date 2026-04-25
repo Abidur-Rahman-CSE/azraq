@@ -1,6 +1,5 @@
 @php
-    $heroImage = $featuredProducts->first()?->images->firstWhere('is_primary', true)?->image_url
-        ?: $featuredProducts->first()?->images->first()?->image_url;
+    $heroImage = $featuredProducts->first()?->storefront_preview_image_url;
 @endphp
 
 <x-layouts.storefront
@@ -109,9 +108,9 @@
             <div class="container-shell">
                 <div class="surface-card-featured grid gap-8 p-8 lg:grid-cols-[0.95fr_1.05fr] lg:p-10">
                     <div class="overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)]">
-                        @php($nikahImage = $signatureNikah->images->firstWhere('is_primary', true) ?: $signatureNikah->images->first())
+                        @php($nikahImage = $signatureNikah->storefront_preview_image_url)
                         @if ($nikahImage)
-                            <img src="{{ $nikahImage->image_url }}" alt="{{ $signatureNikah->name }}" class="h-full min-h-[430px] w-full object-cover">
+                            <img src="{{ $nikahImage }}" alt="{{ $signatureNikah->name }}" class="h-full min-h-[430px] w-full object-cover">
                         @endif
                     </div>
                     <div class="flex flex-col justify-center">

@@ -5,8 +5,12 @@ namespace App\Http\Controllers;
 use App\Enums\ProductType;
 use App\Models\Faq;
 use App\Models\Product;
+use App\Services\MockupRenderService;
 use App\Support\MockupZoneNormalizer;
+use App\Support\NikahRenderPreview;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ProductDetailController extends Controller
 {
@@ -29,13 +33,15 @@ class ProductDetailController extends Controller
             'relatedProducts.category',
             'relatedProducts.tags',
             'relatedProducts.images',
+            'relatedProducts.personalizationTemplate',
+            'relatedProducts.personalizationMockups',
             'relatedCategories',
         ]);
 
         $recentlyViewed = collect($request->session()->get('recently_viewed_products', []))
             ->reject(fn (int $id) => $id === $product->id)
             ->take(4)
-            ->whenNotEmpty(fn ($ids) => Product::with(['category', 'tags', 'images'])->whereIn('id', $ids)->get()->sortBy(fn ($item) => array_search($item->id, $ids->all())))
+            ->whenNotEmpty(fn ($ids) => Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])->whereIn('id', $ids)->get()->sortBy(fn ($item) => array_search($item->id, $ids->all())))
             ->values();
 
         $request->session()->put('recently_viewed_products', collect([$product->id])
@@ -173,5 +179,49 @@ class ProductDetailController extends Controller
                 'showFlatPreviewFirst' => false,
             ]),
         };
+    }
+
+    public function previewImage(Product $product, MockupRenderService $mockupRenderService): BinaryFileResponse
+    {
+        $product->loadMissing([
+            'images',
+            'personalizationTemplate.fields',
+            'personalizationTemplate.fonts',
+            'personalizationMockups.map',
+        ]);
+
+        abort_unless($product->is_customizable && $product->personalizationTemplate, 404);
+
+        $version = $product->storefrontPreviewVersion();
+        $cachePath = "storefront-previews/product-{$product->id}-{$version}.png";
+        $disk = Storage::disk('public');
+
+        if (! $disk->exists($cachePath)) {
+            $renderPreview = NikahRenderPreview::buildForProduct($product);
+            abort_unless(is_array($renderPreview), 404);
+
+            $flatSvg = view('admin.orders.personalization-proof-svg', [
+                'item' => (object) ['product_name' => $product->name],
+                'renderPreview' => $renderPreview,
+                'mode' => 'flat',
+            ])->render();
+
+            if (data_get($renderPreview, 'mockup')) {
+                $blob = $mockupRenderService->renderMockupProof($renderPreview, $flatSvg);
+            } else {
+                $flatImage = $mockupRenderService->renderFlatFromSvg($flatSvg);
+                $flatImage->setImageCompressionQuality(100);
+                $blob = $flatImage->getImagesBlob();
+                $flatImage->clear();
+                $flatImage->destroy();
+            }
+
+            $disk->put($cachePath, $blob);
+        }
+
+        return response()->file($disk->path($cachePath), [
+            'Content-Type' => 'image/png',
+            'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=86400',
+        ]);
     }
 }

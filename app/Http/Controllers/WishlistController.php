@@ -11,7 +11,7 @@ class WishlistController extends Controller
     {
         $ids = collect($request->session()->get('wishlist.product_ids', []));
 
-        $products = Product::with(['category', 'tags', 'images', 'variants'])
+        $products = Product::with(['category', 'tags', 'images', 'variants', 'personalizationTemplate', 'personalizationMockups'])
             ->whereIn('id', $ids)
             ->get()
             ->sortBy(fn ($product) => array_search($product->id, $ids->all()))

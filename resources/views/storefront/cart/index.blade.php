@@ -8,11 +8,12 @@
 
         @forelse ($items as $item)
             @php($primaryImage = $item['product']->images->firstWhere('is_primary', true) ?: $item['product']->images->first())
+            @php($cartImage = $item['product']->storefront_preview_image_url)
             <article class="surface-card p-6">
                 <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
                     <div class="h-36 overflow-hidden rounded-[var(--radius-xl)] bg-[var(--color-surface-cream)] lg:w-36">
-                        @if ($primaryImage)
-                            <img src="{{ $primaryImage->image_url }}" alt="{{ $item['product']->name }}" class="h-full w-full object-cover" loading="lazy" decoding="async">
+                        @if ($cartImage)
+                            <img src="{{ $cartImage }}" alt="{{ $item['product']->name }}" class="h-full w-full object-cover" loading="lazy" decoding="async">
                         @endif
                     </div>
 

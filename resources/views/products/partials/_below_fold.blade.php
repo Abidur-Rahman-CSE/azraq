@@ -123,7 +123,7 @@
             <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
                 @foreach ($relatedProducts->take(4) as $relatedProduct)
                     @php
-                        $relatedImage = $relatedProduct->featured_image_url ?: optional($relatedProduct->images->first())->image_url;
+                        $relatedImage = $relatedProduct->storefront_preview_image_url;
                     @endphp
                     <a href="{{ route('products.show', $relatedProduct) }}" class="surface-card group overflow-hidden transition-shadow duration-200 ease-out hover:shadow-[var(--shadow-card-hover)]">
                         <div class="relative overflow-hidden aspect-[3/4]">

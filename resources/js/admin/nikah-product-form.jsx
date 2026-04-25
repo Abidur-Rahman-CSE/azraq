@@ -1604,8 +1604,8 @@ function NikahProductForm({ payload }) {
                                 <div className="nikah-mockup-layout">
                                     <div className="nikah-active-frame">
                                         <div className="nikah-active-frame__header">
-                                            <strong>Active frame</strong>
-                                            <span>{activeFrame?.title || 'Choose a frame'}</span>
+                                            <strong>Default storefront preview</strong>
+                                            <span>{activeFrame?.title || 'Choose a mockup scene'}</span>
                                         </div>
                                         <MockupStagePreview
                                             sceneUrl={activeFrame?.base_image_url}
@@ -1642,11 +1642,11 @@ function NikahProductForm({ payload }) {
                                                                 {mockup.template_name ? `${mockup.template_name} · ` : 'Reusable scene · '}
                                                                 {mockup.map ? 'Zone mapped' : 'Zone pending'}
                                                             </span>
-                                                        </div>
-                                                        <div className="nikah-frame-card__actions">
-                                                            <button type="button" className="nikah-frame-card__link" onClick={() => activateFrame(mockup.id)}>
-                                                                {isLead ? 'Active frame' : 'Make active'}
-                                                            </button>
+                                                            </div>
+                                                            <div className="nikah-frame-card__actions">
+                                                                <button type="button" className="nikah-frame-card__link" onClick={() => activateFrame(mockup.id)}>
+                                                                    {isLead ? 'Default preview' : 'Set as default'}
+                                                                </button>
                                                             <button
                                                                 type="button"
                                                                 className={`nikah-frame-card__toggle ${isActive ? 'is-selected' : ''}`}

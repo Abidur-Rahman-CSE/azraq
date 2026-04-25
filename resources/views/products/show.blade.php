@@ -114,6 +114,7 @@
         ?: Str::limit(strip_tags($product->description), 150);
 
     $storyVisual = data_get($product, 'story_image')
+        ?: $product->storefront_preview_image_url
         ?: $product->featured_image_url
         ?: ($product->is_customizable ? ($template?->preview_image_url ?: $template?->base_template_url) : ($primaryImage?->image_url));
 
@@ -225,7 +226,7 @@
         'name' => $product->name,
         'price' => (float) $product->price,
         'url' => route('products.show', $product),
-        'image' => $storyVisual,
+        'image' => $product->storefront_preview_image_url ?: $storyVisual,
     ];
 @endphp
 

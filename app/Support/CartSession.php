@@ -25,7 +25,15 @@ class CartSession
             ->all();
         $mockupIds = $cart->pluck('mockup_id')->filter()->all();
 
-        $products = Product::with(['category', 'images', 'bundleItems.childProduct.images'])->whereIn('id', $productIds)->get()->keyBy('id');
+        $products = Product::with([
+            'category',
+            'images',
+            'personalizationTemplate',
+            'personalizationMockups',
+            'bundleItems.childProduct.images',
+            'bundleItems.childProduct.personalizationTemplate',
+            'bundleItems.childProduct.personalizationMockups',
+        ])->whereIn('id', $productIds)->get()->keyBy('id');
         $variants = ProductVariant::whereIn('id', $variantIds)->get()->keyBy('id');
         $fonts = PersonalizationFont::whereIn('id', $fontIds)->get()->keyBy('id');
         $mockups = PersonalizationMockup::whereIn('id', $mockupIds)->get()->keyBy('id');

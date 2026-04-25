@@ -2,10 +2,12 @@
 
 <article class="surface-product flex h-full flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-[var(--shadow-medium)]">
     @php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
-    @if ($primaryImage)
+    @php($cardImage = $product->storefront_preview_image_url)
+    @php($cardAlt = $primaryImage?->label ?: $product->name)
+    @if ($cardImage)
         <img
-            src="{{ $primaryImage->image_url }}"
-            alt="{{ $primaryImage->label ?: $product->name }}"
+            src="{{ $cardImage }}"
+            alt="{{ $cardAlt }}"
             class="aspect-[4/3] w-full object-cover"
             loading="lazy"
             decoding="async"
