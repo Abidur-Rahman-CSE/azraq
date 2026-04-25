@@ -38,34 +38,43 @@
                 </div>
             </div>
 
-            <div class="surface-card-featured grid gap-5 p-8 lg:p-10">
-                <div class="grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
-                    <div class="overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)]">
+            <div class="surface-card-featured p-5 sm:p-6 lg:p-8">
+                <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
+                    <div class="relative overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)]">
                         @if ($heroImage)
-                            <img src="{{ $heroImage }}" alt="Featured Azraq Bridal product collage" class="h-full min-h-[360px] w-full object-cover">
+                            <img src="{{ $heroImage }}" alt="Featured Azraq Bridal product collage" class="h-full min-h-[420px] w-full object-cover">
                         @endif
+
+                        <div class="absolute inset-0 bg-gradient-to-t from-[rgba(26,28,42,0.72)] via-[rgba(26,28,42,0.08)] to-transparent"></div>
+                        <div class="absolute inset-x-0 bottom-0 p-6 sm:p-7">
+                            @php($leadProduct = $featuredProducts->first())
+                            @if ($leadProduct)
+                                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-white/75">{{ $leadProduct->type?->label() }}</p>
+                                <h2 class="mt-3 font-serif text-3xl font-semibold leading-tight text-white sm:text-4xl">{{ $leadProduct->name }}</h2>
+                                <p class="mt-3 max-w-md text-sm leading-7 text-white/80">{{ \Illuminate\Support\Str::limit($leadProduct->excerpt ?: strip_tags($leadProduct->description), 96) }}</p>
+                            @endif
+                        </div>
                     </div>
+
                     <div class="grid gap-4">
-                        @foreach ($featuredProducts->take(2) as $product)
-                            <div class="rounded-[var(--radius-2xl)] border border-[var(--border-soft)] bg-white/88 p-5">
-                                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">{{ $product->type?->label() }}</p>
-                                <h3 class="mt-3 text-xl font-semibold text-[var(--text-main)]">{{ $product->name }}</h3>
-                                <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ $product->excerpt }}</p>
-                            </div>
+                        @foreach ($featuredProducts->slice(1, 2) as $product)
+                            @php($productImage = $product->storefront_preview_image_url)
+                            <a href="{{ route('products.show', $product) }}" class="group relative overflow-hidden rounded-[var(--radius-2xl)] bg-[var(--bg-section-soft)] min-h-[202px]">
+                                @if ($productImage)
+                                    <img src="{{ $productImage }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-105">
+                                @endif
+                                <div class="absolute inset-0 bg-gradient-to-t from-[rgba(26,28,42,0.74)] via-[rgba(26,28,42,0.12)] to-transparent"></div>
+                                <div class="absolute inset-x-0 bottom-0 p-5">
+                                    <p class="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/72">{{ $product->category?->name ?: $product->type?->label() }}</p>
+                                    <h3 class="mt-2 text-xl font-semibold leading-tight text-white">{{ $product->name }}</h3>
+                                    <div class="mt-3 flex items-center justify-between gap-3 text-sm text-white/78">
+                                        <span>BDT {{ number_format((float) $product->price, 0) }}</span>
+                                        <span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur-sm">View</span>
+                                    </div>
+                                </div>
+                            </a>
                         @endforeach
                     </div>
-                </div>
-
-                <div class="grid gap-4 md:grid-cols-3">
-                    @foreach ([
-                        'Handcrafted finishing for giftable bridal keepsakes.',
-                        'Structured Nikah personalization with proof-aware ordering.',
-                        'Bookings, bundles, and accessories unified in one calm storefront.',
-                    ] as $item)
-                        <div class="rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/82 p-4">
-                            <p class="text-sm leading-7 text-[var(--text-main)]">{{ $item }}</p>
-                        </div>
-                    @endforeach
                 </div>
             </div>
         </div>
@@ -73,15 +82,19 @@
 
     <section class="section-shell pt-0">
         <div class="container-shell">
-            <div class="surface-card-soft grid gap-4 p-6 md:grid-cols-5">
+            <div class="grid gap-4 md:grid-cols-3">
                 @foreach ([
-                    'Handcrafted finishing',
-                    'Personalized proof support',
-                    'Delivery across Bangladesh',
-                    'Premium gift packaging',
-                    'WhatsApp support',
-                ] as $trustPoint)
-                    <div class="info-pill justify-center bg-white/70 px-4 py-4 text-center">{{ $trustPoint }}</div>
+                    ['title' => 'Handcrafted finishing', 'copy' => 'Refined materials, polished detailing, and presentation-ready finishing for ceremonial gifting.'],
+                    ['title' => 'Personalized proof support', 'copy' => 'Nikah Nama orders stay elegant and accurate with proof-aware review before production.'],
+                    ['title' => 'Giftable premium presentation', 'copy' => 'Framing, keepsakes, and bridal pieces are merchandised to feel collectible, not generic.'],
+                ] as $highlight)
+                    <article class="surface-card overflow-hidden p-0">
+                        <div class="h-2 bg-[linear-gradient(90deg,var(--accent-primary),rgba(187,145,92,0.22))]"></div>
+                        <div class="p-6">
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">{{ $highlight['title'] }}</p>
+                            <p class="mt-4 text-sm leading-7 text-[var(--text-muted)]">{{ $highlight['copy'] }}</p>
+                        </div>
+                    </article>
                 @endforeach
             </div>
         </div>
@@ -220,14 +233,26 @@
                         <p class="mt-4 text-base leading-8 text-[var(--text-muted)]">Bridal, non-bridal, and mehendi bookings are highlighted separately so they do not feel like stock-first products.</p>
                         <div class="mt-8 grid gap-4">
                             @foreach ($bookingHighlights as $service)
-                                <a href="{{ route('products.show', $service) }}" class="surface-card block p-5 transition hover:-translate-y-1 hover:shadow-[var(--shadow-medium)]">
-                                    <div class="flex items-center justify-between gap-4">
-                                        <div>
-                                            <p class="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--accent-primary)]">{{ $service->type?->label() }}</p>
-                                            <h3 class="mt-2 text-2xl font-semibold text-[var(--text-main)]">{{ $service->name }}</h3>
-                                            <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ $service->excerpt }}</p>
+                                @php($serviceImage = $service->storefront_preview_image_url)
+                                <a href="{{ route('products.show', $service) }}" class="surface-card block overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[var(--shadow-medium)]">
+                                    <div class="grid gap-0 md:grid-cols-[190px_1fr]">
+                                        <div class="bg-[var(--bg-section-soft)]">
+                                            @if ($serviceImage)
+                                                <img src="{{ $serviceImage }}" alt="{{ $service->name }}" class="h-full min-h-[200px] w-full object-cover">
+                                            @else
+                                                <div class="h-full min-h-[200px] w-full bg-[radial-gradient(circle_at_top,_rgba(187,145,92,0.18),_transparent_50%),linear-gradient(180deg,rgba(255,255,255,0.9),rgba(244,237,228,0.84))]"></div>
+                                            @endif
                                         </div>
-                                        <span class="button-pill">Inquire</span>
+                                        <div class="p-5">
+                                            <div class="flex items-start justify-between gap-4">
+                                                <div>
+                                                    <p class="text-sm font-semibold uppercase tracking-[0.16em] text-[var(--accent-primary)]">{{ $service->type?->label() }}</p>
+                                                    <h3 class="mt-2 text-2xl font-semibold text-[var(--text-main)]">{{ $service->name }}</h3>
+                                                    <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ \Illuminate\Support\Str::limit($service->excerpt ?: strip_tags($service->description), 120) }}</p>
+                                                </div>
+                                                <span class="button-pill">Inquire</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </a>
                             @endforeach
