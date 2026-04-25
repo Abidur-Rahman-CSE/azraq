@@ -83,10 +83,10 @@
                     aria-label="Select template preview"
                 >
                     <div
-                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] transition-all duration-200 ease-out"
+                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] p-1 transition-all duration-200 ease-out"
                         :class="activeThumb === 0 ? 'scale-105 border-[var(--accent-primary)]' : 'border-transparent'"
                     >
-                        <img src="{{ $flatThumb }}" alt="Template preview" class="h-[72px] w-[72px] object-cover">
+                        <img :src="previewThumbs.flat || @js($flatThumb)" src="{{ $flatThumb }}" alt="Template preview" class="h-[64px] w-[64px] rounded-md object-cover">
                     </div>
                 </button>
             @endif
@@ -100,10 +100,10 @@
                     aria-label="Select {{ $mockup['name'] ?? 'Scene preview' }}"
                 >
                     <div
-                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] transition-all duration-200 ease-out"
+                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] p-1 transition-all duration-200 ease-out"
                         :class="activeThumb === {{ $thumbIndex }} ? 'scale-105 border-[var(--accent-primary)]' : 'border-transparent'"
                     >
-                        <img src="{{ $mockup['thumbnail_url'] ?? $mockup['image_url'] ?? $flatThumb }}" alt="{{ $mockup['name'] ?? 'Scene preview' }}" class="h-[72px] w-[72px] object-cover">
+                        <img :src="previewThumbs['mockup-{{ $index }}'] || @js($mockup['thumbnail_url'] ?? $mockup['image_url'] ?? $flatThumb)" src="{{ $mockup['thumbnail_url'] ?? $mockup['image_url'] ?? $flatThumb }}" alt="{{ $mockup['name'] ?? 'Scene preview' }}" class="h-[64px] w-[64px] rounded-md object-cover">
                     </div>
                 </button>
             @endforeach
@@ -117,10 +117,10 @@
                         aria-label="Select {{ $image['label'] ?? $product->name }} image"
                     >
                         <div
-                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] transition-all duration-200 ease-out"
+                        class="overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] p-1 transition-all duration-200 ease-out"
                         :class="activeImage === {{ $index }} ? 'scale-105 border-[var(--accent-primary)]' : 'border-transparent'"
                         >
-                            <img src="{{ $image['thumb'] ?? $image['url'] }}" alt="{{ $image['alt'] ?? $product->name }}" class="h-[72px] w-[72px] object-cover">
+                            <img src="{{ $image['thumb'] ?? $image['url'] }}" alt="{{ $image['alt'] ?? $product->name }}" class="h-[64px] w-[64px] rounded-md object-cover">
                         </div>
                     </button>
                 @endforeach
@@ -128,15 +128,6 @@
         </div>
 
         @if ($product->is_customizable)
-            <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                @if ($showFlatPreview)
-                    <p class="text-[10px] text-[var(--text-muted)] sm:col-span-2 lg:col-span-1">Template preview</p>
-                @endif
-                @foreach ($mockupItems as $index => $mockup)
-                    <p class="text-[10px] text-[var(--text-muted)] {{ $showFlatPreview && $index > 2 ? 'hidden lg:block' : '' }}">{{ $mockup['name'] ?? 'Scene preview' }}</p>
-                @endforeach
-            </div>
-
             <p class="mt-2 text-center text-xs italic text-[var(--text-muted)]">Your names and date update live in the preview</p>
         @endif
     </div>

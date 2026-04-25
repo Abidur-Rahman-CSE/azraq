@@ -527,26 +527,10 @@ const NikahPreview = {
         return this.fonts.find((font) => `${font.key}` === `${key}`) ?? this.fonts[0] ?? {};
     },
 
-    async render(fields, fontKey, mockupIndex = 0, mode = 'flat', fieldFonts = {}) {
-        const visibleCanvas = document.getElementById(this.canvasId);
-
-        if (!visibleCanvas) {
-            return null;
-        }
-
-        const stage = visibleCanvas.parentElement;
-        const displayWidth = Math.max(1, Math.round(stage?.clientWidth || visibleCanvas.clientWidth || 1));
-        const displayHeight = Math.max(1, Math.round(stage?.clientHeight || visibleCanvas.clientHeight || 1));
-        const renderScale = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
-        const width = Math.round(displayWidth * renderScale);
-        const height = Math.round(displayHeight * renderScale);
-
-        visibleCanvas.width = width;
-        visibleCanvas.height = height;
-        visibleCanvas.style.width = `${displayWidth}px`;
-        visibleCanvas.style.height = `${displayHeight}px`;
-
-        const ctx = visibleCanvas.getContext('2d');
+    async renderSceneCanvas(targetCanvas, fields, fontKey, mockupIndex = 0, mode = 'flat', fieldFonts = {}) {
+        const width = Math.max(1, targetCanvas.width || 1);
+        const height = Math.max(1, targetCanvas.height || 1);
+        const ctx = targetCanvas.getContext('2d');
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
         ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -607,6 +591,34 @@ const NikahPreview = {
         }
 
         return flatCanvas;
+    },
+
+    async render(fields, fontKey, mockupIndex = 0, mode = 'flat', fieldFonts = {}) {
+        const visibleCanvas = document.getElementById(this.canvasId);
+
+        if (!visibleCanvas) {
+            return null;
+        }
+
+        const stage = visibleCanvas.parentElement;
+        const displayWidth = Math.max(1, Math.round(stage?.clientWidth || visibleCanvas.clientWidth || 1));
+        const displayHeight = Math.max(1, Math.round(stage?.clientHeight || visibleCanvas.clientHeight || 1));
+        const renderScale = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
+        const width = Math.round(displayWidth * renderScale);
+        const height = Math.round(displayHeight * renderScale);
+
+        visibleCanvas.width = width;
+        visibleCanvas.height = height;
+        visibleCanvas.style.width = `${displayWidth}px`;
+        visibleCanvas.style.height = `${displayHeight}px`;
+        return this.renderSceneCanvas(visibleCanvas, fields, fontKey, mockupIndex, mode, fieldFonts);
+    },
+
+    async renderThumbnail(fields, fontKey, mockupIndex = 0, mode = 'flat', fieldFonts = {}, size = 160) {
+        const canvas = createCanvas(size, size);
+        await this.renderSceneCanvas(canvas, fields, fontKey, mockupIndex, mode, fieldFonts);
+
+        return canvas.toDataURL('image/png');
     },
 
     async renderFlat(fields, fontKey, fieldFonts = {}, options = {}) {
@@ -745,6 +757,8 @@ export function registerNikahPreview(Alpine) {
         zoomInstance: null,
         stickyObserver: null,
         recentlyViewedItems: [],
+        previewThumbs: {},
+        thumbnailRenderToken: 0,
         onResize: null,
         formatMoney(value) {
             const amount = Number(value ?? 0);
@@ -1098,6 +1112,28 @@ export function registerNikahPreview(Alpine) {
             this.previewReady = false;
             await window.NikahPreview.render(this.fields, this.activeFont, this.activeMockup, this.mode, this.fieldFonts);
             this.previewReady = true;
+            this.renderThumbnailRail();
+        },
+        async renderThumbnailRail() {
+            if (!this.isCustomizable || !window.NikahPreview) {
+                return;
+            }
+
+            const token = Date.now();
+            this.thumbnailRenderToken = token;
+            const nextThumbs = {};
+
+            if (this.hasFlatPreview) {
+                nextThumbs.flat = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, 0, 'flat', this.fieldFonts, 160);
+            }
+
+            for (let index = 0; index < (config.mockups?.length ?? 0); index += 1) {
+                nextThumbs[`mockup-${index}`] = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, index, 'mockup', this.fieldFonts, 160);
+            }
+
+            if (this.thumbnailRenderToken === token) {
+                this.previewThumbs = nextThumbs;
+            }
         },
         syncRecentlyViewed() {
             const key = 'recently_viewed_products';
