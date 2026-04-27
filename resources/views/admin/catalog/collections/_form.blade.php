@@ -78,7 +78,7 @@
                         <label class="field-shell">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Upload cover image</span>
                             <input type="file" name="cover_image_upload" accept="image/*" class="field-input">
-                            <span class="text-xs text-[var(--color-text-soft)]">Recommended for collection cards, shop spotlights, and homepage collection sections.</span>
+                            <span class="text-xs text-[var(--color-text-soft)]">Recommended for collection cards, shop spotlights, and homepage collection sections. JPG, PNG, or WEBP works best. Max 10MB.</span>
                             @error('cover_image_upload') <span class="text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
                         </label>
                     </div>

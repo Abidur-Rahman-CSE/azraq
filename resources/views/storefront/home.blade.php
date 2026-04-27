@@ -1,5 +1,6 @@
 @php
-    $heroImage = $featuredProducts->first()?->storefront_preview_image_url;
+    $heroImage = data_get($homepageSections->get('hero'), 'settings.desktop_image_url')
+        ?: $featuredProducts->first()?->storefront_preview_image_url;
 @endphp
 
 <x-layouts.storefront

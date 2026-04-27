@@ -20,7 +20,7 @@ class CollectionRequest extends FormRequest
             'name' => ['required', 'string', 'max:255'],
             'slug' => ['nullable', 'string', 'max:255', Rule::unique('collections', 'slug')->ignore($collectionId)],
             'description' => ['nullable', 'string'],
-            'cover_image_upload' => ['nullable', 'image', 'max:5120'],
+            'cover_image_upload' => ['nullable', 'image', 'max:10240'],
             'collection_mode' => ['required', 'in:manual,automatic'],
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'is_active' => ['nullable', 'boolean'],
@@ -30,6 +30,14 @@ class CollectionRequest extends FormRequest
             'product_ids.*' => ['integer', 'exists:products,id'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'cover_image_upload.image' => 'Please upload a valid JPG, PNG, WEBP, GIF, or SVG image.',
+            'cover_image_upload.max' => 'Collection cover image must be 10MB or smaller.',
         ];
     }
 }

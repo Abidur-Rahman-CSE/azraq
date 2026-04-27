@@ -18,39 +18,6 @@ class StorefrontController extends Controller
 {
     public function home()
     {
-        $featuredProducts = $this->productsFromCachedIds(
-            'storefront.home.featured_product_ids',
-            fn () => Product::query()
-                ->where('status', 'active')
-                ->where('is_featured', true)
-                ->latest()
-                ->take(4)
-                ->pluck('id')
-                ->all()
-        );
-
-        $featuredCategories = $this->categoriesFromCachedIds(
-            'storefront.home.featured_category_ids',
-            fn () => Category::query()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->take(4)
-                ->pluck('id')
-                ->all()
-        );
-
-        $featuredCollections = $this->collectionsFromCachedIds(
-            'storefront.home.featured_collection_ids',
-            fn () => Collection::query()
-                ->where('is_active', true)
-                ->orderBy('sort_order')
-                ->orderBy('name')
-                ->take(3)
-                ->pluck('id')
-                ->all()
-        );
-
         $homepageSections = $this->homepageSectionsFromCachedKeys(
             'storefront.home.section_keys',
             fn () => HomepageSection::query()
@@ -58,6 +25,61 @@ class StorefrontController extends Controller
                 ->orderBy('sort_order')
                 ->pluck('section_key')
                 ->all()
+        );
+
+        $featuredCategoryIds = collect(data_get($homepageSections->get('featured_categories'), 'settings.selected_category_ids', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+        $featuredProductIds = collect(data_get($homepageSections->get('featured_products'), 'settings.selected_product_ids', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+        $featuredCollectionIds = collect(data_get($homepageSections->get('featured_collections'), 'settings.selected_collection_ids', []))
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
+
+        $featuredProducts = $this->productsFromCachedIds(
+            'storefront.home.featured_product_ids',
+            fn () => $featuredProductIds !== []
+                ? $featuredProductIds
+                : Product::query()
+                    ->where('status', 'active')
+                    ->where('is_featured', true)
+                    ->latest()
+                    ->take(4)
+                    ->pluck('id')
+                    ->all()
+        );
+
+        $featuredCategories = $this->categoriesFromCachedIds(
+            'storefront.home.featured_category_ids',
+            fn () => $featuredCategoryIds !== []
+                ? $featuredCategoryIds
+                : Category::query()
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->take(4)
+                    ->pluck('id')
+                    ->all()
+        );
+
+        $featuredCollections = $this->collectionsFromCachedIds(
+            'storefront.home.featured_collection_ids',
+            fn () => $featuredCollectionIds !== []
+                ? $featuredCollectionIds
+                : Collection::query()
+                    ->where('is_active', true)
+                    ->orderBy('sort_order')
+                    ->orderBy('name')
+                    ->take(3)
+                    ->pluck('id')
+                    ->all()
         );
 
         $faqPreview = $this->faqsFromCachedIds(
