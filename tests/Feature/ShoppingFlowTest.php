@@ -13,7 +13,8 @@ it('shows a standard product detail page', function () {
         ->assertOk()
         ->assertSee('Bridal Dupatta')
         ->assertSee('Choose a variant')
-        ->assertSee('Shipping, care, and policy');
+        ->assertSee('Shipping, care, and policy')
+        ->assertSee('Premium combos you may love');
 });
 
 it('hydrates variant image links on the standard product detail page', function () {
@@ -80,6 +81,8 @@ it('adds a product to the cart and displays it in the cart page', function () {
         ->assertOk()
         ->assertSee('Customized Pen')
         ->assertSeeText('Custom text: A & H')
+        ->assertSee('Upgrade and save')
+        ->assertSee('Nikkah Combo')
         ->assertSee('Subtotal');
 });
 
@@ -140,10 +143,16 @@ it('shows the dedicated light customizable pdp instead of the standard flow', fu
 it('shows the dedicated bundle pdp instead of redirecting back to the shop page', function () {
     $this->seed(CatalogSeeder::class);
 
-    $this->get('/products/nikkah-combo')
+    $recentProduct = Product::where('slug', 'customized-pen')->firstOrFail();
+
+    $this->withSession(['recently_viewed_products' => [$recentProduct->id]])
+        ->get('/products/nikkah-combo')
         ->assertOk()
-        ->assertSeeInOrder(['Nikkah Combo', 'Combo story', 'Everything in this combo', 'Related combos or individual pieces'])
+        ->assertSeeInOrder(['Nikkah Combo', 'Combo story', 'Everything in this combo', 'How combo pricing works', 'Related combos or individual pieces'])
         ->assertSee('Everything in this combo')
+        ->assertSee('Related categories')
+        ->assertSee('Last viewed products')
         ->assertSee('Add full combo')
+        ->assertSee('variant_groups', false)
         ->assertSee('/products/signature-nikah-nama/preview-image.png', false);
 });

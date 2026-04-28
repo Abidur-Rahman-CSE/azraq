@@ -8,6 +8,7 @@ use App\Models\PersonalizationMockup;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Support\CartSession;
+use App\Support\ComboPricing;
 use Illuminate\Http\Request;
 
 class CartController extends Controller
@@ -23,6 +24,7 @@ class CartController extends Controller
             'items' => $items,
             'coupon' => $coupon,
             'summary' => CartSession::summary($items, 'standard', $coupon),
+            'comboSuggestions' => $this->comboSuggestions($items),
         ]);
     }
 
@@ -39,6 +41,10 @@ class CartController extends Controller
         $personalization = collect($validated['personalization'] ?? [])
             ->filter(fn ($value) => filled($value))
             ->all();
+        $bundleSelections = collect($validated['bundle_selections'] ?? [])
+            ->filter(fn ($value) => filled($value))
+            ->map(fn ($value) => (int) $value)
+            ->all();
         $fontSelection = collect($validated['font_selection'] ?? [])
             ->filter(fn ($value) => filled($value))
             ->map(fn ($value) => (int) $value)
@@ -52,6 +58,7 @@ class CartController extends Controller
             $validated['font_id'] ?? 'no-font',
             md5(json_encode($fontSelection)),
             $validated['mockup_id'] ?? 'no-mockup',
+            md5(json_encode($bundleSelections)),
         ]);
 
         $existingIndex = $items->search(fn (array $item) => $item['key'] === $key);
@@ -88,6 +95,7 @@ class CartController extends Controller
                 'mockup_title' => $mockup?->title,
                 'proof_note' => $validated['proof_note'] ?? null,
                 'personalization' => $personalization,
+                'bundle_selections' => $bundleSelections,
             ]);
         }
 
@@ -149,5 +157,16 @@ class CartController extends Controller
         $request->session()->put('cart.items', $items->all());
 
         return redirect()->route('cart.index')->with('status', 'Item removed from cart.');
+    }
+
+    private function comboSuggestions($items)
+    {
+        return $items
+            ->reject(fn (array $item) => $item['product']->type?->value === 'bundle')
+            ->flatMap(fn (array $item) => ComboPricing::suggestionsForProduct($item['product'], 2))
+            ->filter(fn ($combo) => $combo->show_related_combos_in_cart)
+            ->unique('id')
+            ->take(3)
+            ->values();
     }
 }

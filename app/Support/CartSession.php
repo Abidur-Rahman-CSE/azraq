@@ -46,7 +46,9 @@ class CartSession
             $fontSelectionFonts = collect($item['font_selection'] ?? [])
                 ->mapWithKeys(fn ($fontId, $fieldKey) => [$fieldKey => $fonts->get($fontId)])
                 ->filter();
-            $unitPrice = (float) ($variant?->price ?: $product?->price ?: 0);
+            $unitPrice = $product?->type?->value === 'bundle'
+                ? ComboPricing::summary($product, $item['bundle_selections'] ?? [])['final_total']
+                : (float) ($variant?->price ?: $product?->price ?: 0);
             $quantity = (int) $item['quantity'];
 
             return [

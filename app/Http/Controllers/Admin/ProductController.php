@@ -155,7 +155,7 @@ class ProductController extends Controller
             'categories' => Category::orderBy('name')->get(),
             'collections' => Collection::orderBy('name')->get(),
             'tags' => Tag::orderBy('name')->get(),
-            'relatedProducts' => Product::when($product->exists, fn ($query) => $query->whereKeyNot($product->id))->orderBy('name')->get(),
+            'relatedProducts' => Product::with('variants')->when($product->exists, fn ($query) => $query->whereKeyNot($product->id))->orderBy('name')->get(),
             'relatedCategories' => Category::when($product->exists, fn ($query) => $query->whereKeyNot($product->category_id))->orderBy('name')->get(),
             'personalizationTemplates' => $activeTemplateQuery->orderBy('name')->get(),
             'personalizationMockups' => $availableMockupQuery->orderBy('sort_order')->orderBy('title')->get(),
@@ -193,6 +193,9 @@ class ProductController extends Controller
             'is_featured' => $request->boolean('is_featured'),
             'proof_notes_enabled' => $request->boolean('proof_notes_enabled'),
             'font_presets_enabled' => $request->boolean('font_presets_enabled'),
+            'show_combo_savings_badge' => $request->boolean('show_combo_savings_badge', true),
+            'show_related_combos_on_product' => $request->boolean('show_related_combos_on_product', true),
+            'show_related_combos_in_cart' => $request->boolean('show_related_combos_in_cart', true),
             'gallery_default_source' => $request->input('gallery_default_source', 'manual_featured_image'),
             'show_flat_preview_first' => $request->boolean('show_flat_preview_first', true),
             'include_mockup_gallery' => $request->boolean('include_mockup_gallery', true),
@@ -243,6 +246,17 @@ class ProductController extends Controller
                 ->each(fn (array $item, int $index) => $product->bundleItems()->create([
                     'child_product_id' => $item['child_product_id'],
                     'quantity' => $item['quantity'] ?? 1,
+                    'is_required' => (bool) ($item['is_required'] ?? true),
+                    'default_variant_id' => $item['default_variant_id'] ?? null,
+                    'allowed_variant_ids' => $item['allowed_variant_ids'] ?? [],
+                    'variant_change_allowed' => (bool) ($item['variant_change_allowed'] ?? false),
+                    'discount_eligible' => (bool) ($item['discount_eligible'] ?? true),
+                    'excluded_upgrade' => (bool) ($item['excluded_upgrade'] ?? false),
+                    'price_mode' => $item['price_mode'] ?? 'add_child_price',
+                    'custom_price' => $item['custom_price'] ?? null,
+                    'display_label' => $item['display_label'] ?? null,
+                    'show_on_hero' => (bool) ($item['show_on_hero'] ?? true),
+                    'show_in_details' => (bool) ($item['show_in_details'] ?? true),
                     'position' => $index,
                 ]));
         }
@@ -260,6 +274,22 @@ class ProductController extends Controller
                         'requires_advance_payment' => (bool) ($serviceMeta['requires_advance_payment'] ?? false),
                         'advance_payment_amount' => $serviceMeta['advance_payment_amount'] ?? null,
                         'booking_notes' => $serviceMeta['booking_notes'] ?? null,
+                        'confirmation_note' => $serviceMeta['confirmation_note'] ?? null,
+                        'available_areas' => $serviceMeta['available_areas'] ?? null,
+                        'available_days' => $serviceMeta['available_days'] ?? null,
+                        'time_slot_options' => $serviceMeta['time_slot_options'] ?? null,
+                        'minimum_notice_days' => $serviceMeta['minimum_notice_days'] ?? null,
+                        'max_bookings_per_day' => $serviceMeta['max_bookings_per_day'] ?? null,
+                        'travel_outside_area_allowed' => (bool) ($serviceMeta['travel_outside_area_allowed'] ?? false),
+                        'extra_charge_note' => $serviceMeta['extra_charge_note'] ?? null,
+                        'include_items' => $this->decodeMetaJson($serviceMeta['include_items'] ?? null),
+                        'packages' => $this->decodeMetaJson($serviceMeta['packages'] ?? null),
+                        'booking_flow' => $this->decodeMetaJson($serviceMeta['booking_flow'] ?? null),
+                        'before_appointment' => $this->decodeMetaJson($serviceMeta['before_appointment'] ?? null),
+                        'pricing_notes' => $this->decodeMetaJson($serviceMeta['pricing_notes'] ?? null),
+                        'policies' => $this->decodeMetaJson($serviceMeta['policies'] ?? null),
+                        'faqs' => $this->decodeMetaJson($serviceMeta['faqs'] ?? null),
+                        'gallery_intro_text' => $serviceMeta['gallery_intro_text'] ?? null,
                     ],
                 );
             } else {
@@ -268,6 +298,15 @@ class ProductController extends Controller
         }
 
         $this->syncProductMedia($product, $data);
+    }
+
+    private function decodeMetaJson(?string $value): array
+    {
+        if (! filled($value)) {
+            return [];
+        }
+
+        return json_decode($value, true) ?: [];
     }
 
     private function syncPersonalizationAssignments(Product $product, array $data): void

@@ -29,6 +29,8 @@ class AddToCartRequest extends FormRequest
             'proof_note' => ['nullable', 'string', 'max:500'],
             'personalization' => ['nullable', 'array'],
             'personalization.*' => ['nullable', 'string', 'max:500'],
+            'bundle_selections' => ['nullable', 'array'],
+            'bundle_selections.*' => ['nullable', 'integer', 'exists:product_variants,id'],
         ];
     }
 

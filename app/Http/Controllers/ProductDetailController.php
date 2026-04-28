@@ -6,6 +6,7 @@ use App\Enums\ProductType;
 use App\Models\Faq;
 use App\Models\Product;
 use App\Services\MockupRenderService;
+use App\Support\ComboPricing;
 use App\Support\MockupZoneNormalizer;
 use App\Support\NikahRenderPreview;
 use Illuminate\Http\Request;
@@ -24,6 +25,8 @@ class ProductDetailController extends Controller
             'bundleItems.childProduct.category',
             'bundleItems.childProduct.tags',
             'bundleItems.childProduct.images',
+            'bundleItems.childProduct.variants',
+            'bundleItems.defaultVariant',
             'serviceMeta',
             'personalizationTemplate.fields',
             'personalizationTemplate.fonts',
@@ -138,6 +141,7 @@ class ProductDetailController extends Controller
                 })->values(),
                 'faqs' => $faqs,
                 'related_products' => $product->relatedProducts->values(),
+                'comboUpsells' => $product->show_related_combos_on_product ? ComboPricing::suggestionsForProduct($product) : collect(),
                 'recentlyViewed' => $recentlyViewed,
                 'defaultMockupId' => $defaultMockupId,
                 'showFlatPreviewFirst' => false,
@@ -160,6 +164,8 @@ class ProductDetailController extends Controller
                 'product' => $product,
                 'serviceMeta' => $product->serviceMeta,
                 'relatedProducts' => $relatedServiceProducts,
+                'relatedCategories' => $product->relatedCategories->take(4),
+                'recentlyViewed' => $recentlyViewed,
             ]);
         }
 
@@ -177,6 +183,7 @@ class ProductDetailController extends Controller
             ProductType::Bundle => view('storefront.products.bundle', [
                 'product' => $product,
                 'recentlyViewed' => $recentlyViewed,
+                'bundlePricing' => ComboPricing::summary($product),
                 'bundleValue' => $product->bundleItems->sum(fn ($item) => (float) $item->childProduct?->price * $item->quantity),
             ]),
             default => view('products.show', [
@@ -186,6 +193,7 @@ class ProductDetailController extends Controller
                 'mockups' => collect(),
                 'faqs' => $faqs,
                 'related_products' => $product->relatedProducts->values(),
+                'comboUpsells' => $product->show_related_combos_on_product ? ComboPricing::suggestionsForProduct($product) : collect(),
                 'recentlyViewed' => $recentlyViewed,
                 'defaultMockupId' => null,
                 'showFlatPreviewFirst' => false,

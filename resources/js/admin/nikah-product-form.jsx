@@ -1156,7 +1156,22 @@ function normalizeBundleItem(item = {}) {
         id: item.id || uid('bundle-item'),
         child_product_id: item.child_product_id ? `${item.child_product_id}` : '',
         quantity: item.quantity ? `${item.quantity}` : '1',
+        is_required: item.is_required ?? true,
+        default_variant_id: item.default_variant_id ? `${item.default_variant_id}` : '',
+        allowed_variant_ids: item.allowed_variant_ids || [],
+        variant_change_allowed: Boolean(item.variant_change_allowed),
+        discount_eligible: item.discount_eligible ?? true,
+        excluded_upgrade: Boolean(item.excluded_upgrade),
+        price_mode: item.price_mode || 'add_child_price',
+        custom_price: item.custom_price ? `${item.custom_price}` : '',
+        display_label: item.display_label || '',
+        show_on_hero: item.show_on_hero ?? true,
+        show_in_details: item.show_in_details ?? true,
     };
+}
+
+function selectedProductForBundle(products, item) {
+    return products.find((product) => String(product.id) === String(item.child_product_id)) || null;
 }
 
 function BundleItemEditor({
@@ -1178,6 +1193,9 @@ function BundleItemEditor({
             <div className="bundle-item-editor__list">
                 {items.length ? items.map((item, index) => (
                     <article key={item.id} className="bundle-item-editor__row">
+                        {item.allowed_variant_ids.map((variantId, variantIndex) => (
+                            <input key={`${item.id}-allowed-${variantId}`} type="hidden" name={`bundle_items[${index}][allowed_variant_ids][${variantIndex}]`} value={variantId} />
+                        ))}
                         <label className="nikah-field">
                             <span>Included product</span>
                             <select
@@ -1203,6 +1221,78 @@ function BundleItemEditor({
                             />
                         </label>
 
+                        <label className="nikah-field">
+                            <span>Default variant</span>
+                            <select
+                                name={`bundle_items[${index}][default_variant_id]`}
+                                value={item.default_variant_id}
+                                onChange={(event) => onUpdateItem(item.id, 'default_variant_id', event.target.value)}
+                            >
+                                <option value="">Base/default</option>
+                                {(selectedProductForBundle(products, item)?.variants || []).map((variant) => (
+                                    <option key={variant.id} value={variant.id}>{variant.name}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="nikah-field">
+                            <span>Display label</span>
+                            <input
+                                type="text"
+                                name={`bundle_items[${index}][display_label]`}
+                                value={item.display_label}
+                                onChange={(event) => onUpdateItem(item.id, 'display_label', event.target.value)}
+                                placeholder="Optional customer-facing label"
+                            />
+                        </label>
+
+                        <label className="nikah-field">
+                            <span>Price mode</span>
+                            <select
+                                name={`bundle_items[${index}][price_mode]`}
+                                value={item.price_mode}
+                                onChange={(event) => onUpdateItem(item.id, 'price_mode', event.target.value)}
+                            >
+                                <option value="add_child_price">Add child product price</option>
+                                <option value="included_in_combo_price">Included in combo price</option>
+                                <option value="custom_combo_price">Custom combo price</option>
+                                <option value="upgrade_price_only">Upgrade price only</option>
+                            </select>
+                        </label>
+
+                        <label className="nikah-field">
+                            <span>Custom price</span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                name={`bundle_items[${index}][custom_price]`}
+                                value={item.custom_price}
+                                onChange={(event) => onUpdateItem(item.id, 'custom_price', event.target.value)}
+                            />
+                        </label>
+
+                        {[
+                            ['is_required', 'Required'],
+                            ['variant_change_allowed', 'Allow variant change'],
+                            ['discount_eligible', 'Discount eligible'],
+                            ['excluded_upgrade', 'Premium upgrade excluded'],
+                            ['show_on_hero', 'Show in hero strip'],
+                            ['show_in_details', 'Show in combo details'],
+                        ].map(([field, label]) => (
+                            <label key={field} className="general-checkbox">
+                                <input type="hidden" name={`bundle_items[${index}][${field}]`} value="0" />
+                                <input
+                                    type="checkbox"
+                                    name={`bundle_items[${index}][${field}]`}
+                                    value="1"
+                                    checked={Boolean(item[field])}
+                                    onChange={(event) => onUpdateItem(item.id, field, event.target.checked)}
+                                />
+                                {label}
+                            </label>
+                        ))}
+
                         <button type="button" className="variant-icon-button variant-icon-button--danger" onClick={() => onRemoveItem(item.id)} aria-label="Remove combo item">
                             <span aria-hidden="true">✕</span>
                         </button>
@@ -1213,6 +1303,112 @@ function BundleItemEditor({
             </div>
 
             <button type="button" className="nikah-add-field" onClick={onAddItem}>Add combo item</button>
+        </section>
+    );
+}
+
+function ComboPricingEditor({ settings, onUpdate }) {
+    return (
+        <section className="bundle-item-editor">
+            <div className="variant-media-mapper__heading">
+                <div>
+                    <h4>Combo pricing and marketing</h4>
+                    <p>Set the customer-facing savings message and percent/fixed discount logic.</p>
+                </div>
+            </div>
+
+            <div className="nikah-form__grid nikah-form__grid--two">
+                <label className="nikah-field">
+                    <span>Discount type</span>
+                    <select name="combo_discount_type" value={settings.discountType} onChange={(event) => onUpdate('discountType', event.target.value)}>
+                        <option value="percent">Percent</option>
+                        <option value="fixed">Fixed amount</option>
+                    </select>
+                </label>
+
+                <label className="nikah-field">
+                    <span>Discount value</span>
+                    <input type="number" min="0" step="0.01" name="combo_discount_value" value={settings.discountValue} onChange={(event) => onUpdate('discountValue', event.target.value)} />
+                </label>
+
+                <label className="nikah-field">
+                    <span>Rounding rule</span>
+                    <select name="combo_rounding_rule" value={settings.roundingRule} onChange={(event) => onUpdate('roundingRule', event.target.value)}>
+                        <option value="none">No rounding</option>
+                        <option value="nearest_10">Round to nearest 10</option>
+                        <option value="nearest_50">Round to nearest 50</option>
+                        <option value="nearest_100">Round to nearest 100</option>
+                    </select>
+                </label>
+
+                <label className="nikah-field">
+                    <span>Marketing label</span>
+                    <input type="text" name="marketing_label" value={settings.marketingLabel} onChange={(event) => onUpdate('marketingLabel', event.target.value)} placeholder="Best value, Most gifted, Save 12%" />
+                </label>
+
+                <label className="nikah-field nikah-form__span-two">
+                    <span>Promo headline</span>
+                    <input type="text" name="combo_promo_headline" value={settings.promoHeadline} onChange={(event) => onUpdate('promoHeadline', event.target.value)} placeholder="Complete the set and save more" />
+                </label>
+
+                <label className="nikah-field nikah-form__span-two">
+                    <span>Promo subtitle</span>
+                    <textarea name="combo_promo_subtitle" rows="3" value={settings.promoSubtitle} onChange={(event) => onUpdate('promoSubtitle', event.target.value)} />
+                </label>
+
+                {[
+                    ['showSavingsBadge', 'Show savings badge', 'show_combo_savings_badge'],
+                    ['showRelatedCombosOnProduct', 'Show related combos on product pages', 'show_related_combos_on_product'],
+                    ['showRelatedCombosInCart', 'Show related combos in cart', 'show_related_combos_in_cart'],
+                ].map(([key, label, name]) => (
+                    <label key={key} className="general-checkbox">
+                        <input type="hidden" name={name} value="0" />
+                        <input type="checkbox" name={name} value="1" checked={Boolean(settings[key])} onChange={(event) => onUpdate(key, event.target.checked)} />
+                        {label}
+                    </label>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function normalizeContentItem(item = {}, fallbackTitle = '') {
+    return {
+        id: item.id || uid('content-item'),
+        title: item.title || item.question || fallbackTitle,
+        description: item.description || item.answer || item.copy || '',
+    };
+}
+
+function ContentRepeater({ label, name, items, onChange, titleLabel = 'Title', descriptionLabel = 'Description' }) {
+    const normalizedItems = (items || []).map((item) => normalizeContentItem(item));
+
+    function updateItem(itemId, key, value) {
+        onChange(normalizedItems.map((item) => item.id === itemId ? { ...item, [key]: value } : item));
+    }
+
+    return (
+        <section className="nikah-field nikah-form__span-two">
+            <input type="hidden" name={name} value={JSON.stringify(normalizedItems.map(({ id, ...item }) => item))} />
+            <span>{label}</span>
+            <div className="bundle-item-editor__list">
+                {normalizedItems.map((item) => (
+                    <article key={item.id} className="bundle-item-editor__row">
+                        <label className="nikah-field">
+                            <span>{titleLabel}</span>
+                            <input type="text" value={item.title} onChange={(event) => updateItem(item.id, 'title', event.target.value)} />
+                        </label>
+                        <label className="nikah-field">
+                            <span>{descriptionLabel}</span>
+                            <textarea rows="2" value={item.description} onChange={(event) => updateItem(item.id, 'description', event.target.value)} />
+                        </label>
+                        <button type="button" className="variant-icon-button variant-icon-button--danger" onClick={() => onChange(normalizedItems.filter((currentItem) => currentItem.id !== item.id))} aria-label={`Remove ${label}`}>
+                            <span aria-hidden="true">✕</span>
+                        </button>
+                    </article>
+                ))}
+            </div>
+            <button type="button" className="nikah-add-field" onClick={() => onChange([...normalizedItems, normalizeContentItem()])}>Add {label.toLowerCase()}</button>
         </section>
     );
 }
@@ -1273,6 +1469,28 @@ function ServiceMetaEditor({ meta, onUpdate }) {
                     />
                 </label>
 
+                <label className="nikah-field">
+                    <span>Minimum notice days</span>
+                    <input
+                        type="number"
+                        min="0"
+                        name="service_meta[minimum_notice_days]"
+                        value={meta.minimum_notice_days || ''}
+                        onChange={(event) => onUpdate('minimum_notice_days', event.target.value)}
+                    />
+                </label>
+
+                <label className="nikah-field">
+                    <span>Max bookings per day</span>
+                    <input
+                        type="number"
+                        min="0"
+                        name="service_meta[max_bookings_per_day]"
+                        value={meta.max_bookings_per_day || ''}
+                        onChange={(event) => onUpdate('max_bookings_per_day', event.target.value)}
+                    />
+                </label>
+
                 <label className="general-checkbox nikah-form__span-two">
                     <input type="hidden" name="service_meta[requires_advance_payment]" value="0" />
                     <input
@@ -1285,6 +1503,18 @@ function ServiceMetaEditor({ meta, onUpdate }) {
                     Requires advance payment after confirmation
                 </label>
 
+                <label className="general-checkbox nikah-form__span-two">
+                    <input type="hidden" name="service_meta[travel_outside_area_allowed]" value="0" />
+                    <input
+                        type="checkbox"
+                        name="service_meta[travel_outside_area_allowed]"
+                        value="1"
+                        checked={Boolean(meta.travel_outside_area_allowed)}
+                        onChange={(event) => onUpdate('travel_outside_area_allowed', event.target.checked)}
+                    />
+                    Travel outside area allowed
+                </label>
+
                 <label className="nikah-field nikah-form__span-two">
                     <span>Booking notes / service details</span>
                     <textarea
@@ -1294,6 +1524,44 @@ function ServiceMetaEditor({ meta, onUpdate }) {
                         onChange={(event) => onUpdate('booking_notes', event.target.value)}
                         placeholder="Explain what is included, preparation requirements, or confirmation process."
                     />
+                </label>
+
+                <label className="nikah-field nikah-form__span-two">
+                    <span>Confirmation note</span>
+                    <textarea
+                        name="service_meta[confirmation_note]"
+                        rows="3"
+                        value={meta.confirmation_note || ''}
+                        onChange={(event) => onUpdate('confirmation_note', event.target.value)}
+                        placeholder="Explain availability check, confirmation, and advance payment flow."
+                    />
+                </label>
+
+                <label className="nikah-field">
+                    <span>Available areas</span>
+                    <textarea name="service_meta[available_areas]" rows="3" value={meta.available_areas || ''} onChange={(event) => onUpdate('available_areas', event.target.value)} />
+                </label>
+
+                <label className="nikah-field">
+                    <span>Available days / time slots</span>
+                    <textarea name="service_meta[time_slot_options]" rows="3" value={meta.time_slot_options || ''} onChange={(event) => onUpdate('time_slot_options', event.target.value)} />
+                </label>
+
+                <label className="nikah-field nikah-form__span-two">
+                    <span>Extra charge note</span>
+                    <textarea name="service_meta[extra_charge_note]" rows="3" value={meta.extra_charge_note || ''} onChange={(event) => onUpdate('extra_charge_note', event.target.value)} />
+                </label>
+
+                <ContentRepeater label="Service includes" name="service_meta[include_items]" items={meta.include_items || []} onChange={(items) => onUpdate('include_items', items)} />
+                <ContentRepeater label="Packages / scopes" name="service_meta[packages]" items={meta.packages || []} onChange={(items) => onUpdate('packages', items)} />
+                <ContentRepeater label="Before appointment" name="service_meta[before_appointment]" items={meta.before_appointment || []} onChange={(items) => onUpdate('before_appointment', items)} />
+                <ContentRepeater label="Pricing notes" name="service_meta[pricing_notes]" items={meta.pricing_notes || []} onChange={(items) => onUpdate('pricing_notes', items)} />
+                <ContentRepeater label="Policies" name="service_meta[policies]" items={meta.policies || []} onChange={(items) => onUpdate('policies', items)} />
+                <ContentRepeater label="FAQs" name="service_meta[faqs]" items={meta.faqs || []} onChange={(items) => onUpdate('faqs', items)} titleLabel="Question" descriptionLabel="Answer" />
+
+                <label className="nikah-field nikah-form__span-two">
+                    <span>Gallery intro text</span>
+                    <textarea name="service_meta[gallery_intro_text]" rows="3" value={meta.gallery_intro_text || ''} onChange={(event) => onUpdate('gallery_intro_text', event.target.value)} />
                 </label>
             </div>
         </section>
@@ -1383,6 +1651,17 @@ function NikahProductForm({ payload }) {
     const [selectedRelatedCategories, setSelectedRelatedCategories] = useState(product.relatedCategoryIds || []);
     const [variants, setVariants] = useState(initialVariants);
     const [bundleItems, setBundleItems] = useState(initialBundleItems);
+    const [comboSettings, setComboSettings] = useState({
+        discountType: product.comboDiscountType || 'percent',
+        discountValue: product.comboDiscountValue || '',
+        roundingRule: product.comboRoundingRule || 'none',
+        showSavingsBadge: product.showComboSavingsBadge ?? true,
+        promoHeadline: product.comboPromoHeadline || '',
+        promoSubtitle: product.comboPromoSubtitle || '',
+        marketingLabel: product.marketingLabel || '',
+        showRelatedCombosOnProduct: product.showRelatedCombosOnProduct ?? true,
+        showRelatedCombosInCart: product.showRelatedCombosInCart ?? true,
+    });
     const [serviceMeta, setServiceMeta] = useState(product.serviceMeta || {});
     const [variantGroups, setVariantGroups] = useState(initialVariantGroups);
     const [selectedDesignId, setSelectedDesignId] = useState(initialDesignId);
@@ -1710,6 +1989,10 @@ function NikahProductForm({ payload }) {
         setBundleItems((currentItems) => currentItems.map((item) => (
             item.id === itemId ? { ...item, [key]: value } : item
         )));
+    }
+
+    function updateComboSetting(key, value) {
+        setComboSettings((currentSettings) => ({ ...currentSettings, [key]: value }));
     }
 
     function removeBundleItem(itemId) {
@@ -2565,6 +2848,8 @@ function NikahProductForm({ payload }) {
                                         <p>Build the bundle by selecting the products included in the package.</p>
                                     </div>
                                 </div>
+
+                                <ComboPricingEditor settings={comboSettings} onUpdate={updateComboSetting} />
 
                                 <BundleItemEditor
                                     items={bundleItems}

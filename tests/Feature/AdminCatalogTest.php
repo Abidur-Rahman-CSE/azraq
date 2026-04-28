@@ -248,6 +248,7 @@ it('hydrates combo bundle items on the product editor', function () {
     $this->get(route('admin.catalog.products.edit', $product))
         ->assertOk()
         ->assertSee('Combo')
+        ->assertSee('"comboDiscountType"', false)
         ->assertSee('"bundleItems":[', false)
         ->assertSee((string) $bundleItem->child_product_id, false)
         ->assertSee($bundleItem->childProduct->name, false);
@@ -286,6 +287,13 @@ it('hydrates and updates service booking details on the product editor', functio
             'requires_advance_payment' => true,
             'advance_payment_amount' => 1500,
             'booking_notes' => 'Admin editable package details.',
+            'confirmation_note' => 'Availability first, advance after confirmation.',
+            'include_items' => json_encode([
+                ['title' => 'Bridal mehendi design', 'description' => 'Detailed hands and feet coverage.'],
+            ]),
+            'faqs' => json_encode([
+                ['title' => 'Do you travel?', 'description' => 'Yes, within selected Dhaka areas.'],
+            ]),
         ],
     ])->assertRedirect(route('admin.catalog.products.edit', $product));
 
@@ -294,7 +302,10 @@ it('hydrates and updates service booking details on the product editor', functio
     expect($product->serviceMeta)
         ->duration_label->toBe('Full day booking')
         ->location_scope->toBe('Dhaka and nearby areas')
-        ->booking_notes->toBe('Admin editable package details.');
+        ->booking_notes->toBe('Admin editable package details.')
+        ->confirmation_note->toBe('Availability first, advance after confirmation.')
+        ->include_items->toHaveCount(1)
+        ->faqs->toHaveCount(1);
 });
 
 it('supports media uploads on the general product edit form', function () {

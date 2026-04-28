@@ -14,8 +14,9 @@ it('shows a dedicated booking detail page for service products', function () {
 
     $this->get(route('products.show', $product))
         ->assertOk()
-        ->assertSeeInOrder(['Service / Booking', 'Request your date', 'Service details', 'Related services and products'])
+        ->assertSeeInOrder(['Service / Booking', 'Quick facts', 'Request your date', 'Service details', 'Booking flow', 'Related services and products'])
         ->assertSee('What this booking includes')
+        ->assertSee('Related categories')
         ->assertSee('Submit booking request');
 });
 

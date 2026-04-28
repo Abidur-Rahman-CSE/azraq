@@ -43,6 +43,15 @@ class Product extends Model
         'personalization_help_text',
         'personalization_fields_blueprint',
         'variant_media_links',
+        'combo_discount_type',
+        'combo_discount_value',
+        'combo_rounding_rule',
+        'show_combo_savings_badge',
+        'combo_promo_headline',
+        'combo_promo_subtitle',
+        'marketing_label',
+        'show_related_combos_on_product',
+        'show_related_combos_in_cart',
         'meta_title',
         'meta_description',
     ];
@@ -62,6 +71,10 @@ class Product extends Model
             'font_presets_enabled' => 'boolean',
             'personalization_fields_blueprint' => 'array',
             'variant_media_links' => 'array',
+            'combo_discount_value' => 'decimal:2',
+            'show_combo_savings_badge' => 'boolean',
+            'show_related_combos_on_product' => 'boolean',
+            'show_related_combos_in_cart' => 'boolean',
         ];
     }
 
@@ -103,6 +116,11 @@ class Product extends Model
     public function bundleItems(): HasMany
     {
         return $this->hasMany(BundleItem::class, 'bundle_product_id')->orderBy('position');
+    }
+
+    public function includedInBundles(): HasMany
+    {
+        return $this->hasMany(BundleItem::class, 'child_product_id');
     }
 
     public function serviceMeta(): HasOne

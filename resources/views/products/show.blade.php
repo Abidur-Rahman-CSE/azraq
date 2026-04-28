@@ -229,6 +229,7 @@
         'url' => route('products.show', $product),
         'image' => $product->storefront_preview_image_url ?: $storyVisual,
     ];
+    $comboUpsells = ($comboUpsells ?? collect())->values();
 @endphp
 
 <x-layouts.product-detail
@@ -338,6 +339,37 @@
                 'relatedProducts' => $related_products,
                 'relatedCategories' => $product->relatedCategories->take(4),
             ])
+
+            @if ($comboUpsells->isNotEmpty())
+                <section class="mt-6 space-y-4 lg:col-span-2">
+                    <div class="surface-card-featured p-6 sm:p-8">
+                        <p class="text-xs uppercase tracking-[0.3em] text-[var(--accent-primary)]">{{ $product->includedInBundles()->exists() ? 'Complete the set and save more' : 'Premium combos you may love' }}</p>
+                        <h2 class="mt-3 font-serif text-2xl font-semibold text-[var(--text-main)]">{{ $product->includedInBundles()->exists() ? 'This item is part of a curated bridal combo' : 'Save more with curated bridal combos' }}</h2>
+                        <p class="mt-2 max-w-3xl text-sm leading-7 text-[var(--text-muted)]">Explore curated bridal sets designed to make your order feel complete while helping you save more.</p>
+                        <div class="mt-6 grid gap-4 lg:grid-cols-3">
+                            @foreach ($comboUpsells as $combo)
+                                @php($pricing = \App\Support\ComboPricing::summary($combo))
+                                <a href="{{ route('products.show', $combo) }}" class="group rounded-xl border border-[var(--border-soft)] bg-white/85 p-4 transition hover:border-[var(--accent-primary)]">
+                                    <div class="flex gap-4">
+                                        <div class="h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-[var(--bg-section-soft)]">
+                                            @if ($combo->storefront_preview_image_url)
+                                                <img src="{{ $combo->storefront_preview_image_url }}" alt="{{ $combo->name }}" class="h-full w-full object-cover">
+                                            @endif
+                                        </div>
+                                        <div class="min-w-0">
+                                            <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-primary)]">{{ $combo->marketing_label ?: 'Combo value' }}</p>
+                                            <h3 class="mt-1 line-clamp-2 text-sm font-semibold text-[var(--text-main)]">{{ $combo->name }}</h3>
+                                            <p class="mt-2 text-xs text-[var(--text-muted)]">{{ $combo->bundleItems->sum('quantity') }} included pieces</p>
+                                            <p class="mt-2 text-sm font-semibold text-[var(--accent-primary)]">Save BDT {{ number_format($pricing['savings_amount'], 0) }}</p>
+                                        </div>
+                                    </div>
+                                    <span class="mt-4 inline-flex text-sm font-semibold text-[var(--accent-primary)] group-hover:underline">View combo</span>
+                                </a>
+                            @endforeach
+                        </div>
+                    </div>
+                </section>
+            @endif
 
             <div
                 class="surface-card sticky bottom-0 z-30 mt-6 border-t px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:hidden"

@@ -108,6 +108,39 @@
             </section>
         @endforelse
 
+        @if (($comboSuggestions ?? collect())->isNotEmpty())
+            <section class="surface-card-featured p-6 sm:p-8">
+                <p class="text-xs uppercase tracking-[0.3em] text-[var(--accent-primary)]">Upgrade and save</p>
+                <h2 class="mt-3 text-2xl font-semibold text-[var(--color-secondary-900)]">You can save more with a curated combo</h2>
+                <p class="mt-2 max-w-3xl text-sm leading-7 text-[var(--color-text-soft)]">Some items in your cart are part of premium bridal sets. Switch to a combo for better value and a more complete order.</p>
+
+                <div class="mt-6 grid gap-4 lg:grid-cols-3">
+                    @foreach ($comboSuggestions as $combo)
+                        @php($pricing = \App\Support\ComboPricing::summary($combo))
+                        <article class="rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/85 p-4">
+                            <div class="flex gap-4">
+                                <div class="h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-lg)] bg-[var(--color-surface-cream)]">
+                                    @if ($combo->storefront_preview_image_url)
+                                        <img src="{{ $combo->storefront_preview_image_url }}" alt="{{ $combo->name }}" class="h-full w-full object-cover">
+                                    @endif
+                                </div>
+                                <div class="min-w-0">
+                                    <p class="text-xs font-medium uppercase tracking-[0.14em] text-[var(--accent-primary)]">{{ $combo->marketing_label ?: 'Best value' }}</p>
+                                    <h3 class="mt-1 line-clamp-2 text-sm font-semibold text-[var(--color-secondary-900)]">{{ $combo->name }}</h3>
+                                    <p class="mt-2 text-xs text-[var(--color-text-soft)]">Regular total: BDT {{ number_format($pricing['regular_total'], 0) }}</p>
+                                    <p class="text-sm font-semibold text-[var(--accent-primary)]">You can save BDT {{ number_format($pricing['savings_amount'], 0) }}</p>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                <a href="{{ route('products.show', $combo) }}" class="button-primary">Upgrade to combo</a>
+                                <a href="{{ route('cart.index') }}" class="button-ghost">Keep current item</a>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+        @endif
+
         @if ($items->isNotEmpty())
             <section class="surface-card p-6">
                 <div class="flex flex-wrap items-center justify-between gap-4">

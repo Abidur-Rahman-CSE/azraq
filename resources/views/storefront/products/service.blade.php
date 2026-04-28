@@ -3,8 +3,29 @@
 
     $primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first();
     $serviceImage = $product->storefront_preview_image_url ?: $primaryImage?->image_url;
+    $serviceGallery = $product->images
+        ->map(fn ($image) => [
+            'url' => $image->image_url,
+            'alt' => $image->alt_text ?: $image->label ?: $product->name,
+            'label' => $image->label ?: $product->name,
+        ])
+        ->values();
     $shortDescription = $product->excerpt ?: Str::limit(strip_tags($product->description), 150);
     $relatedServiceProducts = ($relatedProducts ?? $product->relatedProducts ?? collect())->values();
+    $serviceRelatedCategories = ($relatedCategories ?? $product->relatedCategories ?? collect())->isNotEmpty()
+        ? ($relatedCategories ?? $product->relatedCategories)->values()
+        : collect([$product->category])->filter()->values();
+    $includeItems = collect($serviceMeta->include_items ?: [])
+        ->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null))
+        ->whenEmpty(fn ($items) => $items->push([
+            'title' => $serviceMeta->service_type ?: 'Personal service consultation',
+            'description' => $serviceMeta->booking_notes ?: $product->description,
+        ]));
+    $packages = collect($serviceMeta->packages ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
+    $beforeAppointment = collect($serviceMeta->before_appointment ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
+    $pricingNotes = collect($serviceMeta->pricing_notes ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
+    $policies = collect($serviceMeta->policies ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
+    $serviceFaqs = collect($serviceMeta->faqs ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
 @endphp
 
 <x-layouts.product-detail
@@ -34,11 +55,16 @@
     <div class="space-y-10">
         <section class="grid gap-8 lg:grid-cols-[minmax(0,55fr)_minmax(0,45fr)]">
             <div class="lg:self-stretch">
-                <div class="space-y-4 lg:sticky lg:top-[88px]">
+                <div class="space-y-4 lg:sticky lg:top-[88px]" x-data="{ activeImage: @js($serviceGallery->first()['url'] ?? $serviceImage), activeAlt: @js($serviceGallery->first()['alt'] ?? $product->name), activeIndex: 0 }">
                     <div class="surface-product overflow-hidden p-4 sm:p-5">
-                        <div class="mb-4">
-                            <p class="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Service preview</p>
-                            <p class="mt-1 text-sm font-medium text-[var(--text-main)]">{{ $serviceMeta->service_type ?: $product->name }}</p>
+                        <div class="mb-4 flex items-start justify-between gap-3">
+                            <div>
+                                <p class="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Service preview</p>
+                                <p class="mt-1 text-sm font-medium text-[var(--text-main)]">{{ $serviceMeta->service_type ?: $product->name }}</p>
+                            </div>
+                            @if ($serviceGallery->count() > 1)
+                                <span class="rounded-full bg-white/90 px-3 py-1 text-[11px] text-[var(--text-muted)]"><span x-text="activeIndex + 1">1</span>/{{ $serviceGallery->count() }}</span>
+                            @endif
                         </div>
 
                         <x-storefront.product-breadcrumbs :product="$product" />
@@ -46,12 +72,24 @@
                         <div class="mt-5 overflow-hidden rounded-xl border border-[var(--border-soft)] bg-[var(--bg-section-soft)]">
                             <div class="aspect-[4/5] w-full max-h-[58vh] lg:max-h-[500px]">
                                 @if ($serviceImage)
-                                    <img src="{{ $serviceImage }}" alt="{{ $product->name }}" class="block h-full w-full object-cover" fetchpriority="high" decoding="async">
+                                    <img :src="activeImage || @js($serviceImage)" :alt="activeAlt || @js($product->name)" src="{{ $serviceImage }}" alt="{{ $product->name }}" class="block h-full w-full object-cover" fetchpriority="high" decoding="async">
                                 @else
                                     <div class="flex h-full min-h-[360px] items-center justify-center text-sm text-[var(--text-muted)]">Service visual</div>
                                 @endif
                             </div>
                         </div>
+
+                        @if ($serviceGallery->count() > 1)
+                            <div class="mt-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                @foreach ($serviceGallery as $index => $image)
+                                    <button type="button" class="w-[72px] shrink-0" @click="activeImage = @js($image['url']); activeAlt = @js($image['alt']); activeIndex = {{ $index }}" aria-label="Show {{ $image['label'] }}">
+                                        <span class="block overflow-hidden rounded-lg border-2 bg-[var(--bg-section-soft)] p-1 transition" :class="activeIndex === {{ $index }} ? 'border-[var(--accent-primary)]' : 'border-transparent'">
+                                            <img src="{{ $image['url'] }}" alt="{{ $image['alt'] }}" class="h-16 w-16 rounded-md object-cover">
+                                        </span>
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
 
                         <div class="mt-4 grid gap-3 sm:grid-cols-2">
                             <div class="rounded-xl border border-[var(--border-soft)] bg-white/85 p-4">
@@ -84,6 +122,23 @@
                         <span class="text-2xl font-semibold text-[var(--accent-primary)]">BDT {{ number_format((float) $product->price, 0) }}</span>
                     </div>
                     <p class="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">{{ $shortDescription }}</p>
+                </div>
+
+                <div class="surface-card p-5">
+                    <h2 class="text-base font-semibold text-[var(--text-main)]">Quick facts</h2>
+                    <div class="mt-4 grid gap-3 sm:grid-cols-2">
+                        @foreach ([
+                            ['label' => 'Duration', 'value' => $serviceMeta->duration_label ?: 'Confirmed after request'],
+                            ['label' => 'Location', 'value' => $serviceMeta->location_scope ?: 'Flexible by request'],
+                            ['label' => 'Advance', 'value' => $serviceMeta->requires_advance_payment ? 'BDT '.number_format((float) $serviceMeta->advance_payment_amount, 0) : 'After confirmation'],
+                            ['label' => 'Confirmation', 'value' => $serviceMeta->confirmation_note ?: 'Availability checked before payment'],
+                        ] as $fact)
+                            <div class="rounded-xl border border-[var(--border-soft)] bg-white/85 p-4">
+                                <p class="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">{{ $fact['label'] }}</p>
+                                <p class="mt-2 text-sm font-semibold text-[var(--text-main)]">{{ $fact['value'] }}</p>
+                            </div>
+                        @endforeach
+                    </div>
                 </div>
 
                 <form id="order-form" method="POST" action="{{ route('bookings.store', $product) }}" class="space-y-4" x-ref="mainOrderForm">
@@ -149,33 +204,107 @@
                         <p class="mb-3 text-xs uppercase tracking-[0.3em] text-[var(--accent-primary)]">Service details</p>
                         <h2 class="font-serif text-2xl font-semibold leading-snug text-[var(--text-main)]">What this booking includes</h2>
                     </div>
-                    <div class="space-y-4 text-sm leading-7 text-[var(--text-muted)]">
-                        <p>{{ $serviceMeta->booking_notes ?: $product->description }}</p>
-                        <p>After submitting, Azraq reviews availability, area, and package fit before confirming the service.</p>
+                    <div class="grid gap-4 md:grid-cols-2">
+                        @foreach ($includeItems as $item)
+                            <div class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
+                                <p class="text-sm font-semibold text-[var(--text-main)]">{{ $item['title'] ?? 'Included' }}</p>
+                                <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ $item['description'] ?? '' }}</p>
+                            </div>
+                        @endforeach
                     </div>
                 </div>
             </div>
 
+            @if ($packages->isNotEmpty())
+                <div class="surface-card p-8">
+                    <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">Available packages / service scopes</h2>
+                    <div class="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        @foreach ($packages as $package)
+                            <div class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
+                                <p class="text-sm font-semibold text-[var(--text-main)]">{{ $package['title'] ?? 'Package' }}</p>
+                                <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ $package['description'] ?? '' }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             <div class="surface-card p-8">
                 <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">Booking flow</h2>
                 <div class="mt-6 grid gap-4 md:grid-cols-3">
-                    @foreach ([
+                    @foreach (collect($serviceMeta->booking_flow ?: [])->isNotEmpty() ? collect($serviceMeta->booking_flow) : collect([
                         ['title' => 'Submit your request', 'copy' => 'Share your preferred date, time, area, and service notes.'],
                         ['title' => 'Confirm availability', 'copy' => 'Azraq reviews availability and confirms the right package scope.'],
-                        ['title' => 'Coordinate next steps', 'copy' => 'You receive confirmation, payment guidance, and final coordination.'],
-                    ] as $index => $step)
+                        ['title' => 'Advance payment', 'copy' => 'Advance payment is requested after confirmation when required.'],
+                        ['title' => 'Coordinate next steps', 'copy' => 'You receive final coordination before the appointment.'],
+                    ]) as $index => $step)
                         <div class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
                             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-[rgba(120,0,0,0.08)] text-sm font-semibold text-[var(--accent-primary)]">{{ $index + 1 }}</span>
-                            <p class="mt-4 text-sm font-semibold text-[var(--text-main)]">{{ $step['title'] }}</p>
-                            <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ $step['copy'] }}</p>
+                            <p class="mt-4 text-sm font-semibold text-[var(--text-main)]">{{ $step['title'] ?? 'Step' }}</p>
+                            <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ $step['description'] ?? $step['copy'] ?? '' }}</p>
                         </div>
                     @endforeach
                 </div>
             </div>
+
+            @foreach ([
+                ['title' => 'Before your appointment', 'items' => $beforeAppointment],
+                ['title' => 'Pricing and extra charges', 'items' => $pricingNotes],
+                ['title' => 'Policy', 'items' => $policies],
+            ] as $section)
+                @if ($section['items']->isNotEmpty())
+                    <div class="surface-card p-8">
+                        <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">{{ $section['title'] }}</h2>
+                        <div class="mt-6 grid gap-4 md:grid-cols-2">
+                            @foreach ($section['items'] as $item)
+                                <div class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
+                                    <p class="text-sm font-semibold text-[var(--text-main)]">{{ $item['title'] ?? $section['title'] }}</p>
+                                    <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ $item['description'] ?? '' }}</p>
+                                </div>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+            @endforeach
+
+            @if ($serviceFaqs->isNotEmpty())
+                <div class="surface-card p-8" x-data="{ open: null }">
+                    <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">FAQ</h2>
+                    <div class="mt-4 divide-y divide-[var(--border-soft)]">
+                        @foreach ($serviceFaqs as $index => $faq)
+                            <div>
+                                <button type="button" class="flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-semibold text-[var(--text-main)]" @click="open === {{ $index }} ? open = null : open = {{ $index }}">
+                                    <span>{{ $faq['title'] ?? $faq['question'] ?? 'Question' }}</span>
+                                    <span class="text-lg text-[var(--accent-primary)]">+</span>
+                                </button>
+                                <div x-cloak x-show="open === {{ $index }}" x-transition class="pb-4 text-sm leading-7 text-[var(--text-muted)]">
+                                    {{ $faq['description'] ?? $faq['answer'] ?? '' }}
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            @if ($serviceGallery->count() > 1)
+                <div class="surface-card p-8">
+                    <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">Gallery / service moments</h2>
+                    @if ($serviceMeta->gallery_intro_text)
+                        <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ $serviceMeta->gallery_intro_text }}</p>
+                    @endif
+                    <div class="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+                        @foreach ($serviceGallery as $image)
+                            <img src="{{ $image['url'] }}" alt="{{ $image['alt'] }}" class="aspect-[4/3] w-full rounded-xl object-cover">
+                        @endforeach
+                    </div>
+                </div>
+            @endif
         </section>
 
-        @if ($relatedServiceProducts->isNotEmpty())
-            <section class="surface-card p-8">
+        @if ($relatedServiceProducts->isNotEmpty() || $serviceRelatedCategories->isNotEmpty() || ($recentlyViewed ?? collect())->isNotEmpty())
+            <section class="space-y-6">
+            @if ($relatedServiceProducts->isNotEmpty())
+            <div class="surface-card p-8">
                 <div class="mb-6 flex items-center justify-between gap-4">
                     <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">Related services and products</h2>
                     @if ($product->category)
@@ -188,6 +317,33 @@
                         <x-storefront.listing-card :product="$relatedProduct" />
                     @endforeach
                 </div>
+            </div>
+            @endif
+
+            @if ($serviceRelatedCategories->isNotEmpty())
+                <div class="surface-card p-8">
+                    <h2 class="mb-6 font-serif text-xl font-semibold text-[var(--text-main)]">Related categories</h2>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        @foreach ($serviceRelatedCategories as $category)
+                            <a href="{{ route('categories.show', $category) }}" class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5 transition hover:border-[var(--accent-primary)]">
+                                <p class="text-sm font-semibold text-[var(--text-main)]">{{ $category->name }}</p>
+                                <p class="mt-2 text-xs leading-6 text-[var(--text-muted)]">{{ $category->storefront_excerpt ?: $category->description }}</p>
+                            </a>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
+            @if (($recentlyViewed ?? collect())->isNotEmpty())
+                <div class="surface-card p-8">
+                    <h2 class="mb-6 text-sm font-medium uppercase tracking-[0.3em] text-[var(--text-muted)]">Last viewed products</h2>
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                        @foreach ($recentlyViewed as $recentProduct)
+                            <x-storefront.listing-card :product="$recentProduct" />
+                        @endforeach
+                    </div>
+                </div>
+            @endif
             </section>
         @endif
     </div>
