@@ -141,6 +141,7 @@
             </div>
         </div>
 
+        {{--
         @if (($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []))->isNotEmpty())
             <div class="surface-card p-5">
                 <div class="mb-3 flex items-center gap-3">
@@ -169,6 +170,7 @@
                 </div>
             </div>
         @endif
+        --}}
 
         <div class="surface-card p-5" x-data="{ open: false }">
             <button type="button" class="flex w-full items-center justify-between gap-3 text-left text-sm text-[var(--accent-primary)]" @click="open = !open">
