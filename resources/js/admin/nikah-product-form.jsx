@@ -89,6 +89,20 @@ async function loadStageImage(url) {
     return promise;
 }
 
+function createMediaPreviews(fileList) {
+    return Array.from(fileList || [])
+        .filter((file) => file?.type?.startsWith('image/'))
+        .map((file, index) => ({
+            id: `${file.name}-${file.lastModified}-${index}`,
+            name: file.name,
+            url: URL.createObjectURL(file),
+        }));
+}
+
+function revokeMediaPreviews(previews) {
+    previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+}
+
 function getZonePoints(map, geometry) {
     if (!map || !geometry) {
         return [];
@@ -432,6 +446,51 @@ function serializeVariantOptions(options = []) {
         .join(', ');
 }
 
+function variantMediaKey(name, value) {
+    const key = `${name || ''}`.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    const cleanValue = `${value || ''}`.trim();
+
+    return key && cleanValue ? `${key}:${cleanValue}` : '';
+}
+
+function variantMediaTargets(variants = []) {
+    const groups = new Map();
+
+    variants.forEach((variant) => {
+        (variant.options || []).forEach((option) => {
+            const key = variantMediaKey(option.name, option.value);
+            const groupKey = `${option.name || ''}`.toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+
+            if (!key || !groupKey) {
+                return;
+            }
+
+            if (!groups.has(groupKey)) {
+                groups.set(groupKey, {
+                    key: groupKey,
+                    label: option.name,
+                    targets: new Map(),
+                });
+            }
+
+            const group = groups.get(groupKey);
+
+            if (!group.targets.has(key)) {
+                group.targets.set(key, {
+                    key,
+                    label: option.value,
+                    fullLabel: `${option.name}: ${option.value}`,
+                });
+            }
+        });
+    });
+
+    return Array.from(groups.values()).map((group) => ({
+        ...group,
+        targets: Array.from(group.targets.values()),
+    }));
+}
+
 function createVariantOption(name = '', value = '') {
     return {
         id: uid('variant-option'),
@@ -655,7 +714,12 @@ function ExistingImageRow({ image }) {
             <div className="general-media-row__thumb">
                 <img src={image.image_url} alt={image.alt_text || 'Product image'} />
             </div>
-            <div className="general-media-row__fields">
+            <div className="general-media-row__body">
+                <div className="general-media-row__summary">
+                    <strong>{image.label || 'gallery'}</strong>
+                    {image.is_primary ? <span>Primary image</span> : <span>Gallery image</span>}
+                </div>
+
                 <label className="nikah-field">
                     <span>Label</span>
                     <select name={`existing_images[${image.id}][label]`} defaultValue={image.label || 'gallery'}>
@@ -665,27 +729,34 @@ function ExistingImageRow({ image }) {
                     </select>
                 </label>
 
-                <label className="nikah-field">
-                    <span>Sort order</span>
-                    <input type="number" min="0" name={`existing_images[${image.id}][position]`} defaultValue={image.position ?? 0} />
-                </label>
+                <div className="general-media-row__actions">
+                    <label className="general-checkbox">
+                        <input type="hidden" name={`existing_images[${image.id}][is_primary]`} value="0" />
+                        <input type="checkbox" name={`existing_images[${image.id}][is_primary]`} value="1" defaultChecked={image.is_primary} />
+                        Primary
+                    </label>
 
-                <label className="nikah-field general-media-row__wide">
-                    <span>Alt text</span>
-                    <input type="text" name={`existing_images[${image.id}][alt_text]`} defaultValue={image.alt_text || ''} />
-                </label>
+                    <label className="general-checkbox general-checkbox--danger">
+                        <input type="hidden" name={`existing_images[${image.id}][remove]`} value="0" />
+                        <input type="checkbox" name={`existing_images[${image.id}][remove]`} value="1" />
+                        Remove
+                    </label>
+                </div>
 
-                <label className="general-checkbox">
-                    <input type="hidden" name={`existing_images[${image.id}][is_primary]`} value="0" />
-                    <input type="checkbox" name={`existing_images[${image.id}][is_primary]`} value="1" defaultChecked={image.is_primary} />
-                    Mark as primary
-                </label>
+                <details className="general-media-row__details">
+                    <summary>Alt text and order</summary>
+                    <div className="general-media-row__fields">
+                        <label className="nikah-field">
+                            <span>Sort order</span>
+                            <input type="number" min="0" name={`existing_images[${image.id}][position]`} defaultValue={image.position ?? 0} />
+                        </label>
 
-                <label className="general-checkbox general-checkbox--danger">
-                    <input type="hidden" name={`existing_images[${image.id}][remove]`} value="0" />
-                    <input type="checkbox" name={`existing_images[${image.id}][remove]`} value="1" />
-                    Remove image
-                </label>
+                        <label className="nikah-field">
+                            <span>Alt text</span>
+                            <input type="text" name={`existing_images[${image.id}][alt_text]`} defaultValue={image.alt_text || ''} />
+                        </label>
+                    </div>
+                </details>
             </div>
         </article>
     );
@@ -956,6 +1027,130 @@ function VariantEditor({
     );
 }
 
+function VariantMediaMapper({
+    variants,
+    mediaOptions,
+    links,
+    onChange,
+    title,
+    emptyMessage,
+    mediaLabel,
+}) {
+    const [activeTarget, setActiveTarget] = useState(null);
+    const groups = variantMediaTargets(variants);
+    const hasTargets = groups.some((group) => group.targets.length);
+    const selectedIds = activeTarget ? (links[activeTarget.key] || []) : [];
+
+    function toggleMedia(mediaId) {
+        if (!activeTarget) {
+            return;
+        }
+
+        const currentIds = links[activeTarget.key] || [];
+        const nextIds = currentIds.includes(mediaId)
+            ? currentIds.filter((id) => id !== mediaId)
+            : [...currentIds, mediaId];
+
+        onChange({
+            ...links,
+            [activeTarget.key]: nextIds,
+        });
+    }
+
+    function selectedLabels(target) {
+        const ids = links[target.key] || [];
+
+        if (!ids.length) {
+            return `No ${mediaLabel} selected`;
+        }
+
+        return ids
+            .map((id) => mediaOptions.find((media) => media.id === id)?.label)
+            .filter(Boolean)
+            .join(', ');
+    }
+
+    return (
+        <section className="variant-media-mapper">
+            <div className="variant-media-mapper__heading">
+                <div>
+                    <h4>{title}</h4>
+                    <p>Map one option value once. Every combination using that value will follow it.</p>
+                </div>
+            </div>
+
+            {hasTargets && mediaOptions.length ? (
+                <div className="variant-media-mapper__groups">
+                    {groups.map((group) => (
+                        <section key={group.key} className="variant-media-mapper__group">
+                            <h5>{group.label}</h5>
+                            <div className="variant-media-mapper__list">
+                                {group.targets.map((target) => (
+                                    <article key={target.key} className="variant-media-mapper__row">
+                                        <div>
+                                            <strong>{target.label}</strong>
+                                            <span>{selectedLabels(target)}</span>
+                                        </div>
+                                        <button type="button" className="variant-option-add" onClick={() => setActiveTarget(target)}>
+                                            Select {mediaLabel}
+                                        </button>
+                                    </article>
+                                ))}
+                            </div>
+                        </section>
+                    ))}
+                </div>
+            ) : (
+                <div className="nikah-empty-note">{emptyMessage}</div>
+            )}
+
+            {activeTarget ? (
+                <div className="variant-media-modal" role="dialog" aria-modal="true" aria-label={`Select ${mediaLabel}`}>
+                    <div className="variant-media-modal__backdrop" onClick={() => setActiveTarget(null)} />
+                    <div className="variant-media-modal__panel">
+                        <div className="variant-media-modal__header">
+                            <div>
+                                <h4>{activeTarget.fullLabel}</h4>
+                                <p>Select one or more {mediaLabel}.</p>
+                            </div>
+                            <button type="button" className="variant-icon-button" onClick={() => setActiveTarget(null)} aria-label="Close">
+                                <span aria-hidden="true">✕</span>
+                            </button>
+                        </div>
+
+                        <div className="variant-media-modal__grid">
+                            {mediaOptions.map((media) => {
+                                const isSelected = selectedIds.includes(media.id);
+
+                                return (
+                                    <button
+                                        key={media.id}
+                                        type="button"
+                                        className={`variant-media-tile ${isSelected ? 'is-selected' : ''}`}
+                                        onClick={() => toggleMedia(media.id)}
+                                    >
+                                        <img src={media.thumb} alt={media.label} />
+                                        <span>{media.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+
+                        <div className="variant-media-modal__footer">
+                            <button type="button" className="button-ghost" onClick={() => onChange({ ...links, [activeTarget.key]: [] })}>
+                                Clear selection
+                            </button>
+                            <button type="button" className="button-primary" onClick={() => setActiveTarget(null)}>
+                                Done
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
+        </section>
+    );
+}
+
 function SharedSeoCard({ metaTitle, onMetaTitleChange, metaDescription, onMetaDescriptionChange, errors, step }) {
     return (
         <section className="nikah-step-card">
@@ -1042,6 +1237,7 @@ function NikahProductForm({ payload }) {
     const [activeMockups, setActiveMockups] = useState(product.isNew ? [] : (product.activeMockupIds || []));
     const [defaultMockupId, setDefaultMockupId] = useState(product.isNew ? '' : (product.defaultMockupId || ''));
     const [personalizationFields, setPersonalizationFields] = useState(initialFields);
+    const [variantMediaLinks, setVariantMediaLinks] = useState(product.variantMediaLinks || {});
     const [price, setPrice] = useState(product.price || '');
     const [compareAtPrice, setCompareAtPrice] = useState(product.compareAtPrice || '');
     const [leadTimeDays, setLeadTimeDays] = useState(product.leadTimeDays || '');
@@ -1051,6 +1247,8 @@ function NikahProductForm({ payload }) {
     const [lowStockThreshold, setLowStockThreshold] = useState(product.lowStockThreshold || '0');
     const [isFeatured, setIsFeatured] = useState(Boolean(product.isFeatured));
     const [videoUrl, setVideoUrl] = useState(product.videoUrl || '');
+    const [featuredImagePreview, setFeaturedImagePreview] = useState([]);
+    const [galleryPreviews, setGalleryPreviews] = useState([]);
     const [personalizationHelpText, setPersonalizationHelpText] = useState(product.personalizationHelpText || '');
     const [metaTitle, setMetaTitle] = useState(product.metaTitle || '');
     const [metaDescription, setMetaDescription] = useState(product.metaDescription || '');
@@ -1059,6 +1257,8 @@ function NikahProductForm({ payload }) {
     const [copiedVariantPricing, setCopiedVariantPricing] = useState(null);
     const [draggedFieldId, setDraggedFieldId] = useState(null);
     const previousDesignId = useRef(selectedDesignId);
+    const featuredImagePreviewRef = useRef([]);
+    const galleryPreviewsRef = useRef([]);
     const slugManualRef = useRef(Boolean(product.slug) && product.slug !== initialGeneratedSlug);
     const skuManualRef = useRef(Boolean(product.sku) && product.sku !== initialGeneratedSku);
     const metaTitleManualRef = useRef(Boolean(product.metaTitle) && product.metaTitle !== initialGeneratedMetaTitle);
@@ -1080,6 +1280,21 @@ function NikahProductForm({ payload }) {
     const hasZone = Boolean(activeFrame && zoneBox.hasZone);
     const hasFields = personalizationFields.length > 0 && personalizationFields.every((field) => field.label.trim() !== '');
     const basePublishReady = Boolean(productName.trim() && categoryId && `${price}`.trim() !== '');
+    const primaryExistingImage = existingImages.find((image) => image.is_primary) || existingImages[0] || null;
+    const savedFeaturedImageUrl = product.featuredImageUrl || primaryExistingImage?.image_url || '';
+    const productImageOptions = existingImages.map((image, index) => ({
+        id: `${image.id}`,
+        label: `${index + 1}. ${image.label || image.alt_text || 'Product image'}`,
+        thumb: image.image_url,
+        alt_text: image.alt_text,
+    }));
+    const mockupOptions = availableMockups
+        .filter((mockup) => activeMockups.includes(mockup.id))
+        .map((mockup) => ({
+            id: `${mockup.id}`,
+            label: mockup.title,
+            thumb: mockup.thumb_image_url || mockup.base_image_url,
+        }));
     const canPublish = isAdvancedMode
         ? basePublishReady && hasDesign && hasActiveMockups && hasZone && hasFields
         : basePublishReady;
@@ -1165,6 +1380,11 @@ function NikahProductForm({ payload }) {
         }
     }, [excerpt, metaDescription]);
 
+    useEffect(() => () => {
+        revokeMediaPreviews(featuredImagePreviewRef.current);
+        revokeMediaPreviews(galleryPreviewsRef.current);
+    }, []);
+
     function switchEditorMode(mode) {
         if (mode === 'advanced') {
             if (currentType !== ADVANCED_TYPE) {
@@ -1207,6 +1427,22 @@ function NikahProductForm({ payload }) {
     function handleMetaDescriptionChange(value) {
         setMetaDescription(value);
         metaDescriptionManualRef.current = Boolean(value.trim()) && value !== truncateText(excerpt, 160);
+    }
+
+    function handleFeaturedImageChange(event) {
+        const nextPreviews = createMediaPreviews(event.target.files).slice(0, 1);
+
+        revokeMediaPreviews(featuredImagePreviewRef.current);
+        featuredImagePreviewRef.current = nextPreviews;
+        setFeaturedImagePreview(nextPreviews);
+    }
+
+    function handleGalleryUploadsChange(event) {
+        const nextPreviews = createMediaPreviews(event.target.files);
+
+        revokeMediaPreviews(galleryPreviewsRef.current);
+        galleryPreviewsRef.current = nextPreviews;
+        setGalleryPreviews(nextPreviews);
     }
 
     function toggleArrayValue(setter, id) {
@@ -1444,6 +1680,8 @@ function NikahProductForm({ payload }) {
             {isAdvancedMode ? activeMockups.map((mockupId) => (
                 <input key={`mockup-${mockupId}`} type="hidden" name="allowed_mockup_ids[]" value={mockupId} />
             )) : null}
+
+            <input type="hidden" name="variant_media_links" value={JSON.stringify(variantMediaLinks)} />
 
             <div className="nikah-form">
                 <div className="nikah-form__header">
@@ -1796,6 +2034,16 @@ function NikahProductForm({ payload }) {
                                     hasCopiedPricing={Boolean(copiedVariantPricing)}
                                     emptyMessage="No variants added yet. Leave this empty for a single-option Nikahnama product."
                                 />
+
+                                <VariantMediaMapper
+                                    variants={variants}
+                                    mediaOptions={mockupOptions}
+                                    links={variantMediaLinks}
+                                    onChange={setVariantMediaLinks}
+                                    title="Variant mockup mapping"
+                                    mediaLabel="mockups"
+                                    emptyMessage="Add variants and assign mockups first, then map option values to scenes."
+                                />
                             </section>
 
                             <section className="nikah-step-card" hidden={advancedTab !== 'related'}>
@@ -2124,6 +2372,16 @@ function NikahProductForm({ payload }) {
                                 hasCopiedPricing={Boolean(copiedVariantPricing)}
                                 emptyMessage="No variants added yet. Leave this empty for a single-price product."
                             />
+
+                            <VariantMediaMapper
+                                variants={variants}
+                                mediaOptions={productImageOptions}
+                                links={variantMediaLinks}
+                                onChange={setVariantMediaLinks}
+                                title="Variant image mapping"
+                                mediaLabel="images"
+                                emptyMessage="Add variants and upload gallery images first, then map option values to images."
+                            />
                         </section>
 
                         <section className="nikah-step-card" hidden={generalTab !== 'media'}>
@@ -2131,33 +2389,71 @@ function NikahProductForm({ payload }) {
                                 <span className="nikah-step-card__step">5</span>
                                 <div>
                                     <h3>Media</h3>
-                                    <p>Upload the featured image, gallery media, and optional supporting video URL.</p>
+                                    <p>Add product photos and preview them before saving.</p>
                                 </div>
                             </div>
 
-                            <div className="nikah-form__grid nikah-form__grid--two">
-                                <label className="nikah-field">
-                                    <span>Featured image</span>
-                                    <input type="file" name="featured_image_upload" accept="image/*" />
-                                    {getError(errors, 'featured_image_upload') ? <small>{getError(errors, 'featured_image_upload')}</small> : null}
-                                </label>
+                            <div className="media-upload-panel">
+                                <div className="media-upload-card">
+                                    <label className="nikah-field">
+                                        <span>Featured image</span>
+                                        <input type="file" name="featured_image_upload" accept="image/*" onChange={handleFeaturedImageChange} />
+                                        {getError(errors, 'featured_image_upload') ? <small>{getError(errors, 'featured_image_upload')}</small> : null}
+                                    </label>
 
-                                <label className="nikah-field">
-                                    <span>Gallery uploads</span>
-                                    <input type="file" name="gallery_uploads[]" accept="image/*" multiple />
-                                </label>
+                                    <div className="media-preview-card media-preview-card--large">
+                                        {featuredImagePreview[0] ? (
+                                            <>
+                                                <img src={featuredImagePreview[0].url} alt={featuredImagePreview[0].name} />
+                                                <span>New featured image</span>
+                                            </>
+                                        ) : savedFeaturedImageUrl ? (
+                                            <>
+                                                <img src={savedFeaturedImageUrl} alt="Current featured product" />
+                                                <span>Current featured image</span>
+                                            </>
+                                        ) : (
+                                            <div className="media-preview-card__empty">No featured image</div>
+                                        )}
+                                    </div>
+                                </div>
 
-                                <label className="nikah-field nikah-form__span-two">
+                                <div className="media-upload-card">
+                                    <label className="nikah-field">
+                                        <span>Gallery images</span>
+                                        <input type="file" name="gallery_uploads[]" accept="image/*" multiple onChange={handleGalleryUploadsChange} />
+                                    </label>
+
+                                    {galleryPreviews.length ? (
+                                        <div className="media-preview-grid">
+                                            {galleryPreviews.map((preview) => (
+                                                <article key={preview.id} className="media-preview-card">
+                                                    <img src={preview.url} alt={preview.name} />
+                                                    <span>{preview.name}</span>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="media-preview-card__empty">Choose gallery images to preview</div>
+                                    )}
+                                </div>
+
+                                <label className="nikah-field media-upload-panel__video">
                                     <span>Video URL</span>
-                                    <input type="url" name="video_url" value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} />
+                                    <input type="url" name="video_url" value={videoUrl} onChange={(event) => setVideoUrl(event.target.value)} placeholder="https://..." />
                                 </label>
+                            </div>
+
+                            <div className="general-media-list__heading">
+                                <h4>Saved gallery</h4>
+                                <span>{existingImages.length} image{existingImages.length === 1 ? '' : 's'}</span>
                             </div>
 
                             <div className="general-media-list">
                                 {existingImages.length ? existingImages.map((image) => (
                                     <ExistingImageRow key={image.id} image={image} />
                                 )) : (
-                                    <div className="nikah-empty-note">No gallery images uploaded yet.</div>
+                                    <div className="nikah-empty-note">No saved gallery images yet.</div>
                                 )}
                             </div>
                         </section>

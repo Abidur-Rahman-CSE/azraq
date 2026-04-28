@@ -36,4 +36,5 @@ class ProductVariant extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
 }

@@ -16,6 +16,54 @@ it('shows a standard product detail page', function () {
         ->assertSee('Shipping, care, and policy');
 });
 
+it('hydrates variant image links on the standard product detail page', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'bridal-dupatta')->with(['images', 'variants'])->firstOrFail();
+    $image = $product->images->firstOrFail();
+    $variant = $product->variants->firstOrFail();
+    $variant->update(['option_values' => ['color:Ruby']]);
+    $product->update([
+        'variant_media_links' => [
+            'color:Ruby' => [(string) $image->id],
+        ],
+    ]);
+
+    $this->get(route('products.show', $product))
+        ->assertOk()
+        ->assertSee('variantMediaLinks', false)
+        ->assertSee((string) $image->id, false);
+});
+
+it('hydrates variant mockup links on the advanced product detail page', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')
+        ->with('personalizationMockups')
+        ->firstOrFail();
+    $mockup = $product->personalizationMockups->firstOrFail();
+
+    $product->variants()->create([
+        'name' => 'Framed Nikah',
+        'sku' => 'AZR-NIK-FRAMED',
+        'option_values' => ['frame_type:Framed'],
+        'price' => 2900,
+        'stock_quantity' => 0,
+        'is_default' => true,
+        'position' => 0,
+    ]);
+    $product->update([
+        'variant_media_links' => [
+            'frame_type:Framed' => [(string) $mockup->id],
+        ],
+    ]);
+
+    $this->get(route('products.show', $product))
+        ->assertOk()
+        ->assertSee('variantMediaLinks', false)
+        ->assertSee((string) $mockup->id, false);
+});
+
 it('adds a product to the cart and displays it in the cart page', function () {
     $this->seed(CatalogSeeder::class);
 

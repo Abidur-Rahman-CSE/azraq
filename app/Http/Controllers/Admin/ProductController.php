@@ -182,6 +182,7 @@ class ProductController extends Controller
                 'allowed_mockup_ids',
                 'default_mockup_id',
                 'personalization_fields_blueprint',
+                'variant_media_links',
                 'related_category_ids',
                 'featured_image_upload',
                 'gallery_uploads',
@@ -199,6 +200,9 @@ class ProductController extends Controller
             'featured_image_url' => $request->route('product')?->featured_image_url,
             'personalization_fields_blueprint' => $request->filled('personalization_fields_blueprint')
                 ? json_decode($request->input('personalization_fields_blueprint'), true)
+                : null,
+            'variant_media_links' => $request->filled('variant_media_links')
+                ? json_decode($request->input('variant_media_links'), true)
                 : null,
         ];
     }

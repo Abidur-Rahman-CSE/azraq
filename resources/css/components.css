@@ -1094,6 +1094,94 @@
     margin-top: 1rem;
 }
 
+.general-media-list__heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 1.2rem;
+}
+
+.general-media-list__heading h4 {
+    margin: 0;
+    color: var(--color-secondary-900);
+    font-size: 0.95rem;
+}
+
+.general-media-list__heading span {
+    color: var(--color-text-soft);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.media-upload-panel {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+}
+
+.media-upload-card {
+    display: grid;
+    gap: 0.8rem;
+    align-content: start;
+    border: 0.5px solid rgba(15, 46, 60, 0.12);
+    border-radius: 10px;
+    background: #fff;
+    padding: 0.9rem;
+}
+
+.media-upload-panel__video {
+    grid-column: 1 / -1;
+}
+
+.media-preview-grid {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+}
+
+.media-preview-card {
+    overflow: hidden;
+    border: 0.5px solid rgba(15, 46, 60, 0.12);
+    border-radius: 8px;
+    background: #faf7f1;
+}
+
+.media-preview-card img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+}
+
+.media-preview-card span {
+    display: block;
+    overflow: hidden;
+    padding: 0.5rem 0.6rem;
+    color: var(--color-text-soft);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-preview-card--large img {
+    aspect-ratio: 4 / 3;
+}
+
+.media-preview-card__empty {
+    display: grid;
+    min-height: 140px;
+    place-items: center;
+    border: 1px dashed rgba(15, 46, 60, 0.18);
+    border-radius: 8px;
+    background: #faf7f1;
+    color: var(--color-text-soft);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+}
+
 .general-variant-list {
     display: grid;
     gap: 0.85rem;
@@ -1311,6 +1399,158 @@
     justify-self: flex-start;
 }
 
+.variant-media-mapper {
+    display: grid;
+    gap: 0.85rem;
+    margin-top: 1rem;
+    border: 0.5px solid rgba(15, 46, 60, 0.12);
+    border-radius: 10px;
+    background: #fff;
+    padding: 0.9rem;
+}
+
+.variant-media-mapper__heading h4,
+.variant-media-modal__header h4 {
+    margin: 0;
+    color: var(--color-secondary-900);
+    font-size: 0.95rem;
+}
+
+.variant-media-mapper__heading p,
+.variant-media-modal__header p {
+    margin: 0.25rem 0 0;
+    color: var(--color-text-soft);
+    font-size: 0.78rem;
+}
+
+.variant-media-mapper__list {
+    display: grid;
+    gap: 0.65rem;
+}
+
+.variant-media-mapper__groups {
+    display: grid;
+    gap: 1rem;
+}
+
+.variant-media-mapper__group {
+    display: grid;
+    gap: 0.6rem;
+}
+
+.variant-media-mapper__group h5 {
+    margin: 0;
+    color: var(--color-secondary-900);
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.variant-media-mapper__row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-radius: 8px;
+    background: #faf7f1;
+    padding: 0.75rem;
+}
+
+.variant-media-mapper__row div {
+    display: grid;
+    gap: 0.25rem;
+    min-width: 0;
+}
+
+.variant-media-mapper__row strong {
+    color: var(--color-secondary-900);
+    font-size: 0.86rem;
+}
+
+.variant-media-mapper__row span {
+    overflow: hidden;
+    color: var(--color-text-soft);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.variant-media-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+}
+
+.variant-media-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 46, 60, 0.34);
+}
+
+.variant-media-modal__panel {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    gap: 1rem;
+    width: min(760px, 100%);
+    max-height: min(720px, 90vh);
+    overflow: auto;
+    border-radius: 12px;
+    background: #fff;
+    padding: 1rem;
+    box-shadow: 0 24px 60px rgba(15, 46, 60, 0.2);
+}
+
+.variant-media-modal__header,
+.variant-media-modal__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.variant-media-modal__grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+}
+
+.variant-media-tile {
+    display: grid;
+    gap: 0.5rem;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background: #faf7f1;
+    padding: 0.45rem;
+    text-align: left;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.variant-media-tile.is-selected {
+    border-color: var(--color-secondary-900);
+    transform: translateY(-1px);
+}
+
+.variant-media-tile img {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    object-fit: cover;
+}
+
+.variant-media-tile span {
+    overflow: hidden;
+    color: var(--color-secondary-900);
+    font-size: 0.76rem;
+    font-weight: 700;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .general-media-row {
     display: grid;
     gap: 0.85rem;
@@ -1332,6 +1572,50 @@
     width: 100%;
     aspect-ratio: 1;
     object-fit: cover;
+}
+
+.general-media-row__body {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.general-media-row__summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.general-media-row__summary strong {
+    color: var(--color-secondary-900);
+    font-size: 0.9rem;
+    text-transform: capitalize;
+}
+
+.general-media-row__summary span {
+    color: var(--color-text-soft);
+    font-size: 0.76rem;
+    font-weight: 700;
+}
+
+.general-media-row__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.7rem;
+}
+
+.general-media-row__details {
+    color: var(--color-text-soft);
+    font-size: 0.8rem;
+}
+
+.general-media-row__details summary {
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.general-media-row__details[open] summary {
+    margin-bottom: 0.75rem;
 }
 
 .general-media-row__fields {
@@ -1360,6 +1644,7 @@
 
     .editor-mode-toggle,
     .selected-design-preview,
+    .media-upload-panel,
     .general-media-row {
         grid-template-columns: 1fr;
     }

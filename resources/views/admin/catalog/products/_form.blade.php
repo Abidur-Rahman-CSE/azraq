@@ -52,8 +52,19 @@
         ->values()
         ->all();
 
+    $variantMediaLinks = old('variant_media_links');
+
+    if (is_string($variantMediaLinks) && filled($variantMediaLinks)) {
+        $variantMediaLinks = json_decode($variantMediaLinks, true);
+    }
+
+    $variantMediaLinks = $variantMediaLinks
+        ?? $product->variant_media_links
+        ?? [];
+
     $variantPayload = collect(old('variants', $product->variants->map(function ($variant) {
         return [
+            'id' => $variant->id,
             'name' => $variant->name,
             'sku' => $variant->sku,
             'option_values' => filled($variant->option_values ?? null)
@@ -68,6 +79,7 @@
         ->values()
         ->map(function ($variant) {
             return [
+                'id' => $variant['id'] ?? null,
                 'name' => $variant['name'] ?? '',
                 'sku' => $variant['sku'] ?? '',
                 'option_values' => $variant['option_values'] ?? '',
@@ -192,6 +204,7 @@
             'stockQuantity' => (string) old('stock_quantity', $product->stock_quantity ?? 0),
             'lowStockThreshold' => (string) old('low_stock_threshold', $product->low_stock_threshold ?? 0),
             'isFeatured' => (bool) old('is_featured', $product->is_featured ?? false),
+            'featuredImageUrl' => old('featured_image_url', $product->featured_image_url),
             'videoUrl' => old('video_url', $product->video_url),
             'personalizationHelpText' => old('personalization_help_text', $product->personalization_help_text),
             'metaTitle' => old('meta_title', $product->meta_title),
@@ -201,6 +214,7 @@
             'activeMockupIds' => $selectedMockupIds,
             'defaultMockupId' => $defaultMockupId ? (int) $defaultMockupId : '',
             'personalizationFields' => $personalizationFieldsBlueprint,
+            'variantMediaLinks' => $variantMediaLinks,
             'variants' => $variantPayload,
             'isNew' => ! $isEdit,
         ],
@@ -245,6 +259,7 @@
 <form
     method="POST"
     action="{{ $isEdit ? route('admin.catalog.products.update', $product) : route('admin.catalog.products.store') }}"
+    enctype="multipart/form-data"
     class="space-y-6"
 >
     @csrf

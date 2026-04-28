@@ -48,6 +48,7 @@ class ProductRequest extends FormRequest
             'live_preview_enabled' => ['nullable', 'boolean'],
             'personalization_help_text' => ['nullable', 'string'],
             'personalization_fields_blueprint' => ['nullable', 'json'],
+            'variant_media_links' => ['nullable', 'json'],
             'meta_title' => ['nullable', 'string', 'max:255'],
             'meta_description' => ['nullable', 'string', 'max:500'],
             'gallery_uploads' => ['nullable', 'array'],

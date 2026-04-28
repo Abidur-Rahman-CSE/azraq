@@ -239,6 +239,142 @@ it('hydrates variants on the general product editor', function () {
         ->assertSee($variant->name, false);
 });
 
+it('supports media uploads on the general product edit form', function () {
+    $this->seed(CatalogSeeder::class);
+    Storage::fake('public');
+
+    $product = Product::where('slug', 'bridal-dupatta')->firstOrFail();
+
+    $this->get(route('admin.catalog.products.edit', $product))
+        ->assertOk()
+        ->assertSee('enctype="multipart/form-data"', false);
+
+    $response = $this->put(route('admin.catalog.products.update', $product), [
+        'category_id' => $product->category_id,
+        'name' => $product->name,
+        'slug' => $product->slug,
+        'sku' => $product->sku,
+        'type' => ProductType::Standard->value,
+        'status' => 'active',
+        'excerpt' => $product->excerpt,
+        'description' => $product->description,
+        'price' => $product->price,
+        'compare_at_price' => $product->compare_at_price,
+        'lead_time_days' => $product->lead_time_days,
+        'manage_stock' => $product->manage_stock,
+        'stock_quantity' => $product->stock_quantity,
+        'low_stock_threshold' => $product->low_stock_threshold,
+        'video_url' => 'https://example.com/product-video',
+        'featured_image_upload' => UploadedFile::fake()->image('updated-featured.jpg'),
+        'gallery_uploads' => [
+            UploadedFile::fake()->image('updated-gallery.jpg'),
+        ],
+    ]);
+
+    $response->assertRedirect(route('admin.catalog.products.edit', $product));
+
+    $product->refresh();
+
+    expect($product->featured_image_url)->toContain('/storage/products/')
+        ->and($product->video_url)->toBe('https://example.com/product-video')
+        ->and($product->images()->where('alt_text', $product->name.' gallery image')->exists())->toBeTrue();
+});
+
+it('links general product variant option values to saved product images', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'bridal-dupatta')->with(['images', 'variants'])->firstOrFail();
+    $image = $product->images->firstOrFail();
+    $variant = $product->variants->firstOrFail();
+    $linkKey = 'option_1:ruby';
+
+    $response = $this->put(route('admin.catalog.products.update', $product), [
+        'category_id' => $product->category_id,
+        'name' => $product->name,
+        'slug' => $product->slug,
+        'sku' => $product->sku,
+        'type' => ProductType::Standard->value,
+        'status' => 'active',
+        'price' => $product->price,
+        'manage_stock' => $product->manage_stock,
+        'stock_quantity' => $product->stock_quantity,
+        'low_stock_threshold' => $product->low_stock_threshold,
+        'variant_media_links' => json_encode([
+            $linkKey => [(string) $image->id],
+        ]),
+        'variants' => [
+            [
+                'name' => $variant->name,
+                'sku' => $variant->sku,
+                'option_values' => implode(', ', $variant->option_values ?? []),
+                'price' => $variant->price,
+                'stock_quantity' => $variant->stock_quantity,
+                'is_default' => 1,
+            ],
+        ],
+    ]);
+
+    $response->assertRedirect(route('admin.catalog.products.edit', $product));
+
+    $product->refresh();
+
+    expect($product->variant_media_links[$linkKey])->toBe([(string) $image->id]);
+});
+
+it('links advanced product variant option values to assigned mockups', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')
+        ->with(['personalizationTemplate', 'personalizationMockups', 'variants'])
+        ->firstOrFail();
+    $mockup = $product->personalizationMockups->firstOrFail();
+    $linkKey = 'frame_type:Framed';
+    $variant = $product->variants()->create([
+        'name' => 'Framed Nikah',
+        'sku' => 'AZR-NIK-FRAMED',
+        'option_values' => ['frame_type:Framed'],
+        'price' => 2900,
+        'stock_quantity' => 0,
+        'is_default' => true,
+        'position' => 0,
+    ]);
+
+    $response = $this->put(route('admin.catalog.products.update', $product), [
+        'category_id' => $product->category_id,
+        'name' => $product->name,
+        'slug' => $product->slug,
+        'sku' => $product->sku,
+        'type' => ProductType::AdvancedPersonalized->value,
+        'status' => 'active',
+        'price' => $product->price,
+        'manage_stock' => false,
+        'stock_quantity' => 0,
+        'low_stock_threshold' => 0,
+        'assigned_template_id' => $product->personalizationTemplate->id,
+        'allowed_mockup_ids' => $product->personalizationMockups->pluck('id')->all(),
+        'default_mockup_id' => $mockup->id,
+        'variant_media_links' => json_encode([
+            $linkKey => [(string) $mockup->id],
+        ]),
+        'variants' => [
+            [
+                'name' => $variant->name,
+                'sku' => $variant->sku,
+                'option_values' => implode(', ', $variant->option_values ?? []),
+                'price' => $variant->price,
+                'stock_quantity' => $variant->stock_quantity,
+                'is_default' => 1,
+            ],
+        ],
+    ]);
+
+    $response->assertRedirect(route('admin.catalog.products.edit', $product));
+
+    $product->refresh();
+
+    expect($product->variant_media_links[$linkKey])->toBe([(string) $mockup->id]);
+});
+
 it('keeps advanced customization create state clean until a template is chosen', function () {
     $this->seed(CatalogSeeder::class);
 

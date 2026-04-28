@@ -1002,6 +1002,38 @@ export function registerNikahPreview(Alpine) {
                 this.selectedVariant = `${match.id}`;
             }
         },
+        syncPreviewFromActiveVariant() {
+            const variant = this.activeVariant;
+
+            if (!variant) {
+                return;
+            }
+
+            const mappedMediaIds = Object.entries(variant.option_values ?? {})
+                .map(([key, value]) => config.variantMediaLinks?.[`${normalizeOptionKey(key)}:${value}`] ?? [])
+                .flat()
+                .filter(Boolean);
+
+            if (!this.isCustomizable) {
+                const imageId = mappedMediaIds[0];
+                const imageIndex = (config.generalImages ?? []).findIndex((image) => `${image.id}` === `${imageId}`);
+
+                if (imageIndex >= 0) {
+                    this.selectImage(imageIndex);
+                }
+
+                return;
+            }
+
+            if (this.isCustomizable) {
+                const mockupId = mappedMediaIds[0];
+                const mockupIndex = (config.mockups ?? []).findIndex((mockup) => `${mockup.id}` === `${mockupId}`);
+
+                if (mockupIndex >= 0) {
+                    this.selectMockup(mockupIndex);
+                }
+            }
+        },
         openSizeGuide() {
             document.getElementById('shipping-care-policy')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         },
@@ -1177,6 +1209,7 @@ export function registerNikahPreview(Alpine) {
         init() {
             this.$nextTick(() => {
                 this.initializeVariantState();
+                this.$watch('selectedVariant', () => this.syncPreviewFromActiveVariant());
                 this.syncRecentlyViewed();
                 this.observeStickyBar();
 
@@ -1206,8 +1239,11 @@ export function registerNikahPreview(Alpine) {
                         this.mode = 'mockup';
                     }
 
+                    this.syncPreviewFromActiveVariant();
                     this.initZoom();
                     this.renderPreview();
+                } else {
+                    this.syncPreviewFromActiveVariant();
                 }
             });
 

@@ -5,6 +5,7 @@
     $generalImages = $product->images
         ->take(8)
         ->map(fn ($image) => [
+            'id' => $image->id,
             'url' => $image->image_url,
             'thumb' => $image->image_url,
             'alt' => $image->alt_text ?: $image->label ?: $product->name,
@@ -277,6 +278,7 @@
             activeFont: @js($defaultFont['key'] ?? null),
             generalImages: @js($generalImages->values()->all()),
             variants: @js($variantsPayload),
+            variantMediaLinks: @js($product->variant_media_links ?? []),
             variantGroups: @js($variantGroups->values()->all()),
             selectedVariant: @js($selectedVariant),
             selectedVariants: @js($selectedVariantGroups),
