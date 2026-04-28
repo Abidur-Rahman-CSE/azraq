@@ -239,6 +239,64 @@ it('hydrates variants on the general product editor', function () {
         ->assertSee($variant->name, false);
 });
 
+it('hydrates combo bundle items on the product editor', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'nikkah-combo')->with('bundleItems.childProduct')->firstOrFail();
+    $bundleItem = $product->bundleItems->firstOrFail();
+
+    $this->get(route('admin.catalog.products.edit', $product))
+        ->assertOk()
+        ->assertSee('Combo')
+        ->assertSee('"bundleItems":[', false)
+        ->assertSee((string) $bundleItem->child_product_id, false)
+        ->assertSee($bundleItem->childProduct->name, false);
+});
+
+it('hydrates and updates service booking details on the product editor', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'mehendi-booking')->with('serviceMeta')->firstOrFail();
+
+    $this->get(route('admin.catalog.products.edit', $product))
+        ->assertOk()
+        ->assertSee('Service')
+        ->assertSee('"serviceMeta":', false)
+        ->assertSee('Half day session', false);
+
+    $this->put(route('admin.catalog.products.update', $product), [
+        'category_id' => $product->category_id,
+        'name' => $product->name,
+        'slug' => $product->slug,
+        'sku' => $product->sku,
+        'type' => ProductType::Service->value,
+        'status' => 'active',
+        'excerpt' => $product->excerpt,
+        'description' => $product->description,
+        'price' => $product->price,
+        'compare_at_price' => $product->compare_at_price,
+        'lead_time_days' => $product->lead_time_days,
+        'manage_stock' => false,
+        'stock_quantity' => 0,
+        'low_stock_threshold' => $product->low_stock_threshold,
+        'service_meta' => [
+            'service_type' => 'Mehendi',
+            'duration_label' => 'Full day booking',
+            'location_scope' => 'Dhaka and nearby areas',
+            'requires_advance_payment' => true,
+            'advance_payment_amount' => 1500,
+            'booking_notes' => 'Admin editable package details.',
+        ],
+    ])->assertRedirect(route('admin.catalog.products.edit', $product));
+
+    $product->refresh();
+
+    expect($product->serviceMeta)
+        ->duration_label->toBe('Full day booking')
+        ->location_scope->toBe('Dhaka and nearby areas')
+        ->booking_notes->toBe('Admin editable package details.');
+});
+
 it('supports media uploads on the general product edit form', function () {
     $this->seed(CatalogSeeder::class);
     Storage::fake('public');

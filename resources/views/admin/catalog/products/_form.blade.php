@@ -91,6 +91,28 @@
         })
         ->all();
 
+    $bundleItemPayload = collect(old('bundle_items', $product->bundleItems->map(function ($item) {
+        return [
+            'child_product_id' => $item->child_product_id,
+            'quantity' => $item->quantity,
+        ];
+    })->all() ?? []))
+        ->values()
+        ->map(fn ($item) => [
+            'child_product_id' => isset($item['child_product_id']) ? (string) $item['child_product_id'] : '',
+            'quantity' => isset($item['quantity']) ? (string) $item['quantity'] : '1',
+        ])
+        ->all();
+
+    $serviceMetaPayload = old('service_meta', [
+        'service_type' => $product->serviceMeta?->service_type,
+        'duration_label' => $product->serviceMeta?->duration_label,
+        'location_scope' => $product->serviceMeta?->location_scope,
+        'requires_advance_payment' => $product->serviceMeta?->requires_advance_payment ?? false,
+        'advance_payment_amount' => $product->serviceMeta?->advance_payment_amount,
+        'booking_notes' => $product->serviceMeta?->booking_notes,
+    ]);
+
     $designPayload = $personalizationTemplates->map(function ($template) {
         $snapshotUrl = $template->thumbnail_image_url
             ? $template->thumbnail_image_url.'?v='.urlencode((string) optional($template->updated_at)->timestamp)
@@ -216,6 +238,15 @@
             'personalizationFields' => $personalizationFieldsBlueprint,
             'variantMediaLinks' => $variantMediaLinks,
             'variants' => $variantPayload,
+            'bundleItems' => $bundleItemPayload,
+            'serviceMeta' => [
+                'service_type' => $serviceMetaPayload['service_type'] ?? '',
+                'duration_label' => $serviceMetaPayload['duration_label'] ?? '',
+                'location_scope' => $serviceMetaPayload['location_scope'] ?? '',
+                'requires_advance_payment' => (bool) ($serviceMetaPayload['requires_advance_payment'] ?? false),
+                'advance_payment_amount' => isset($serviceMetaPayload['advance_payment_amount']) ? (string) $serviceMetaPayload['advance_payment_amount'] : '',
+                'booking_notes' => $serviceMetaPayload['booking_notes'] ?? '',
+            ],
             'isNew' => ! $isEdit,
         ],
         'productTypes' => collect($productTypes)

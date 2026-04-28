@@ -1151,6 +1151,155 @@ function VariantMediaMapper({
     );
 }
 
+function normalizeBundleItem(item = {}) {
+    return {
+        id: item.id || uid('bundle-item'),
+        child_product_id: item.child_product_id ? `${item.child_product_id}` : '',
+        quantity: item.quantity ? `${item.quantity}` : '1',
+    };
+}
+
+function BundleItemEditor({
+    items,
+    products,
+    onAddItem,
+    onRemoveItem,
+    onUpdateItem,
+}) {
+    return (
+        <section className="bundle-item-editor">
+            <div className="variant-media-mapper__heading">
+                <div>
+                    <h4>Combo items</h4>
+                    <p>Select the products included in this combo and set each quantity.</p>
+                </div>
+            </div>
+
+            <div className="bundle-item-editor__list">
+                {items.length ? items.map((item, index) => (
+                    <article key={item.id} className="bundle-item-editor__row">
+                        <label className="nikah-field">
+                            <span>Included product</span>
+                            <select
+                                name={`bundle_items[${index}][child_product_id]`}
+                                value={item.child_product_id}
+                                onChange={(event) => onUpdateItem(item.id, 'child_product_id', event.target.value)}
+                            >
+                                <option value="">Select product</option>
+                                {products.map((product) => (
+                                    <option key={product.id} value={product.id}>{product.name}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="nikah-field">
+                            <span>Quantity</span>
+                            <input
+                                type="number"
+                                min="1"
+                                name={`bundle_items[${index}][quantity]`}
+                                value={item.quantity}
+                                onChange={(event) => onUpdateItem(item.id, 'quantity', event.target.value)}
+                            />
+                        </label>
+
+                        <button type="button" className="variant-icon-button variant-icon-button--danger" onClick={() => onRemoveItem(item.id)} aria-label="Remove combo item">
+                            <span aria-hidden="true">✕</span>
+                        </button>
+                    </article>
+                )) : (
+                    <div className="nikah-empty-note">No combo items yet. Add the products customers will receive together.</div>
+                )}
+            </div>
+
+            <button type="button" className="nikah-add-field" onClick={onAddItem}>Add combo item</button>
+        </section>
+    );
+}
+
+function ServiceMetaEditor({ meta, onUpdate }) {
+    return (
+        <section className="bundle-item-editor">
+            <div className="variant-media-mapper__heading">
+                <div>
+                    <h4>Service details</h4>
+                    <p>These details power the booking product page and booking request rules.</p>
+                </div>
+            </div>
+
+            <div className="nikah-form__grid nikah-form__grid--two">
+                <label className="nikah-field">
+                    <span>Service type</span>
+                    <input
+                        type="text"
+                        name="service_meta[service_type]"
+                        value={meta.service_type || ''}
+                        onChange={(event) => onUpdate('service_type', event.target.value)}
+                        placeholder="Mehendi, styling, consultation"
+                    />
+                </label>
+
+                <label className="nikah-field">
+                    <span>Duration label</span>
+                    <input
+                        type="text"
+                        name="service_meta[duration_label]"
+                        value={meta.duration_label || ''}
+                        onChange={(event) => onUpdate('duration_label', event.target.value)}
+                        placeholder="2 hours, half day, full day"
+                    />
+                </label>
+
+                <label className="nikah-field">
+                    <span>Location scope</span>
+                    <input
+                        type="text"
+                        name="service_meta[location_scope]"
+                        value={meta.location_scope || ''}
+                        onChange={(event) => onUpdate('location_scope', event.target.value)}
+                        placeholder="Dhaka city, studio, client venue"
+                    />
+                </label>
+
+                <label className="nikah-field">
+                    <span>Advance amount</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        name="service_meta[advance_payment_amount]"
+                        value={meta.advance_payment_amount || ''}
+                        onChange={(event) => onUpdate('advance_payment_amount', event.target.value)}
+                    />
+                </label>
+
+                <label className="general-checkbox nikah-form__span-two">
+                    <input type="hidden" name="service_meta[requires_advance_payment]" value="0" />
+                    <input
+                        type="checkbox"
+                        name="service_meta[requires_advance_payment]"
+                        value="1"
+                        checked={Boolean(meta.requires_advance_payment)}
+                        onChange={(event) => onUpdate('requires_advance_payment', event.target.checked)}
+                    />
+                    Requires advance payment after confirmation
+                </label>
+
+                <label className="nikah-field nikah-form__span-two">
+                    <span>Booking notes / service details</span>
+                    <textarea
+                        name="service_meta[booking_notes]"
+                        rows="5"
+                        value={meta.booking_notes || ''}
+                        onChange={(event) => onUpdate('booking_notes', event.target.value)}
+                        placeholder="Explain what is included, preparation requirements, or confirmation process."
+                    />
+                </label>
+            </div>
+        </section>
+    );
+}
+
 function SharedSeoCard({ metaTitle, onMetaTitleChange, metaDescription, onMetaDescriptionChange, errors, step }) {
     return (
         <section className="nikah-step-card">
@@ -1211,6 +1360,7 @@ function NikahProductForm({ payload }) {
     const initialDesign = designs.find((design) => String(design.id) === String(initialDesignId)) || null;
     const initialFields = resolvedFields(initialDesign, product.personalizationFields || []);
     const initialVariants = (product.variants || []).map((variant, index) => normalizeVariant(variant, index));
+    const initialBundleItems = (product.bundleItems || []).map((item) => normalizeBundleItem(item));
     const initialVariantGroups = inferVariantGroupsFromVariants(initialVariants);
     const initialGeneratedSlug = slugifyValue(product.name || '');
     const initialGeneratedSku = skuifyValue(product.name || '');
@@ -1232,6 +1382,8 @@ function NikahProductForm({ payload }) {
     const [selectedRelatedProducts, setSelectedRelatedProducts] = useState(product.relatedProductIds || []);
     const [selectedRelatedCategories, setSelectedRelatedCategories] = useState(product.relatedCategoryIds || []);
     const [variants, setVariants] = useState(initialVariants);
+    const [bundleItems, setBundleItems] = useState(initialBundleItems);
+    const [serviceMeta, setServiceMeta] = useState(product.serviceMeta || {});
     const [variantGroups, setVariantGroups] = useState(initialVariantGroups);
     const [selectedDesignId, setSelectedDesignId] = useState(initialDesignId);
     const [activeMockups, setActiveMockups] = useState(product.isNew ? [] : (product.activeMockupIds || []));
@@ -1313,6 +1465,8 @@ function NikahProductForm({ payload }) {
         { id: 'organization', label: 'Organization' },
         { id: 'pricing', label: 'Pricing' },
         { id: 'variants', label: 'Variants' },
+        ...(currentType === 'bundle' ? [{ id: 'combo', label: 'Combo' }] : []),
+        ...(currentType === 'service' ? [{ id: 'service', label: 'Service' }] : []),
         { id: 'media', label: 'Media' },
         { id: 'seo', label: 'SEO' },
     ];
@@ -1546,6 +1700,24 @@ function NikahProductForm({ payload }) {
 
             return nextVariants;
         });
+    }
+
+    function addBundleItem() {
+        setBundleItems((currentItems) => [...currentItems, normalizeBundleItem()]);
+    }
+
+    function updateBundleItem(itemId, key, value) {
+        setBundleItems((currentItems) => currentItems.map((item) => (
+            item.id === itemId ? { ...item, [key]: value } : item
+        )));
+    }
+
+    function removeBundleItem(itemId) {
+        setBundleItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
+    }
+
+    function updateServiceMeta(key, value) {
+        setServiceMeta((currentMeta) => ({ ...currentMeta, [key]: value }));
     }
 
     function addVariantOption(variantId, presetName = '') {
@@ -2383,6 +2555,40 @@ function NikahProductForm({ payload }) {
                                 emptyMessage="Add variants and upload gallery images first, then map option values to images."
                             />
                         </section>
+
+                        {currentType === 'bundle' ? (
+                            <section className="nikah-step-card" hidden={generalTab !== 'combo'}>
+                                <div className="nikah-step-card__heading">
+                                    <span className="nikah-step-card__step">5</span>
+                                    <div>
+                                        <h3>Combo products</h3>
+                                        <p>Build the bundle by selecting the products included in the package.</p>
+                                    </div>
+                                </div>
+
+                                <BundleItemEditor
+                                    items={bundleItems}
+                                    products={relatedProducts}
+                                    onAddItem={addBundleItem}
+                                    onRemoveItem={removeBundleItem}
+                                    onUpdateItem={updateBundleItem}
+                                />
+                            </section>
+                        ) : null}
+
+                        {currentType === 'service' ? (
+                            <section className="nikah-step-card" hidden={generalTab !== 'service'}>
+                                <div className="nikah-step-card__heading">
+                                    <span className="nikah-step-card__step">5</span>
+                                    <div>
+                                        <h3>Service / booking setup</h3>
+                                        <p>Add the details customers see before submitting a booking request.</p>
+                                    </div>
+                                </div>
+
+                                <ServiceMetaEditor meta={serviceMeta} onUpdate={updateServiceMeta} />
+                            </section>
+                        ) : null}
 
                         <section className="nikah-step-card" hidden={generalTab !== 'media'}>
                             <div className="nikah-step-card__heading">

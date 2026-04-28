@@ -1551,6 +1551,27 @@
     white-space: nowrap;
 }
 
+.bundle-item-editor {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.bundle-item-editor__list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.bundle-item-editor__row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 120px auto;
+    gap: 0.75rem;
+    align-items: end;
+    border: 0.5px solid rgba(15, 46, 60, 0.12);
+    border-radius: 10px;
+    background: #faf7f1;
+    padding: 0.8rem;
+}
+
 .general-media-row {
     display: grid;
     gap: 0.85rem;
@@ -1660,7 +1681,8 @@
     }
 
     .variant-planner__header,
-    .variant-group-card {
+    .variant-group-card,
+    .bundle-item-editor__row {
         grid-template-columns: 1fr;
     }
 }

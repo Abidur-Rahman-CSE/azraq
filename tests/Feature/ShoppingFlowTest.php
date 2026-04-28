@@ -142,6 +142,8 @@ it('shows the dedicated bundle pdp instead of redirecting back to the shop page'
 
     $this->get('/products/nikkah-combo')
         ->assertOk()
+        ->assertSeeInOrder(['Nikkah Combo', 'Combo story', 'Everything in this combo', 'Related combos or individual pieces'])
         ->assertSee('Everything in this combo')
-        ->assertSee('Add full combo');
+        ->assertSee('Add full combo')
+        ->assertSee('/products/signature-nikah-nama/preview-image.png', false);
 });

@@ -145,9 +145,21 @@ class ProductDetailController extends Controller
         }
 
         if ($product->type === ProductType::Service && $product->serviceMeta) {
+            $relatedServiceProducts = $product->relatedProducts->isNotEmpty()
+                ? $product->relatedProducts
+                : Product::query()
+                    ->with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
+                    ->where('status', 'active')
+                    ->where('id', '!=', $product->id)
+                    ->where('category_id', $product->category_id)
+                    ->latest()
+                    ->limit(4)
+                    ->get();
+
             return view('storefront.products.service', [
                 'product' => $product,
                 'serviceMeta' => $product->serviceMeta,
+                'relatedProducts' => $relatedServiceProducts,
             ]);
         }
 
