@@ -128,7 +128,11 @@
                                     <p class="text-xs font-medium uppercase tracking-[0.14em] text-[var(--accent-primary)]">{{ $combo->marketing_label ?: 'Best value' }}</p>
                                     <h3 class="mt-1 line-clamp-2 text-sm font-semibold text-[var(--color-secondary-900)]">{{ $combo->name }}</h3>
                                     <p class="mt-2 text-xs text-[var(--color-text-soft)]">Regular total: BDT {{ number_format($pricing['regular_total'], 0) }}</p>
-                                    <p class="text-sm font-semibold text-[var(--accent-primary)]">You can save BDT {{ number_format($pricing['savings_amount'], 0) }}</p>
+                                    @if ($combo->show_combo_savings_badge ?? true)
+                                        <p class="text-sm font-semibold text-[var(--accent-primary)]">You can save BDT {{ number_format($pricing['savings_amount'], 0) }}</p>
+                                    @else
+                                        <p class="text-sm font-semibold text-[var(--accent-primary)]">Combo price BDT {{ number_format($pricing['final_total'], 0) }}</p>
+                                    @endif
                                 </div>
                             </div>
                             <div class="mt-4 flex flex-wrap gap-2">

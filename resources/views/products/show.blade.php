@@ -360,7 +360,11 @@
                                             <p class="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent-primary)]">{{ $combo->marketing_label ?: 'Combo value' }}</p>
                                             <h3 class="mt-1 line-clamp-2 text-sm font-semibold text-[var(--text-main)]">{{ $combo->name }}</h3>
                                             <p class="mt-2 text-xs text-[var(--text-muted)]">{{ $combo->bundleItems->sum('quantity') }} included pieces</p>
-                                            <p class="mt-2 text-sm font-semibold text-[var(--accent-primary)]">Save BDT {{ number_format($pricing['savings_amount'], 0) }}</p>
+                                            @if ($combo->show_combo_savings_badge ?? true)
+                                                <p class="mt-2 text-sm font-semibold text-[var(--accent-primary)]">Save BDT {{ number_format($pricing['savings_amount'], 0) }}</p>
+                                            @else
+                                                <p class="mt-2 text-sm font-semibold text-[var(--accent-primary)]">Combo price BDT {{ number_format($pricing['final_total'], 0) }}</p>
+                                            @endif
                                         </div>
                                     </div>
                                     <span class="mt-4 inline-flex text-sm font-semibold text-[var(--accent-primary)] group-hover:underline">View combo</span>

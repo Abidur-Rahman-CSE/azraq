@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Product;
+use App\Support\ComboPricing;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -154,5 +155,43 @@ it('shows the dedicated bundle pdp instead of redirecting back to the shop page'
         ->assertSee('Last viewed products')
         ->assertSee('Add full combo')
         ->assertSee('variant_groups', false)
+        ->assertSee('discounted_line_total', false)
         ->assertSee('/products/signature-nikah-nama/preview-image.png', false);
+});
+
+it('shows combo child prices using compare price for display and selling price for extra savings', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $bundle = Product::where('slug', 'nikkah-combo')
+        ->with('bundleItems.childProduct.variants')
+        ->firstOrFail();
+    $penItem = $bundle->bundleItems->first(fn ($item) => $item->childProduct->slug === 'customized-pen');
+    $silverVariant = $penItem->childProduct->variants->firstWhere('sku', 'AZR-PEN-001-SL');
+    $silverVariant->update(['compare_at_price' => 800]);
+
+    $bundle->update([
+        'combo_discount_type' => 'percent',
+        'combo_discount_value' => 12.5,
+    ]);
+
+    $percentSummary = ComboPricing::summary($bundle->fresh(), [$penItem->id => $silverVariant->id]);
+    $percentPen = $percentSummary['items']->firstWhere('child_product_id', $penItem->child_product_id);
+
+    expect($percentPen['line_total'])->toBe(800.0)
+        ->and($percentPen['standalone_line_total'])->toBe(700.0)
+        ->and($percentPen['discounted_line_total'])->toBe(612.5)
+        ->and($percentSummary['regular_total'])->toBe(3300.0)
+        ->and($percentSummary['standalone_total'])->toBe(3200.0);
+
+    $bundle->update([
+        'combo_discount_type' => 'fixed',
+        'combo_discount_value' => 330,
+    ]);
+
+    $fixedSummary = ComboPricing::summary($bundle->fresh(), [$penItem->id => $silverVariant->id]);
+    $fixedPen = $fixedSummary['items']->firstWhere('child_product_id', $penItem->child_product_id);
+
+    expect($fixedPen['line_total'])->toBe(800.0)
+        ->and($fixedPen['standalone_line_total'])->toBe(700.0)
+        ->and($fixedPen['discounted_line_total'])->toBe(627.81);
 });

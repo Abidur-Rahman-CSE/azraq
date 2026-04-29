@@ -11,6 +11,7 @@
     $bundlePricing = $bundlePricing ?? \App\Support\ComboPricing::summary($product);
     $bundleReferencePrice = (float) $bundlePricing['regular_total'];
     $bundleSavings = (float) $bundlePricing['savings_amount'];
+    $showBundleSavingsBadge = (bool) ($product->show_combo_savings_badge ?? true);
     $bundleRelatedCategories = $product->relatedCategories->isNotEmpty()
         ? $product->relatedCategories->values()
         : collect([$product->category])->filter()->values();
@@ -50,12 +51,32 @@
         recalcCombo() {
             const items = this.combo.items || [];
             const subtotal = items.reduce((sum, item) => sum + (Number(item.line_total) || 0), 0);
+            const standaloneSubtotal = items.reduce((sum, item) => sum + (Number(item.standalone_line_total ?? item.line_total) || 0), 0);
+            const eligibleSubtotal = items
+                .filter((item) => item.discount_eligible && !item.excluded_upgrade)
+                .reduce((sum, item) => sum + (Number(item.standalone_line_total ?? item.line_total) || 0), 0);
             const rate = Number(this.combo.discount_value || 0);
-            const discount = this.combo.discount_type === 'fixed' ? Math.min(subtotal, rate) : subtotal * (rate / 100);
+            const discount = this.combo.discount_type === 'fixed' ? Math.min(eligibleSubtotal, rate) : eligibleSubtotal * (rate / 100);
+            items.forEach((item) => {
+                const lineTotal = Number(item.standalone_line_total ?? item.line_total ?? 0);
+                const quantity = Math.max(1, Number(item.quantity || 1));
+                const eligible = item.discount_eligible && !item.excluded_upgrade;
+                const itemDiscount = eligible
+                    ? (this.combo.discount_type === 'percent'
+                        ? lineTotal * (rate / 100)
+                        : (eligibleSubtotal > 0 ? discount * (lineTotal / eligibleSubtotal) : 0))
+                    : 0;
+                item.item_discount_amount = itemDiscount;
+                item.discounted_line_total = Math.max(0, lineTotal - itemDiscount);
+                item.discounted_unit_price = item.discounted_line_total / quantity;
+            });
             this.combo.regular_total = subtotal;
+            this.combo.standalone_total = standaloneSubtotal;
             this.combo.discount_amount = discount;
-            this.combo.final_total = Math.max(0, subtotal - discount);
+            this.combo.final_total = Math.max(0, standaloneSubtotal - discount);
             this.combo.savings_amount = Math.max(0, subtotal - this.combo.final_total);
+            this.combo.individual_savings_amount = Math.max(0, subtotal - standaloneSubtotal);
+            this.combo.bundle_savings_amount = Math.max(0, standaloneSubtotal - this.combo.final_total);
             this.combo.savings_percent = subtotal > 0 ? Math.round((this.combo.savings_amount / subtotal) * 100) : 0;
         },
         selectVariant(itemIndex, variant) {
@@ -64,7 +85,11 @@
             item.default_variant_name = variant.name;
             item.selected_options = variant.option_values_map || {};
             item.unit_price = Number(variant.price || 0);
-            item.line_total = item.unit_price * Number(item.quantity || 1);
+            item.compare_unit_price = Number(variant.compare_price ?? variant.price ?? 0);
+            item.standalone_unit_price = item.unit_price;
+            item.line_total = Number(variant.line_total ?? variant.compare_line_total ?? 0);
+            item.compare_line_total = Number(variant.compare_line_total ?? variant.line_total ?? 0);
+            item.standalone_line_total = Number(variant.standalone_line_total ?? (item.unit_price * Number(item.quantity || 1)));
             this.recalcCombo();
         },
         selectComboOption(itemIndex, groupKey, value) {
@@ -100,7 +125,7 @@
                                 <p class="mt-1 text-sm font-medium text-[var(--text-main)]">{{ $bundleItems->sum('quantity') }} curated pieces</p>
                             </div>
                             <div class="flex flex-wrap justify-end gap-2">
-                                @if ($bundleSavings > 0)
+                                @if ($showBundleSavingsBadge && $bundleSavings > 0)
                                     <span class="rounded-full bg-[rgba(120,0,0,0.08)] px-3 py-1 text-[11px] font-medium text-[var(--accent-primary)]">Save <span x-text="combo.savings_percent">{{ $bundlePricing['savings_percent'] }}</span>%</span>
                                 @endif
                                 @if ($comboGallery->count() > 1)
@@ -166,7 +191,7 @@
                         @if ($product->category)
                             <span class="rounded-full bg-[rgba(0,48,73,0.08)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--accent-secondary)]">{{ $product->category->name }}</span>
                         @endif
-                        @if ($bundleSavings > 0)
+                        @if ($showBundleSavingsBadge && $bundleSavings > 0)
                             <span class="rounded-full bg-[rgba(120,0,0,0.08)] px-2.5 py-0.5 text-[10px] font-medium text-[var(--accent-primary)]">Save <span x-text="formatMoney(combo.savings_amount)">BDT {{ number_format($bundleSavings, 0) }}</span></span>
                         @endif
                     </div>
@@ -177,15 +202,19 @@
                     <div class="mt-4 rounded-xl bg-white/80 p-4">
                         <div class="space-y-2 text-sm text-[var(--text-muted)]">
                             <div class="flex justify-between gap-4">
-                                <span>Regular total</span>
+                                <span>Regular MRP total</span>
                                 <span x-text="formatMoney(combo.regular_total)">BDT {{ number_format($bundlePricing['regular_total'], 0) }}</span>
                             </div>
                             <div class="flex justify-between gap-4">
-                                <span>Combo discount</span>
-                                <span><span x-text="combo.discount_type === 'fixed' ? formatMoney(combo.discount_amount) : `${Number(combo.discount_value || combo.savings_percent || 0).toLocaleString()}%`">{{ $bundlePricing['discount_value'] ?: $bundlePricing['savings_percent'] }}%</span></span>
+                                <span>After product discounts</span>
+                                <span x-text="formatMoney(combo.standalone_total)">BDT {{ number_format($bundlePricing['standalone_total'], 0) }}</span>
                             </div>
                             <div class="flex justify-between gap-4">
-                                <span>Savings</span>
+                                <span>Extra bundle saving</span>
+                                <span><span x-text="`${Number(combo.extra_savings_percent || combo.discount_value || 0).toLocaleString()}%`">{{ $bundlePricing['extra_savings_percent'] ?: $bundlePricing['discount_value'] }}%</span></span>
+                            </div>
+                            <div class="flex justify-between gap-4">
+                                <span>Total savings</span>
                                 <span x-text="formatMoney(combo.savings_amount)">BDT {{ number_format($bundlePricing['savings_amount'], 0) }}</span>
                             </div>
                         </div>
@@ -263,7 +292,7 @@
 
             <div class="surface-card p-8">
                 <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">Everything in this combo</h2>
-                <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">This combo includes selected default variants. You may upgrade eligible variants before checkout. Your combo discount is applied to eligible selected items, and any excluded premium upgrade may be charged separately.</p>
+                <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">This combo includes selected default variants. You may upgrade eligible variants before checkout. Existing product discounts stay visible, then the extra bundle saving is applied to eligible selected items.</p>
                 <div class="mt-6 grid gap-4 lg:grid-cols-2">
                     @foreach ($bundleItems as $bundleItem)
                         @php
@@ -272,6 +301,9 @@
                             $pricingIndex = collect($bundlePricing['items'])->search(fn ($item) => (int) $item['id'] === (int) $bundleItem->id);
                             $pricingItem = $pricingIndex !== false ? $bundlePricing['items'][$pricingIndex] : null;
                             $pricingIndex = $pricingIndex === false ? 0 : $pricingIndex;
+                            $fallbackLineTotal = (float) ($pricingItem['line_total'] ?? ($child->compare_at_price ?: $child->price));
+                            $fallbackStandaloneLineTotal = (float) ($pricingItem['standalone_line_total'] ?? $child->price);
+                            $fallbackDiscountedLineTotal = (float) ($pricingItem['discounted_line_total'] ?? $fallbackStandaloneLineTotal);
                         @endphp
                         <article class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
                             <div class="flex flex-col gap-5 sm:flex-row">
@@ -343,7 +375,15 @@
                                         </div>
                                     @endif
                                     <div class="mt-4 flex flex-wrap items-center gap-3">
-                                        <p class="text-sm font-semibold text-[var(--text-main)]" x-text="formatMoney(combo.items[{{ $pricingIndex }}]?.line_total || {{ (float) ($pricingItem['line_total'] ?? $child->price) }})">BDT {{ number_format((float) ($pricingItem['line_total'] ?? $child->price), 0) }}</p>
+                                        <div class="flex flex-wrap items-baseline gap-2">
+                                            <p class="text-sm font-semibold text-[var(--accent-primary)]" x-text="formatMoney(combo.items[{{ $pricingIndex }}]?.discounted_line_total ?? {{ $fallbackDiscountedLineTotal }})">BDT {{ number_format($fallbackDiscountedLineTotal, 0) }}</p>
+                                            <p
+                                                class="text-xs text-[var(--text-muted)] line-through"
+                                                style="{{ $fallbackLineTotal > $fallbackDiscountedLineTotal ? '' : 'display: none;' }}"
+                                                x-show="Number(combo.items[{{ $pricingIndex }}]?.line_total ?? 0) > Number(combo.items[{{ $pricingIndex }}]?.discounted_line_total ?? 0)"
+                                                x-text="formatMoney(combo.items[{{ $pricingIndex }}]?.line_total ?? {{ $fallbackLineTotal }})"
+                                            >BDT {{ number_format($fallbackLineTotal, 0) }}</p>
+                                        </div>
                                         <a href="{{ route('products.show', $child) }}" class="text-sm font-semibold text-[var(--accent-primary)] transition hover:underline">View item</a>
                                     </div>
                                 </div>
@@ -357,23 +397,23 @@
                 <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">How combo pricing works</h2>
                 <div class="mt-6 grid gap-4 md:grid-cols-4">
                     <div class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
-                        <p class="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Regular total</p>
+                        <p class="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Regular MRP total</p>
                         <p class="mt-2 text-lg font-semibold text-[var(--text-main)]" x-text="formatMoney(combo.regular_total)">BDT {{ number_format($bundlePricing['regular_total'], 0) }}</p>
                     </div>
                     <div class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
-                        <p class="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Discount</p>
-                        <p class="mt-2 text-lg font-semibold text-[var(--text-main)]"><span x-text="combo.discount_type === 'fixed' ? formatMoney(combo.discount_amount) : `${Number(combo.discount_value || combo.savings_percent || 0).toLocaleString()}%`">{{ $bundlePricing['discount_value'] ?: $bundlePricing['savings_percent'] }}%</span></p>
+                        <p class="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Product discounts</p>
+                        <p class="mt-2 text-lg font-semibold text-[var(--text-main)]" x-text="formatMoney(combo.individual_savings_amount || 0)">BDT {{ number_format($bundlePricing['individual_savings_amount'], 0) }}</p>
                     </div>
                     <div class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
-                        <p class="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Savings</p>
-                        <p class="mt-2 text-lg font-semibold text-[var(--accent-primary)]" x-text="formatMoney(combo.savings_amount)">BDT {{ number_format($bundlePricing['savings_amount'], 0) }}</p>
+                        <p class="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Extra bundle saving</p>
+                        <p class="mt-2 text-lg font-semibold text-[var(--accent-primary)]" x-text="formatMoney(combo.bundle_savings_amount || 0)">BDT {{ number_format($bundlePricing['bundle_savings_amount'], 0) }}</p>
                     </div>
                     <div class="rounded-xl border border-[var(--border-soft)] bg-white/80 p-5">
                         <p class="text-xs uppercase tracking-[0.16em] text-[var(--text-muted)]">Final price</p>
                         <p class="mt-2 text-lg font-semibold text-[var(--accent-primary)]" x-text="formatMoney(combo.final_total)">BDT {{ number_format($bundlePricing['final_total'], 0) }}</p>
                     </div>
                 </div>
-                <p class="mt-5 text-sm leading-7 text-[var(--text-muted)]">Your combo discount is calculated from the selected included items. Eligible variant upgrades are included in the discount calculation unless marked as premium excluded upgrades.</p>
+                <p class="mt-5 text-sm leading-7 text-[var(--text-muted)]">MRP is used for honest comparison. The final combo price is calculated from the selected items' current selling prices, then the extra bundle saving is applied automatically.</p>
             </div>
 
             <div class="surface-card p-8">

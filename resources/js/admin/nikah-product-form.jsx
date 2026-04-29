@@ -1313,22 +1313,17 @@ function ComboPricingEditor({ settings, onUpdate }) {
             <div className="variant-media-mapper__heading">
                 <div>
                     <h4>Combo pricing and marketing</h4>
-                    <p>Set the customer-facing savings message and percent/fixed discount logic.</p>
+                    <p>Set the extra bundle saving. Product-level discounts are detected automatically from compare-at and selling prices.</p>
                 </div>
             </div>
 
             <div className="nikah-form__grid nikah-form__grid--two">
-                <label className="nikah-field">
-                    <span>Discount type</span>
-                    <select name="combo_discount_type" value={settings.discountType} onChange={(event) => onUpdate('discountType', event.target.value)}>
-                        <option value="percent">Percent</option>
-                        <option value="fixed">Fixed amount</option>
-                    </select>
-                </label>
+                <input type="hidden" name="combo_discount_type" value="percent" />
 
                 <label className="nikah-field">
-                    <span>Discount value</span>
+                    <span>Extra bundle saving percentage</span>
                     <input type="number" min="0" step="0.01" name="combo_discount_value" value={settings.discountValue} onChange={(event) => onUpdate('discountValue', event.target.value)} />
+                    <small>Example: 3 means customers get 3% more off after the products' own discounts.</small>
                 </label>
 
                 <label className="nikah-field">
