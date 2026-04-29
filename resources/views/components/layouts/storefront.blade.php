@@ -48,7 +48,7 @@
 
         <main id="main-content">
             @if (session('status'))
-                <div class="container-shell pt-6">
+                <div class="container-shell pt-4 sm:pt-5">
                     <div class="rounded-[var(--radius-xl)] border border-[rgba(31,143,95,0.15)] bg-[rgba(31,143,95,0.08)] px-5 py-4 text-sm text-[var(--color-success)]">
                         {{ session('status') }}
                     </div>
@@ -56,7 +56,7 @@
             @endif
 
             @if ($errors->any())
-                <div class="container-shell pt-6">
+                <div class="container-shell pt-4 sm:pt-5">
                     <div class="rounded-[var(--radius-xl)] border border-[rgba(180,35,24,0.18)] bg-[rgba(180,35,24,0.08)] px-5 py-4 text-sm text-[var(--color-danger)]">
                         <p class="font-semibold">Please review the highlighted issue{{ $errors->count() > 1 ? 's' : '' }}.</p>
                         <ul class="mt-2 space-y-1">

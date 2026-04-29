@@ -6,6 +6,16 @@
     $mobileGroups = collect(config('commerce.storefront.mobile_nav_groups', []));
     $accountHref = route('account.index');
     $logoSrc = asset('images/logo/Azraq.svg');
+    $mobileItemIcons = [
+        'Home' => 'home',
+        'All Products' => 'bag',
+        'About' => 'sparkles',
+        'Track Order' => 'bag',
+        'Contact' => 'sparkles',
+        'Wishlist' => 'heart',
+        'Account' => 'user',
+        'Consultation' => 'sparkles',
+    ];
     $navCategories = collect(Cache::remember('storefront.header.nav_categories.v2', now()->addHours(4), function () {
         return Category::query()
             ->where('is_active', true)
@@ -23,6 +33,22 @@
     }));
 @endphp
 
+@once
+    @php
+        $renderDrawerIcon = function (string $icon): string {
+            return match ($icon) {
+                'home' => '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5.5 9.5V21h13V9.5"></path></svg>',
+                'bag' => '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6.5 8h11l1.2 11.2a1 1 0 0 1-1 .8H6.3a1 1 0 0 1-1-.8L6.5 8Z"></path><path d="M9 9V7a3 3 0 0 1 6 0v2"></path></svg>',
+                'grid' => '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="4" y="4" width="6" height="6" rx="1.2"></rect><rect x="14" y="4" width="6" height="6" rx="1.2"></rect><rect x="4" y="14" width="6" height="6" rx="1.2"></rect><rect x="14" y="14" width="6" height="6" rx="1.2"></rect></svg>',
+                'sparkles' => '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m12 3 1.7 4.8L18.5 9.5l-4.8 1.7L12 16l-1.7-4.8L5.5 9.5l4.8-1.7L12 3Z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15Z"></path></svg>',
+                'heart' => '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.65-7 10-7 10Z"></path></svg>',
+                'user' => '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c1.6-3.3 4.1-5 7-5s5.4 1.7 7 5"></path></svg>',
+                default => '<svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>',
+            };
+        };
+    @endphp
+@endonce
+
 <header
     class="site-header"
     x-data="{ mobileOpen: false }"
@@ -30,14 +56,8 @@
     @keydown.escape.window="mobileOpen = false"
     @resize.window="if (window.innerWidth >= 1024) mobileOpen = false"
 >
-    <div class="container-shell header-shell flex items-center justify-between gap-4 py-4 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-6">
-        <div class="flex min-w-0 items-center gap-3">
-            <button type="button" class="header-icon-button lg:hidden" x-on:click.stop="mobileOpen = true" aria-label="Open menu" :aria-expanded="mobileOpen ? 'true' : 'false'" aria-controls="mobile-navigation-drawer">
-                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
-                    <path d="M4 7h16M4 12h16M4 17h16" />
-                </svg>
-            </button>
-
+    <div class="container-shell header-shell flex items-center justify-between gap-3 py-3 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-6 lg:py-4">
+        <div class="flex min-w-0 items-center">
             <a href="{{ route('home') }}" class="brand-lockup min-w-0" aria-label="Azraq Bridal home">
                 <span class="brand-mark">
                     <img src="{{ $logoSrc }}" alt="" class="h-full w-full object-contain">
@@ -131,6 +151,11 @@
                     <path d="M5 20c1.6-3.3 4.1-5 7-5s5.4 1.7 7 5"></path>
                 </svg>
             </a>
+            <button type="button" class="header-icon-button lg:hidden" x-on:click.stop="mobileOpen = true" aria-label="Open menu" :aria-expanded="mobileOpen ? 'true' : 'false'" aria-controls="mobile-navigation-drawer">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+                    <path d="M4 7h16M4 12h16M4 17h16" />
+                </svg>
+            </button>
             <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-primary hidden 2xl:inline-flex">Book a Consultation</a>
         </div>
     </div>
@@ -150,15 +175,15 @@
             class="mobile-drawer-panel"
             x-show="mobileOpen"
             x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="translate-x-full"
+            x-transition:enter-start="-translate-x-full"
             x-transition:enter-end="translate-x-0"
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="translate-x-0"
-            x-transition:leave-end="translate-x-full"
+            x-transition:leave-end="-translate-x-full"
             x-on:click.stop
         >
-            <div class="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-5">
-                <a href="{{ route('home') }}" class="brand-lockup shrink-0">
+            <div class="flex items-center justify-between border-b border-[var(--border-soft)] px-4 py-4">
+                <a href="{{ route('home') }}" class="brand-lockup min-w-0">
                     <span class="brand-mark">
                         <img src="{{ $logoSrc }}" alt="" class="h-full w-full object-contain">
                     </span>
@@ -174,52 +199,74 @@
                 </button>
             </div>
 
-            <div class="space-y-8 px-5 py-6 pb-28">
+            <div class="space-y-5 px-4 py-4 pb-8">
                 @foreach ($mobileGroups as $group)
-                    <section class="space-y-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">{{ $group['label'] }}</p>
-                        <div class="space-y-2">
+                    <section class="space-y-3">
+                        <p class="mobile-drawer-section-title">{{ $group['label'] }}</p>
+                        <div class="space-y-1.5">
                             @foreach ($group['items'] as $item)
-                                <a href="{{ url($item['href']) }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
-                                    <span>{{ $item['label'] }}</span>
-                                    <span class="text-[var(--text-muted)]">/</span>
+                                @php($icon = $mobileItemIcons[$item['label']] ?? 'sparkles')
+                                <a href="{{ url($item['href']) }}" class="mobile-drawer-link">
+                                    <span class="mobile-drawer-link__lead">
+                                        <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon($icon) !!}</span>
+                                        <span>{{ $item['label'] }}</span>
+                                    </span>
+                                    <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                                 </a>
                             @endforeach
                         </div>
                     </section>
                 @endforeach
 
-                <section class="space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Categories</p>
-                    <div class="space-y-2">
+                <section class="space-y-2" x-data="{ open: false }">
+                    <button type="button" class="mobile-drawer-link mobile-drawer-link--toggle" @click="open = !open" :aria-expanded="open ? 'true' : 'false'">
+                        <span class="mobile-drawer-link__lead">
+                            <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('grid') !!}</span>
+                            <span>Categories</span>
+                        </span>
+                        <svg class="mobile-drawer-link__accordion" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                            <path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+
+                    <div x-cloak x-show="open" x-transition.duration.180ms class="mobile-drawer-sublist">
                         @foreach ($navCategories as $category)
-                            <a href="{{ route('categories.show', $category['slug']) }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
+                            <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink">
                                 <span>{{ $category['name'] }}</span>
-                                <span class="text-[var(--text-muted)]">/</span>
+                                <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                             </a>
                         @endforeach
                     </div>
                 </section>
 
-                <section class="space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Account</p>
-                    <div class="space-y-2">
-                        <a href="{{ route('wishlist.index') }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
-                            <span>Wishlist</span>
-                            <span class="text-[var(--text-muted)]">/</span>
+                <section class="space-y-3">
+                    <p class="mobile-drawer-section-title">More</p>
+                    <div class="space-y-1.5">
+                        <a href="{{ route('wishlist.index') }}" class="mobile-drawer-link">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('heart') !!}</span>
+                                <span>Wishlist</span>
+                            </span>
+                            <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                         </a>
-                        <a href="{{ $accountHref }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
-                            <span>Account</span>
-                            <span class="text-[var(--text-muted)]">/</span>
+                        <a href="{{ $accountHref }}" class="mobile-drawer-link">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('user') !!}</span>
+                                <span>Account</span>
+                            </span>
+                            <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
+                        </a>
+                        <a href="{{ route('shop.index', ['type' => 'service']) }}" class="mobile-drawer-link">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('Consultation') !!}</span>
+                                <span>Consultation</span>
+                            </span>
+                            <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                         </a>
                     </div>
                 </section>
             </div>
 
-            <div class="mobile-drawer-cta">
-                <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-primary w-full">Book a Consultation</a>
-                <a href="{{ route('cart.index') }}" class="button-secondary w-full">Open Cart</a>
-            </div>
         </div>
     </div>
 </header>

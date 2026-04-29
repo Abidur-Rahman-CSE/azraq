@@ -20,13 +20,15 @@ it('renders the storefront header with desktop navigation and a mobile drawer', 
 
     $this->get('/')
         ->assertOk()
-        ->assertSee('class="container-shell header-shell flex items-center justify-between gap-4 py-4 lg:grid', false)
+        ->assertSee('class="container-shell header-shell flex items-center justify-between gap-3 py-3 lg:grid', false)
         ->assertSee('class="header-icon-button lg:hidden"', false)
         ->assertSee('class="hidden items-center justify-center gap-5 xl:flex', false)
         ->assertSee('class="header-icon-button hidden lg:inline-flex" aria-label="Wishlist"', false)
         ->assertSee('class="button-primary hidden 2xl:inline-flex"', false)
         ->assertSee('id="mobile-navigation-drawer"', false)
-        ->assertSee('class="mobile-drawer-cta"', false);
+        ->assertSee('x-transition:enter-start="-translate-x-full"', false)
+        ->assertSee('class="mobile-drawer-link mobile-drawer-link--toggle"', false)
+        ->assertDontSee('class="mobile-drawer-cta"', false);
 });
 
 it('shows the shop index and supports filtering by product type', function () {

@@ -21,7 +21,7 @@
         </x-slot:head>
     @endif
 
-    <div class="relative pb-[var(--section-space-y)] pt-6 sm:pt-8 lg:pt-10">
+    <div class="relative pb-[var(--section-space-y)] pt-4 sm:pt-5 lg:pt-6">
         <div class="container-shell relative">
             {{ $slot }}
         </div>
