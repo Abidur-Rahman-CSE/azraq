@@ -97,6 +97,11 @@
     color: #fff;
 }
 
+.button-secondary:hover {
+    background: var(--accent-secondary-hover, #003049cc);
+    transform: translateY(-1px);
+}
+
 .button-ghost {
     border: 1px solid var(--border-soft);
     background: rgba(255, 255, 255, 0.78);
@@ -168,6 +173,15 @@
 .field-select:hover,
 .field-textarea:hover {
     border-color: var(--border-strong);
+}
+
+.field-input:focus,
+.field-select:focus,
+.field-textarea:focus {
+    outline: none;
+    border-color: var(--accent-secondary);
+    box-shadow: 0 0 0 3px rgba(0, 48, 73, 0.10);
+    background: #fff;
 }
 
 .field-input::placeholder,
@@ -1711,14 +1725,13 @@
     }
 }
 
-.header-nav-link:hover,
-.header-nav-link.is-active {
+.header-nav-link:hover {
     color: var(--accent-primary);
+    opacity: 0.88;
 }
 
-.header-nav-link:hover {
-    color: var(--accent-secondary);
-    opacity: 0.82;
+.header-nav-link.is-active {
+    color: var(--accent-primary);
 }
 
 .header-nav-link:hover::after,
@@ -2684,4 +2697,253 @@
     .site-header .brand-wordmark-bottom {
         display: none;
     }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LUXURY GLASS DESIGN SYSTEM — Azraq Bridal
+   ═══════════════════════════════════════════════════════════════ */
+
+@keyframes brand-shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position:  200% center; }
+}
+
+@keyframes pulse-orb {
+    0%, 100% { opacity: 0.35; transform: scale(1); }
+    50%       { opacity: 0.60; transform: scale(1.08); }
+}
+
+/* ── Liquid glass panels ───────────────────────────────────── */
+.glass-panel {
+    background: var(--glass-light);
+    border: 1px solid var(--glass-light-border);
+    backdrop-filter: blur(32px) saturate(180%);
+    -webkit-backdrop-filter: blur(32px) saturate(180%);
+    box-shadow: inset 0 0 0 0.5px rgba(255,255,255,0.30), var(--shadow-glass);
+    border-radius: var(--radius-2xl);
+}
+
+.glass-card-brand {
+    background: linear-gradient(145deg, rgba(255,253,249,0.62), rgba(253,240,213,0.50));
+    border: 1px solid var(--glass-brand-border);
+    backdrop-filter: blur(28px) saturate(180%);
+    -webkit-backdrop-filter: blur(28px) saturate(180%);
+    box-shadow:
+        inset 0 0 0 0.5px rgba(255,255,255,0.50),
+        0 24px 64px rgba(0,48,73,0.08),
+        0 4px 20px rgba(15,30,48,0.08);
+    border-radius: var(--radius-3xl);
+}
+
+/* ── Dark luxury section — footer/announcement ONLY ────────── */
+.section-dark-luxury {
+    background: var(--bg-dark-luxury);
+    position: relative;
+    overflow: hidden;
+    color: rgba(255,255,255,0.88);
+}
+
+.section-dark-luxury::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(ellipse 70% 55% at 15% 25%, rgba(120,0,0,0.13), transparent),
+        radial-gradient(ellipse 55% 65% at 85% 75%, rgba(0,48,73,0.18), transparent),
+        radial-gradient(ellipse 45% 35% at 50% 100%, rgba(102,155,188,0.08), transparent);
+    pointer-events: none;
+}
+
+/* ── Luxury buttons ────────────────────────────────────────── */
+.button-luxury {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-pill);
+    font: var(--text-label);
+    padding: 0.95rem 1.85rem;
+    background: linear-gradient(135deg, #780000 0%, #C1121F 50%, #780000 100%);
+    background-size: 200% auto;
+    color: #fff;
+    letter-spacing: 0.05em;
+    box-shadow: 0 20px 48px rgba(120,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.15);
+    animation: brand-shimmer 4.5s linear infinite;
+    transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.button-luxury:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 30px 64px rgba(120,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.20);
+}
+
+.button-outline-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: var(--radius-pill);
+    font: var(--text-label);
+    padding: 0.95rem 1.85rem;
+    border: 1px solid rgba(253,240,213,0.22);
+    background: rgba(253,240,213,0.05);
+    color: rgba(253,240,213,0.82);
+    letter-spacing: 0.05em;
+    backdrop-filter: blur(12px);
+    transition: transform 200ms ease, background 200ms ease, border-color 200ms ease;
+}
+
+.button-outline-gold:hover {
+    transform: translateY(-1px);
+    background: rgba(253,240,213,0.10);
+    border-color: rgba(253,240,213,0.36);
+}
+
+/* ── Section kicker (brand blue uppercase label) ───────────── */
+.section-kicker {
+    display: inline-block;
+    font: var(--text-caption);
+    letter-spacing: 0.30em;
+    text-transform: uppercase;
+    color: var(--luxury-kicker);
+}
+
+/* ── Product card — glass upgrade ──────────────────────────── */
+.product-card-lux {
+    position: relative;
+    overflow: hidden;
+    background: var(--glass-light);
+    border: 1px solid var(--glass-light-border);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-card-soft);
+    transition: transform 300ms cubic-bezier(0.25,0.46,0.45,0.94), box-shadow 300ms ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.product-card-lux::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 50%);
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.product-card-lux:hover {
+    transform: translateY(-5px) scale(1.008);
+    box-shadow: var(--shadow-card-hover), var(--shadow-brand-aura);
+}
+
+.product-card-lux .aspect-\[4\/3\] img,
+.product-card-lux img {
+    transition: transform 500ms ease;
+}
+
+.product-card-lux:hover .aspect-\[4\/3\] img,
+.product-card-lux:hover img.object-cover {
+    transform: scale(1.04);
+}
+
+/* ── Collection card — image overlay with glass footer ─────── */
+.collection-card-lux {
+    overflow: hidden;
+    border-radius: var(--radius-3xl);
+    border: 1px solid var(--glass-light-border);
+    background: rgba(255,253,249,0.80);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    transition: transform 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+}
+
+.collection-card-lux:hover {
+    transform: translateY(-4px);
+    border-color: rgba(102,155,188,0.30);
+    box-shadow: var(--shadow-card-hover), 0 0 48px rgba(102,155,188,0.08);
+}
+
+/* ── Editorial review card ─────────────────────────────────── */
+.review-card-editorial {
+    position: relative;
+    overflow: hidden;
+    background: var(--glass-light);
+    border: 1px solid var(--glass-light-border);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border-radius: var(--radius-2xl);
+    padding: 2rem;
+}
+
+.review-card-editorial::before {
+    content: '\201C';
+    position: absolute;
+    top: -0.75rem;
+    left: 1.25rem;
+    font-size: 7rem;
+    line-height: 1;
+    color: rgba(120,0,0,0.08);
+    font-family: Georgia, serif;
+    pointer-events: none;
+}
+
+/* ── Brand value card — warm glass ────────────────────────── */
+.brand-value-card {
+    position: relative;
+    overflow: hidden;
+    padding: 2rem;
+    border-radius: var(--radius-2xl);
+    border: 1px solid var(--glass-light-border);
+    background: var(--glass-light);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
+    transition: transform 240ms ease, box-shadow 240ms ease;
+}
+
+.brand-value-card::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 2rem;
+    right: 2rem;
+    height: 1.5px;
+    background: linear-gradient(90deg, transparent, var(--azraq-burgundy), transparent);
+    opacity: 0;
+    transition: opacity 240ms ease;
+}
+
+.brand-value-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-card-soft), 0 0 48px rgba(120,0,0,0.07);
+}
+
+.brand-value-card:hover::after {
+    opacity: 1;
+}
+
+/* ── Announcement bar — premium dark brand ─────────────────── */
+.announcement-luxury {
+    background: linear-gradient(90deg, #0C1824 0%, #0F2030 50%, #0C1824 100%);
+    border-bottom: 1px solid rgba(102,155,188,0.18);
+}
+
+.announcement-luxury .gold-dot {
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--azraq-blue);
+    margin-inline: 0.75rem;
+    vertical-align: middle;
+    opacity: 0.7;
+}
+
+/* ── Section divider line ──────────────────────────────────── */
+.divider-gold {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(102,155,188,0.28), transparent);
+    border: none;
 }

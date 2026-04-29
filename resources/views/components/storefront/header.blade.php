@@ -127,7 +127,7 @@
         </nav>
 
         <div class="flex items-center justify-end gap-1.5 sm:gap-2 lg:gap-2.5">
-            <a href="{{ route('search.index', ['search' => 'nikah']) }}" class="header-icon-button" aria-label="Search">
+            <a href="{{ route('search.index') }}" class="header-icon-button" aria-label="Search">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <circle cx="11" cy="11" r="6"></circle>
                     <path d="M20 20l-3.5-3.5"></path>

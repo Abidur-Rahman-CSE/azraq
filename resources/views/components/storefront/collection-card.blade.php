@@ -1,7 +1,7 @@
 @props(['collection'])
 
-<a href="{{ route('collections.show', $collection) }}" class="group overflow-hidden rounded-[var(--radius-3xl)] border border-[var(--border-soft)] bg-white transition hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
-    <div class="relative aspect-[16/10] overflow-hidden bg-[var(--bg-section-soft)]">
+<a href="{{ route('collections.show', $collection) }}" class="collection-card-lux group block">
+    <div class="relative aspect-[16/10] overflow-hidden rounded-t-[var(--radius-3xl)] bg-[var(--bg-section-soft)]">
         @if ($collection->cover_image_url)
             <img
                 src="{{ $collection->cover_image_url }}"
@@ -11,21 +11,21 @@
                 decoding="async"
             >
         @else
-            <div class="h-full w-full bg-[radial-gradient(circle_at_top_right,_rgba(187,145,92,0.24),_transparent_40%),linear-gradient(180deg,rgba(250,246,240,1),rgba(241,233,221,1))]"></div>
+            <div class="h-full w-full bg-[radial-gradient(circle_at_top_right,_rgba(193,18,31,0.10),_transparent_40%),linear-gradient(180deg,rgba(253,240,213,0.90),rgba(241,233,221,1))]"></div>
         @endif
 
-        <div class="absolute inset-0 bg-gradient-to-t from-[rgba(26,28,42,0.62)] via-transparent to-transparent"></div>
-        <span class="absolute left-5 top-5 rounded-full bg-white/85 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)] backdrop-blur-sm">Collection</span>
+        <div class="absolute inset-0 bg-gradient-to-t from-[rgba(7,14,24,0.55)] via-transparent to-transparent"></div>
+        <span class="section-kicker absolute left-5 top-5 rounded-full bg-white/85 px-3 py-1 text-[0.62rem] backdrop-blur-sm">Collection</span>
     </div>
 
     <div class="p-6">
-        <h3 class="font-serif text-2xl font-semibold text-[var(--text-main)]">{{ $collection->name }}</h3>
+        <h3 class="text-xl font-semibold leading-snug text-[var(--text-main)]">{{ $collection->name }}</h3>
         <p class="mt-3 text-sm leading-7 text-[var(--text-muted)]">
             {{ \Illuminate\Support\Str::limit(strip_tags($collection->description), 110) }}
         </p>
-        <div class="mt-6 flex items-center justify-between gap-4">
-            <p class="text-sm font-medium text-[var(--accent-secondary)]">{{ $collection->products_count }} curated products</p>
-            <span class="text-sm font-semibold text-[var(--accent-primary)]">View collection</span>
+        <div class="mt-5 flex items-center justify-between gap-4">
+            <p class="text-[0.72rem] font-medium uppercase tracking-[0.14em] text-[var(--accent-secondary)]">{{ $collection->products_count }} curated products</p>
+            <span class="text-sm font-semibold text-[var(--accent-primary)]">View →</span>
         </div>
     </div>
 </a>

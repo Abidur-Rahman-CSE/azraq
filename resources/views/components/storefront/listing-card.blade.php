@@ -1,24 +1,26 @@
 @props(['product'])
 
-<article class="surface-product flex h-full flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-[var(--shadow-medium)]">
+<article class="product-card-lux">
     @php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
     @php($cardImage = $product->storefront_preview_image_url)
     @php($cardAlt = $primaryImage?->label ?: $product->name)
-    @if ($cardImage)
-        <img
-            src="{{ $cardImage }}"
-            alt="{{ $cardAlt }}"
-            class="aspect-[4/3] w-full object-cover"
-            loading="lazy"
-            decoding="async"
-        >
-    @else
-        <div class="flex aspect-[4/3] items-center justify-center bg-[var(--color-surface-cream)] text-sm text-[var(--color-text-soft)]">
-            Product preview coming soon
-        </div>
-    @endif
+    <div class="overflow-hidden rounded-t-[var(--radius-2xl)]">
+        @if ($cardImage)
+            <img
+                src="{{ $cardImage }}"
+                alt="{{ $cardAlt }}"
+                class="aspect-[4/3] w-full object-cover transition duration-500 ease-out group-hover:scale-105"
+                loading="lazy"
+                decoding="async"
+            >
+        @else
+            <div class="flex aspect-[4/3] items-center justify-center bg-[rgba(253,240,213,0.50)] text-sm text-[var(--text-muted)]">
+                Preview coming soon
+            </div>
+        @endif
+    </div>
 
-    <div class="relative p-6">
+    <div class="relative z-10 p-6">
         <div class="flex items-start justify-between gap-4">
             <span class="eyebrow">{{ $product->type?->label() }}</span>
             <span class="rounded-full bg-[rgba(0,48,73,0.08)] px-3 py-2 text-xs font-medium text-[var(--accent-secondary)]">
@@ -49,6 +51,6 @@
             @endif
         </div>
 
-        <a href="{{ route('products.show', $product) }}" class="button-ghost" aria-label="View details for {{ $product->name }}">View details</a>
+        <a href="{{ route('products.show', $product) }}" class="button-primary" aria-label="View details for {{ $product->name }}">View details</a>
     </div>
 </article>
