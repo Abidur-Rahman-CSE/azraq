@@ -16,14 +16,14 @@
         ],
     ]"
 >
-    <section class="section-shell overflow-hidden">
-        <div class="container-shell grid items-center gap-10 lg:grid-cols-[1.02fr_0.98fr]">
+    <section class="section-shell overflow-hidden home-section home-section--hero">
+        <div class="container-shell home-hero-grid grid items-center gap-10 lg:grid-cols-[1.02fr_0.98fr]">
             <div>
                 <span class="eyebrow">{{ $homepageSections['hero']->subtitle ?? 'Homepage hero' }}</span>
-                <h1 class="mt-6 max-w-3xl text-5xl font-bold tracking-tight text-[var(--text-main)] sm:text-7xl">
+                <h1 class="mt-6 max-w-3xl text-4xl font-bold tracking-tight text-[var(--text-main)] sm:text-5xl lg:text-6xl">
                     {{ $homepageSections['hero']->title ?? 'A browseable Azraq Bridal storefront is now layered onto the catalog architecture.' }}
                 </h1>
-                <p class="mt-6 max-w-2xl text-lg leading-8 text-[var(--text-muted)]">
+                <p class="mt-6 max-w-2xl text-base leading-8 text-[var(--text-muted)] sm:text-lg">
                     {{ $homepageSections['hero']->content ?? 'The storefront now has real shop, category, and collection browsing powered by the Phase 1 catalog models, with warm brand styling, reusable cards, and filterable product discovery ready for PDP work next.' }}
                 </p>
 
@@ -39,7 +39,7 @@
                 </div>
             </div>
 
-            <div class="surface-card-featured p-5 sm:p-6 lg:p-8">
+            <div class="surface-card-featured home-hero-media-shell p-5 sm:p-6 lg:p-8">
                 <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
                     <div class="relative overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)]">
                         @if ($heroImage)
@@ -81,7 +81,7 @@
         </div>
     </section>
 
-    <section class="section-shell pt-0">
+    <section class="section-shell pt-0 home-section home-section--tight">
         <div class="container-shell">
             <div class="grid gap-4 md:grid-cols-3">
                 @foreach ([
@@ -89,7 +89,7 @@
                     ['title' => 'Personalized proof support', 'copy' => 'Nikah Nama orders stay elegant and accurate with proof-aware review before production.'],
                     ['title' => 'Giftable premium presentation', 'copy' => 'Framing, keepsakes, and bridal pieces are merchandised to feel collectible, not generic.'],
                 ] as $highlight)
-                    <article class="surface-card overflow-hidden p-0">
+                    <article class="surface-card home-highlight-card overflow-hidden p-0">
                         <div class="h-2 bg-[linear-gradient(90deg,var(--accent-primary),rgba(187,145,92,0.22))]"></div>
                         <div class="p-6">
                             <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">{{ $highlight['title'] }}</p>
@@ -101,7 +101,7 @@
         </div>
     </section>
 
-    <section id="catalog" class="section-shell pt-0">
+    <section id="catalog" class="section-shell pt-0 home-section home-section--tight">
         <div class="container-shell">
             <x-storefront.section-header
                 :eyebrow="$homepageSections['featured_categories']->subtitle ?? 'Featured categories'"
@@ -109,7 +109,7 @@
                 :description="$homepageSections['featured_categories']->content ?? 'These category tiles now come from the actual catalog tables, so future CMS reordering and merchandising can build on the same data source the storefront uses.'"
             />
 
-            <div class="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
+            <div class="home-grid mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
                 @foreach ($featuredCategories as $category)
                     <x-storefront.category-tile :category="$category" />
                 @endforeach
@@ -118,9 +118,9 @@
     </section>
 
     @if ($signatureNikah)
-        <section class="section-shell bg-white/55">
+        <section class="section-shell bg-white/55 home-section">
             <div class="container-shell">
-                <div class="surface-card-featured grid gap-8 p-8 lg:grid-cols-[0.95fr_1.05fr] lg:p-10">
+                <div class="surface-card-featured home-feature-shell grid gap-8 p-8 lg:grid-cols-[0.95fr_1.05fr] lg:p-10">
                     <div class="overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)]">
                         @php($nikahImage = $signatureNikah->storefront_preview_image_url)
                         @if ($nikahImage)
@@ -155,7 +155,7 @@
         </section>
     @endif
 
-    <section id="architecture" class="section-shell bg-white/55">
+    <section id="architecture" class="section-shell bg-white/55 home-section">
         <div class="container-shell">
             <x-storefront.section-header
                 :eyebrow="$homepageSections['featured_products']->subtitle ?? 'Featured products'"
@@ -163,7 +163,7 @@
                 :description="$homepageSections['featured_products']->content ?? 'This keeps the separation between standard, light customizable, advanced personalized, bundle, and service products visible in the UI instead of burying that logic only in the database.'"
             />
 
-            <div class="mt-10 grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
+            <div class="home-grid mt-10 grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
                 @foreach ($featuredProducts as $product)
                     <x-storefront.listing-card :product="$product" />
                 @endforeach
@@ -171,9 +171,9 @@
         </div>
     </section>
 
-    <section id="collections" class="section-shell">
+    <section id="collections" class="section-shell home-section">
         <div class="container-shell">
-            <div class="surface-card grid gap-8 p-8 lg:grid-cols-[1fr_0.9fr] lg:p-10">
+            <div class="surface-card home-feature-shell grid gap-8 p-8 lg:grid-cols-[1fr_0.9fr] lg:p-10">
                 <div>
                     <span class="eyebrow">Featured collections</span>
                     <h2 class="mt-4 text-3xl font-semibold text-[var(--text-main)]">{{ $homepageSections['featured_collections']->title ?? 'Collections are now first-class browsing routes, not just admin labels.' }}</h2>
@@ -195,7 +195,7 @@
     </section>
 
     @if ($comboSpotlight->isNotEmpty())
-        <section class="section-shell bg-white/55">
+        <section class="section-shell bg-white/55 home-section">
             <div class="container-shell">
                 <x-storefront.section-header
                     eyebrow="Combo spotlight"
@@ -203,7 +203,7 @@
                     description="Package pages should feel visually grouped and savings-aware, so the homepage now teases combo value directly."
                 />
 
-                <div class="mt-10 grid gap-6 lg:grid-cols-3">
+                <div class="home-grid mt-10 grid gap-6 lg:grid-cols-3">
                     @foreach ($comboSpotlight as $combo)
                         <x-storefront.listing-card :product="$combo" />
                     @endforeach
@@ -213,10 +213,10 @@
     @endif
 
     @if ($bridalWearSpotlight->isNotEmpty() || $bookingHighlights->isNotEmpty())
-        <section class="section-shell">
-            <div class="container-shell grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
+        <section class="section-shell home-section">
+            <div class="container-shell home-grid grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
                 @if ($bridalWearSpotlight->isNotEmpty())
-                    <div class="surface-card p-8 lg:p-10">
+                    <div class="surface-card home-feature-shell p-8 lg:p-10">
                         <span class="eyebrow">Bridal wear spotlight</span>
                         <h2 class="mt-4 text-3xl font-semibold text-[var(--text-main)]">Customized bridal wear with soft editorial presentation.</h2>
                         <div class="mt-8 grid gap-5">
@@ -228,14 +228,14 @@
                 @endif
 
                 @if ($bookingHighlights->isNotEmpty())
-                    <div class="surface-card-featured p-8 lg:p-10">
+                    <div class="surface-card-featured home-feature-shell p-8 lg:p-10">
                         <span class="eyebrow">Booking / mehendi services</span>
                         <h2 class="mt-4 text-3xl font-semibold text-[var(--text-main)]">Service-led experiences deserve a gentler, inquiry-first storefront presence.</h2>
                         <p class="mt-4 text-base leading-8 text-[var(--text-muted)]">Bridal, non-bridal, and mehendi bookings are highlighted separately so they do not feel like stock-first products.</p>
                         <div class="mt-8 grid gap-4">
                             @foreach ($bookingHighlights as $service)
                                 @php($serviceImage = $service->storefront_preview_image_url)
-                                <a href="{{ route('products.show', $service) }}" class="surface-card block overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[var(--shadow-medium)]">
+                                <a href="{{ route('products.show', $service) }}" class="surface-card home-service-card block overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[var(--shadow-medium)]">
                                     <div class="grid gap-0 md:grid-cols-[190px_1fr]">
                                         <div class="bg-[var(--bg-section-soft)]">
                                             @if ($serviceImage)
@@ -265,7 +265,7 @@
     @endif
 
     @if ($testimonials->isNotEmpty())
-        <section class="section-shell bg-white/55">
+        <section class="section-shell bg-white/55 home-section">
             <div class="container-shell">
                 <x-storefront.section-header
                     eyebrow="Testimonials"
@@ -273,7 +273,7 @@
                     description="Social proof stays light and elegant, keeping the focus on the bridal tone rather than looking like a dense review wall."
                 />
 
-                <div class="mt-10 grid gap-6 lg:grid-cols-3">
+                <div class="home-grid mt-10 grid gap-6 lg:grid-cols-3">
                     @foreach ($testimonials as $review)
                         <x-storefront.review-card :review="$review" />
                     @endforeach
@@ -283,7 +283,7 @@
     @endif
 
     @if ($faqPreview->isNotEmpty() && ($homepageSections['faq_preview']->is_enabled ?? true))
-        <section class="section-shell bg-white/55">
+        <section class="section-shell bg-white/55 home-section">
             <div class="container-shell">
                 <x-storefront.section-header
                     :eyebrow="$homepageSections['faq_preview']->subtitle ?? 'FAQ preview'"
@@ -291,9 +291,9 @@
                     :description="$homepageSections['faq_preview']->content ?? 'Bring delivery, personalization, and proof expectations into the homepage for better conversion clarity.'"
                 />
 
-                <div class="mt-10 grid gap-4">
+                <div class="home-grid mt-10 grid gap-4">
                     @foreach ($faqPreview as $faq)
-                        <article class="surface-card p-6">
+                        <article class="surface-card home-faq-card p-6">
                             <h3 class="text-xl font-semibold text-[var(--text-main)]">{{ $faq->question }}</h3>
                             <p class="mt-4 text-sm leading-7 text-[var(--text-muted)]">{{ $faq->answer }}</p>
                         </article>

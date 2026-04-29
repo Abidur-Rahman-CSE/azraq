@@ -125,11 +125,12 @@
                     <circle cx="17" cy="19" r="1.2"></circle>
                 </svg>
             </a>
-            <a href="{{ $accountHref }}" class="header-icon-button hidden lg:inline-flex" aria-label="Account">
+            <a href="{{ $accountHref }}" class="header-icon-button header-account-button hidden lg:inline-flex" aria-label="Account">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <circle cx="12" cy="8" r="3.5"></circle>
                     <path d="M5 20c1.6-3.3 4.1-5 7-5s5.4 1.7 7 5"></path>
                 </svg>
+                <span class="header-account-button__label">Account</span>
             </a>
             <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-primary hidden 2xl:inline-flex">Book a Consultation</a>
         </div>
@@ -201,16 +202,16 @@
                     </div>
                 </section>
 
-                <section class="space-y-4">
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Account</p>
-                    <div class="space-y-2">
-                        <a href="{{ route('wishlist.index') }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
+                <section class="header-account-card">
+                    <p class="header-account-card__title">Account</p>
+                    <div class="header-account-card__links">
+                        <a href="{{ route('wishlist.index') }}" class="header-account-card__link">
                             <span>Wishlist</span>
-                            <span class="text-[var(--text-muted)]">/</span>
+                            <span class="text-(--text-muted)">/</span>
                         </a>
-                        <a href="{{ $accountHref }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
-                            <span>Account</span>
-                            <span class="text-[var(--text-muted)]">/</span>
+                        <a href="{{ $accountHref }}" class="header-account-card__link">
+                            <span>Account hub</span>
+                            <span class="text-(--text-muted)">/</span>
                         </a>
                     </div>
                 </section>
