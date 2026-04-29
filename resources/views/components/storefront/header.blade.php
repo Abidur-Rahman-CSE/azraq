@@ -23,16 +23,22 @@
     }));
 @endphp
 
-<header class="site-header" x-data="{ mobileOpen: false, categoriesOpen: false }">
+<header
+    class="site-header"
+    x-data="{ mobileOpen: false }"
+    x-effect="document.body.classList.toggle('overflow-hidden', mobileOpen)"
+    @keydown.escape.window="mobileOpen = false"
+    @resize.window="if (window.innerWidth >= 1024) mobileOpen = false"
+>
     <div class="container-shell header-shell flex items-center justify-between gap-4 py-4 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-6">
-        <div class="flex items-center gap-3">
-            <button type="button" class="header-icon-button lg:hidden" x-on:click="mobileOpen = true" aria-label="Open menu">
+        <div class="flex min-w-0 items-center gap-3">
+            <button type="button" class="header-icon-button lg:hidden" x-on:click.stop="mobileOpen = true" aria-label="Open menu" :aria-expanded="mobileOpen ? 'true' : 'false'" aria-controls="mobile-navigation-drawer">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
             </button>
 
-            <a href="{{ route('home') }}" class="brand-lockup shrink-0" aria-label="Azraq Bridal home">
+            <a href="{{ route('home') }}" class="brand-lockup min-w-0" aria-label="Azraq Bridal home">
                 <span class="brand-mark">
                     <img src="{{ $logoSrc }}" alt="" class="h-full w-full object-contain">
                 </span>
@@ -100,14 +106,14 @@
             @endforeach
         </nav>
 
-        <div class="flex items-center justify-end gap-2 sm:gap-2.5">
-            <a href="{{ route('search.index', ['search' => 'nikah']) }}" class="header-icon-button hidden lg:inline-flex" aria-label="Search">
+        <div class="flex items-center justify-end gap-1.5 sm:gap-2 lg:gap-2.5">
+            <a href="{{ route('search.index', ['search' => 'nikah']) }}" class="header-icon-button" aria-label="Search">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <circle cx="11" cy="11" r="6"></circle>
                     <path d="M20 20l-3.5-3.5"></path>
                 </svg>
             </a>
-            <a href="{{ route('wishlist.index') }}" class="header-icon-button" aria-label="Wishlist">
+            <a href="{{ route('wishlist.index') }}" class="header-icon-button hidden lg:inline-flex" aria-label="Wishlist">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.65-7 10-7 10Z"></path>
                 </svg>
@@ -129,8 +135,28 @@
         </div>
     </div>
 
-    <div x-show="mobileOpen" x-cloak class="mobile-drawer" x-transition.opacity>
-        <div class="mobile-drawer-panel" x-on:click.outside="mobileOpen = false">
+    <div
+        id="mobile-navigation-drawer"
+        x-show="mobileOpen"
+        x-cloak
+        class="mobile-drawer lg:hidden"
+        x-transition.opacity
+        x-on:click.self="mobileOpen = false"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mobile navigation"
+    >
+        <div
+            class="mobile-drawer-panel"
+            x-show="mobileOpen"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="translate-x-full"
+            x-transition:enter-end="translate-x-0"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="translate-x-0"
+            x-transition:leave-end="translate-x-full"
+            x-on:click.stop
+        >
             <div class="flex items-center justify-between border-b border-[var(--border-soft)] px-5 py-5">
                 <a href="{{ route('home') }}" class="brand-lockup shrink-0">
                     <span class="brand-mark">
@@ -148,7 +174,7 @@
                 </button>
             </div>
 
-            <div class="space-y-8 px-5 py-6">
+            <div class="space-y-8 px-5 py-6 pb-28">
                 @foreach ($mobileGroups as $group)
                     <section class="space-y-4">
                         <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">{{ $group['label'] }}</p>
@@ -175,10 +201,24 @@
                     </div>
                 </section>
 
-                <div class="space-y-3 border-t border-[var(--border-soft)] pt-6">
-                    <a href="{{ route('cart.index') }}" class="button-secondary w-full">Open Cart</a>
-                    <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-primary w-full">Book a Consultation</a>
-                </div>
+                <section class="space-y-4">
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">Account</p>
+                    <div class="space-y-2">
+                        <a href="{{ route('wishlist.index') }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
+                            <span>Wishlist</span>
+                            <span class="text-[var(--text-muted)]">/</span>
+                        </a>
+                        <a href="{{ $accountHref }}" class="flex items-center justify-between rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--text-main)]">
+                            <span>Account</span>
+                            <span class="text-[var(--text-muted)]">/</span>
+                        </a>
+                    </div>
+                </section>
+            </div>
+
+            <div class="mobile-drawer-cta">
+                <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-primary w-full">Book a Consultation</a>
+                <a href="{{ route('cart.index') }}" class="button-secondary w-full">Open Cart</a>
             </div>
         </div>
     </div>

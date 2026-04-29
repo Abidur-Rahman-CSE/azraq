@@ -222,6 +222,7 @@
     display: flex;
     flex-direction: column;
     line-height: 1;
+    min-width: 0;
 }
 
 .brand-wordmark-top {
@@ -1757,12 +1758,31 @@
 .mobile-drawer-panel {
     width: min(100%, 24rem);
     height: 100%;
+    min-height: 100dvh;
     overflow-y: auto;
     background:
         linear-gradient(180deg, rgba(255, 253, 249, 0.98), rgba(251, 247, 240, 0.98)),
         var(--bg-card);
     border-left: 1px solid var(--border-soft);
     box-shadow: var(--shadow-medium);
+}
+
+.mobile-drawer-panel .brand-lockup {
+    max-width: calc(100% - 3.5rem);
+}
+
+.mobile-drawer-cta {
+    position: sticky;
+    bottom: 0;
+    display: grid;
+    gap: 0.65rem;
+    border-top: 1px solid var(--border-soft);
+    background:
+        linear-gradient(180deg, rgba(255, 253, 249, 0.86), rgba(250, 247, 241, 0.98)),
+        var(--bg-card);
+    padding: 1rem 1.25rem calc(1rem + env(safe-area-inset-bottom));
+    box-shadow: 0 -18px 40px rgba(15, 46, 60, 0.08);
+    backdrop-filter: blur(16px);
 }
 
 .site-footer {
@@ -2519,6 +2539,15 @@
         letter-spacing: 0.18em;
     }
 
+    .header-shell {
+        min-height: 4.6rem;
+    }
+
+    .header-icon-button {
+        height: 2.55rem;
+        min-width: 2.55rem;
+    }
+
     .admin-topbar__inner,
     .admin-topbar__breadcrumbs,
     .admin-content {
@@ -2535,5 +2564,25 @@
 
     .admin-page-header__title {
         font-size: clamp(1.35rem, 7vw, 1.8rem);
+    }
+}
+
+@media (max-width: 380px) {
+    .site-header .brand-lockup {
+        gap: 0.6rem;
+    }
+
+    .site-header .brand-mark {
+        height: 2.45rem;
+        width: 2.45rem;
+    }
+
+    .site-header .brand-wordmark-top {
+        font-size: 0.96rem;
+        letter-spacing: 0.18em;
+    }
+
+    .site-header .brand-wordmark-bottom {
+        display: none;
     }
 }
