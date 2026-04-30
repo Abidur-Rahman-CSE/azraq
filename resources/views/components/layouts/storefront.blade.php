@@ -72,5 +72,7 @@
         </main>
 
         <x-storefront.footer />
+
+        @stack('scripts')
     </body>
 </html>

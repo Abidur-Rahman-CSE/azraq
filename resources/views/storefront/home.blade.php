@@ -1,6 +1,38 @@
 @php
-    $heroImage = data_get($homepageSections->get('hero'), 'settings.desktop_image_url')
+    $heroSection = $homepageSections->get('hero');
+    $heroImage = data_get($heroSection, 'settings.desktop_image_url')
+        ?: $signatureNikah?->storefront_preview_image_url
         ?: $featuredProducts->first()?->storefront_preview_image_url;
+
+    $heroKicker = $heroSection->subtitle ?? 'Bridal Atelier · Dhaka';
+    $heroTitle  = $heroSection->title ?? 'Crafted for the moment that lasts forever.';
+    $heroBody   = $heroSection->content ?? 'Premium Nikah personalization, bridal wear, and ceremony gifting in one curated atelier.';
+    $heroCta    = $heroSection->cta_label ?? 'Configure your Nikah';
+    $heroHref   = $heroSection->cta_href ?? ($signatureNikah ? route('products.show', $signatureNikah) : route('shop.index'));
+
+    // Bento mosaic split: first category becomes hero tile, rest fill bento
+    $bentoHero = $featuredCategories->first();
+    $bentoCells = $featuredCategories->skip(1)->take(4);
+
+    // Curated editions: merge featured + combo + bridal wear, max 8
+    $curatedEditions = collect()
+        ->merge($featuredProducts ?? collect())
+        ->merge($comboSpotlight ?? collect())
+        ->merge($bridalWearSpotlight ?? collect())
+        ->unique('id')
+        ->take(8);
+
+    // Stats — fall back to brand defaults if no admin override
+    $stats = [
+        ['num' => '350+', 'label' => 'Brides served'],
+        ['num' => '48 hr', 'label' => 'Proof turnaround'],
+        ['num' => '12 yrs', 'label' => 'Atelier in Dhaka'],
+        ['num' => '100%', 'label' => 'Hand finished'],
+    ];
+
+    // Featured testimonial: highest rating, longest body
+    $featuredTestimonial = $testimonials->sortByDesc('rating')->sortByDesc(fn ($r) => mb_strlen($r->body ?? ''))->first();
+    $supportingTestimonials = $testimonials->reject(fn ($r) => $featuredTestimonial && $r->id === $featuredTestimonial->id)->take(2);
 @endphp
 
 <x-layouts.storefront
@@ -16,316 +48,282 @@
         ],
     ]"
 >
-    {{-- ── HERO ─────────────────────────────────────────────────── --}}
-    <section class="section-shell overflow-hidden">
-        <div class="container-shell grid items-center gap-10 lg:grid-cols-[1.02fr_0.98fr]">
-            <div>
-                <span class="section-kicker text-[0.68rem]">{{ $homepageSections['hero']->subtitle ?? 'Azraq Bridal' }}</span>
-                <h1 class="mt-6 max-w-3xl text-5xl font-bold tracking-tight text-[var(--text-main)] sm:text-7xl">
-                    {{ $homepageSections['hero']->title ?? 'A browseable Azraq Bridal storefront is now layered onto the catalog architecture.' }}
+    {{-- ── 1. EDITORIAL HERO ──────────────────────────────────── --}}
+    <section class="section-shell section-shell--tight overflow-hidden scroll-fade-in">
+        <div class="container-shell grid items-center gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12">
+            <div class="order-2 lg:order-1">
+                <span class="section-kicker text-[0.62rem]">{{ $heroKicker }}</span>
+                <h1 class="mt-4 text-3xl font-semibold leading-[1.1] tracking-[-0.02em] text-[var(--text-main)] sm:text-4xl lg:text-6xl" style="text-wrap: balance;">
+                    {{ $heroTitle }}
                 </h1>
-                <p class="mt-6 max-w-2xl text-lg leading-8 text-[var(--text-muted)]">
-                    {{ $homepageSections['hero']->content ?? 'Premium bridal wear, Nikah essentials, giftable accessories, curated combos, and booking-led services — all in one calm, polished storefront.' }}
+                <p class="mt-5 max-w-md text-base leading-7 text-[var(--text-muted)] sm:text-lg">
+                    {{ $heroBody }}
                 </p>
-
-                <div class="mt-8 flex flex-wrap gap-3">
-                    @foreach (config('brand.trust_badges', []) as $badge)
-                        <x-storefront.trust-badge :label="$badge" />
-                    @endforeach
-                </div>
-
-                <div class="mt-10 flex flex-wrap gap-4">
-                    <a href="{{ $homepageSections['hero']->cta_href ?? route('shop.index') }}" class="button-primary">{{ $homepageSections['hero']->cta_label ?? 'Browse the shop' }}</a>
-                    <a href="#collections" class="button-secondary">See featured collections</a>
+                <div class="mt-7 flex flex-wrap items-center gap-3">
+                    <a href="{{ $heroHref }}" class="button-primary">{{ $heroCta }}</a>
+                    <a href="#curated" class="text-sm font-semibold tracking-[0.06em] text-[var(--accent-secondary)] hover:text-[var(--accent-primary)]">See curated editions ↓</a>
                 </div>
             </div>
 
-            <div class="glass-card-brand p-5 sm:p-6 lg:p-8">
-                <div class="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-                    <div class="relative overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)]">
-                        @if ($heroImage)
-                            <img src="{{ $heroImage }}" alt="Featured Azraq Bridal product collage" class="h-full min-h-[420px] w-full object-cover">
+            <div class="order-1 lg:order-2 relative">
+                <div class="relative overflow-hidden rounded-[var(--radius-3xl)] aspect-[4/5] sm:aspect-[5/4] lg:aspect-[4/5] bg-[var(--bg-section-soft)]">
+                    @if ($heroImage)
+                        <img src="{{ $heroImage }}" alt="Azraq Bridal — featured atelier piece" class="editorial-hero__img absolute inset-0 h-full w-full object-cover">
+                    @endif
+                    <div class="absolute inset-0 bg-gradient-to-t from-[rgba(7,14,24,0.55)] via-[rgba(7,14,24,0.10)] to-transparent"></div>
+
+                    <span class="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-md">
+                        <span class="text-[var(--azraq-blue)]">◆</span> 12 yrs · 350+ brides
+                    </span>
+
+                    @if ($signatureNikah)
+                        <a href="{{ route('products.show', $signatureNikah) }}" class="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 rounded-[var(--radius-xl)] bg-white/12 px-4 py-3 text-white backdrop-blur-md hover:bg-white/20 transition">
+                            <span class="min-w-0">
+                                <span class="block text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-white/70">Featured · {{ $signatureNikah->category?->name }}</span>
+                                <span class="mt-0.5 block truncate text-sm font-semibold">{{ $signatureNikah->name }}</span>
+                            </span>
+                            <span class="flex-shrink-0 text-[0.7rem] font-semibold tracking-[0.12em] uppercase">BDT {{ number_format((float) $signatureNikah->price, 0) }} →</span>
+                        </a>
+                    @endif
+                </div>
+            </div>
+        </div>
+    </section>
+
+    {{-- ── 2. STATS STRIP ─────────────────────────────────────── --}}
+    <section class="section-shell--tight px-4 sm:px-6 scroll-fade-in">
+        <div class="container-shell">
+            <div class="stats-strip">
+                @foreach ($stats as $stat)
+                    <div class="stats-cell">
+                        <p class="stats-cell__num">{{ $stat['num'] }}</p>
+                        <p class="stats-cell__label">{{ $stat['label'] }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </section>
+
+    {{-- ── 3. BENTO CATEGORY MOSAIC ──────────────────────────── --}}
+    @if ($featuredCategories->isNotEmpty())
+        <section id="catalog" class="section-shell scroll-fade-in">
+            <div class="container-shell">
+                <x-storefront.section-header
+                    eyebrow="Catalogue"
+                    title="An atelier organised the way you plan a wedding."
+                    description="Handpicked categories — Nikah, bridal wear, accessories, combos, and bookings — all in one place."
+                />
+
+                <div class="mt-10 bento-mosaic">
+                    @if ($bentoHero)
+                        <div class="bento-hero">
+                            <x-storefront.category-tile :category="$bentoHero" variant="hero" />
+                        </div>
+                    @endif
+                    @foreach ($bentoCells as $idx => $cat)
+                        <div @class([
+                            'bento-cell',
+                            'bento-cell--half' => $idx >= 2,
+                        ])>
+                            <x-storefront.category-tile :category="$cat" />
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        </section>
+    @endif
+
+    {{-- ── 4. SIGNATURE NIKAH SPOTLIGHT ──────────────────────── --}}
+    @if ($signatureNikah)
+        <section class="section-shell scroll-fade-in">
+            <div class="container-shell">
+                <div class="glass-card-brand grid gap-6 p-5 sm:p-7 lg:grid-cols-[0.95fr_1.05fr] lg:gap-10 lg:p-10">
+                    <div class="overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)] aspect-[4/5] sm:aspect-[5/4] lg:aspect-auto lg:min-h-[440px]">
+                        @php($nikahImage = $signatureNikah->storefront_preview_image_url)
+                        @if ($nikahImage)
+                            <img src="{{ $nikahImage }}" alt="{{ $signatureNikah->name }}" class="h-full w-full object-cover">
                         @endif
-                        <div class="absolute inset-0 bg-gradient-to-t from-[rgba(7,14,24,0.72)] via-[rgba(7,14,24,0.08)] to-transparent"></div>
-                        <div class="absolute inset-x-0 bottom-0 p-6 sm:p-7">
-                            @php($leadProduct = $featuredProducts->first())
-                            @if ($leadProduct)
-                                <p class="section-kicker text-[0.6rem] text-white/70">{{ $leadProduct->type?->label() }}</p>
-                                <h2 class="mt-3 text-3xl font-semibold leading-tight text-white sm:text-4xl">{{ $leadProduct->name }}</h2>
-                                <p class="mt-3 max-w-md text-sm leading-7 text-white/80">{{ \Illuminate\Support\Str::limit($leadProduct->excerpt ?: strip_tags($leadProduct->description), 96) }}</p>
+                    </div>
+                    <div class="flex flex-col justify-center">
+                        <span class="section-kicker text-[0.62rem]">Signature Nikah Nama</span>
+                        <h2 class="mt-3 text-2xl font-semibold leading-tight text-[var(--text-main)] sm:text-3xl lg:text-4xl">{{ $signatureNikah->name }}</h2>
+                        <p class="mt-4 text-sm leading-7 text-[var(--text-muted)] sm:text-base">{{ \Illuminate\Support\Str::limit($signatureNikah->description, 220) }}</p>
+
+                        <div class="mt-6 process-rail">
+                            <span class="process-rail__step"><span class="process-rail__num">01</span> Fill details</span>
+                            <span class="process-rail__sep">·</span>
+                            <span class="process-rail__step"><span class="process-rail__num">02</span> Choose typography</span>
+                            <span class="process-rail__sep">·</span>
+                            <span class="process-rail__step"><span class="process-rail__num">03</span> Approve proof</span>
+                        </div>
+
+                        <div class="mt-7 flex flex-wrap gap-3">
+                            <a href="{{ route('products.show', $signatureNikah) }}" class="button-primary">Customize your Nikah</a>
+                            @if ($signatureNikah->category)
+                                <a href="{{ route('categories.show', $signatureNikah->category) }}" class="button-ghost">Explore Nikah Collection</a>
                             @endif
                         </div>
                     </div>
+                </div>
+            </div>
+        </section>
+    @endif
 
-                    <div class="grid gap-4">
-                        @foreach ($featuredProducts->slice(1, 2) as $product)
-                            @php($productImage = $product->storefront_preview_image_url)
-                            <a href="{{ route('products.show', $product) }}" class="group relative overflow-hidden rounded-[var(--radius-2xl)] bg-[var(--bg-section-soft)] min-h-[202px]">
-                                @if ($productImage)
-                                    <img src="{{ $productImage }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition duration-700 ease-out group-hover:scale-105">
-                                @endif
-                                <div class="absolute inset-0 bg-gradient-to-t from-[rgba(7,14,24,0.74)] via-[rgba(7,14,24,0.12)] to-transparent"></div>
-                                <div class="absolute inset-x-0 bottom-0 p-5">
-                                    <p class="section-kicker text-[0.58rem] text-white/70">{{ $product->category?->name ?: $product->type?->label() }}</p>
-                                    <h3 class="mt-2 text-xl font-semibold leading-tight text-white">{{ $product->name }}</h3>
-                                    <div class="mt-3 flex items-center justify-between gap-3 text-sm text-white/78">
-                                        <span>BDT {{ number_format((float) $product->price, 0) }}</span>
-                                        <span class="rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] backdrop-blur-sm">View</span>
+    {{-- ── 5. CURATED EDITIONS (carousel/grid) ───────────────── --}}
+    @if ($curatedEditions->isNotEmpty())
+        <section id="curated" class="section-shell scroll-fade-in">
+            <div class="container-shell">
+                <x-storefront.section-header
+                    eyebrow="Curated editions"
+                    title="Pieces we keep returning to."
+                    description="Bridal wear, Nikah essentials, gifting combos, and bookings — curated weekly."
+                    centered
+                />
+
+                <div class="mt-7 filter-pill-row">
+                    <a href="{{ route('shop.index') }}" class="filter-pill filter-pill--active">All</a>
+                    <a href="{{ route('shop.index', ['type' => 'nikah_personalization']) }}" class="filter-pill">Nikah</a>
+                    <a href="{{ route('shop.index', ['type' => 'advanced_personalization']) }}" class="filter-pill">Bridal wear</a>
+                    <a href="{{ route('shop.index', ['type' => 'bundle']) }}" class="filter-pill">Combos</a>
+                    <a href="{{ route('shop.index', ['type' => 'service']) }}" class="filter-pill">Bookings</a>
+                </div>
+
+                <div class="mt-8">
+                    <x-storefront.carousel :md-cols="3" :lg-cols="4">
+                        @foreach ($curatedEditions as $product)
+                            <x-storefront.listing-card :product="$product" />
+                        @endforeach
+                    </x-storefront.carousel>
+                </div>
+
+                <div class="mt-10 text-center">
+                    <a href="{{ route('shop.index') }}" class="button-ghost">Open the full shop →</a>
+                </div>
+            </div>
+        </section>
+    @endif
+
+    {{-- ── 6. EDITORIAL TESTIMONIAL PULL-QUOTE ───────────────── --}}
+    @if ($featuredTestimonial)
+        <section class="section-shell scroll-fade-in">
+            <div class="container-shell grid gap-6 lg:grid-cols-[1.4fr_1fr]">
+                <article class="editorial-quote">
+                    <p class="editorial-quote__body">"{{ \Illuminate\Support\Str::limit($featuredTestimonial->body, 240) }}"</p>
+                    <div class="editorial-quote__attribution">
+                        <div>
+                            <p class="text-sm font-semibold text-[var(--accent-secondary)]">{{ $featuredTestimonial->author_name }}</p>
+                            @if ($featuredTestimonial->title)
+                                <p class="mt-0.5 text-xs text-[var(--text-muted)]">{{ $featuredTestimonial->title }}</p>
+                            @endif
+                        </div>
+                        <p class="text-sm tracking-wide text-[var(--azraq-burgundy)]">
+                            {{ str_repeat('★', $featuredTestimonial->rating) }}<span class="text-[var(--text-muted)] opacity-30">{{ str_repeat('★', max(0, 5 - $featuredTestimonial->rating)) }}</span>
+                        </p>
+                    </div>
+                </article>
+
+                @if ($supportingTestimonials->isNotEmpty())
+                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                        @foreach ($supportingTestimonials as $review)
+                            <x-storefront.review-card :review="$review" />
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+        </section>
+    @endif
+
+    {{-- ── 7. ATELIER SERVICES ───────────────────────────────── --}}
+    @if ($bookingHighlights->isNotEmpty())
+        <section class="section-shell scroll-fade-in">
+            <div class="container-shell">
+                <x-storefront.section-header
+                    eyebrow="Atelier services"
+                    title="Bookings handled with the same care as our pieces."
+                    description="Bridal makeup, mehendi, and ceremony consultations — inquiry-first, never stock-first."
+                    centered
+                />
+
+                <div class="mt-8">
+                    <x-storefront.carousel :md-cols="3" :lg-cols="3">
+                        @foreach ($bookingHighlights as $service)
+                            @php($serviceImage = $service->storefront_preview_image_url)
+                            <a href="{{ route('products.show', $service) }}" class="glass-panel group block overflow-hidden">
+                                <div class="overflow-hidden rounded-t-[var(--radius-2xl)] aspect-[4/3]">
+                                    @if ($serviceImage)
+                                        <img src="{{ $serviceImage }}" alt="{{ $service->name }}" class="h-full w-full object-cover transition duration-500 group-hover:scale-105">
+                                    @else
+                                        <div class="h-full w-full bg-[radial-gradient(circle_at_top,_rgba(120,0,0,0.10),_transparent_60%),linear-gradient(180deg,rgba(255,255,255,0.92),rgba(244,237,228,0.84))]"></div>
+                                    @endif
+                                </div>
+                                <div class="p-4 sm:p-5">
+                                    <p class="section-kicker text-[0.6rem]">{{ $service->type?->label() }}</p>
+                                    <h3 class="mt-2 text-base font-semibold leading-tight text-[var(--text-main)] sm:text-lg">{{ $service->name }}</h3>
+                                    <p class="mt-2 hidden sm:block text-xs leading-6 text-[var(--text-muted)]">{{ \Illuminate\Support\Str::limit($service->excerpt ?: strip_tags($service->description), 90) }}</p>
+                                    <div class="mt-3 flex items-center justify-between">
+                                        <span class="text-sm font-semibold text-[var(--text-main)]">BDT {{ number_format((float) $service->price, 0) }}</span>
+                                        <span class="product-card-lux__cta">Inquire →</span>
                                     </div>
                                 </div>
                             </a>
                         @endforeach
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- ── BRAND VALUES — glass cards on cream ─────────────────── --}}
-    <section class="section-shell pt-0">
-        <div class="container-shell">
-            <div class="grid gap-5 md:grid-cols-3">
-                @foreach ([
-                    ['icon' => '✦', 'title' => 'Handcrafted finishing', 'copy' => 'Refined materials, polished detailing, and presentation-ready finishing for ceremonial gifting.'],
-                    ['icon' => '◈', 'title' => 'Personalized proof support', 'copy' => 'Nikah Nama orders stay elegant and accurate with proof-aware review before production.'],
-                    ['icon' => '❋', 'title' => 'Premium presentation', 'copy' => 'Framing, keepsakes, and bridal pieces are merchandised to feel collectible, not generic.'],
-                ] as $val)
-                    <article class="brand-value-card">
-                        <p class="text-2xl text-[var(--azraq-burgundy)] opacity-60">{{ $val['icon'] }}</p>
-                        <p class="mt-4 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--accent-primary)]">{{ $val['title'] }}</p>
-                        <p class="mt-3 text-sm leading-7 text-[var(--text-muted)]">{{ $val['copy'] }}</p>
-                    </article>
-                @endforeach
-            </div>
-        </div>
-    </section>
-
-    {{-- ── CATEGORIES ───────────────────────────────────────────── --}}
-    <section id="catalog" class="section-shell pt-0">
-        <div class="container-shell">
-            <x-storefront.section-header
-                :eyebrow="$homepageSections['featured_categories']->subtitle ?? 'Featured categories'"
-                :title="$homepageSections['featured_categories']->title ?? 'Browse the main Azraq Bridal catalog.'"
-                :description="$homepageSections['featured_categories']->content ?? 'Handpicked categories curated for your ceremony, gifting, and bridal needs.'"
-            />
-
-            <div class="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-                @foreach ($featuredCategories as $category)
-                    <x-storefront.category-tile :category="$category" />
-                @endforeach
-            </div>
-        </div>
-    </section>
-
-    {{-- ── SIGNATURE NIKAH SPOTLIGHT ────────────────────────────── --}}
-    @if ($signatureNikah)
-        <section class="section-shell">
-            <div class="container-shell">
-                <div class="glass-card-brand grid gap-8 p-8 lg:grid-cols-[0.95fr_1.05fr] lg:p-10">
-                    <div class="overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)]">
-                        @php($nikahImage = $signatureNikah->storefront_preview_image_url)
-                        @if ($nikahImage)
-                            <img src="{{ $nikahImage }}" alt="{{ $signatureNikah->name }}" class="h-full min-h-[430px] w-full object-cover">
-                        @endif
-                    </div>
-                    <div class="flex flex-col justify-center">
-                        <span class="section-kicker text-[0.68rem]">Signature Nikah highlight</span>
-                        <h2 class="mt-5 text-4xl font-semibold text-[var(--text-main)] sm:text-5xl">{{ $signatureNikah->name }}</h2>
-                        <p class="mt-5 text-lg leading-8 text-[var(--text-muted)]">{{ $signatureNikah->description }}</p>
-                        <div class="mt-6 flex flex-wrap gap-3">
-                            <x-storefront.trust-badge label="Template-driven personalization" />
-                            <x-storefront.trust-badge label="Curated font selection" />
-                            <x-storefront.trust-badge label="Proof-aware order flow" />
-                        </div>
-                        <div class="mt-8 grid gap-3 sm:grid-cols-3">
-                            @foreach ([
-                                'Fill structured ceremonial details',
-                                'Choose a premium typography direction',
-                                'Submit proof notes before fulfillment',
-                            ] as $step)
-                                <div class="glass-panel p-4 text-sm leading-7 text-[var(--text-main)]">{{ $step }}</div>
-                            @endforeach
-                        </div>
-                        <div class="mt-8 flex flex-wrap gap-4">
-                            <a href="{{ route('products.show', $signatureNikah) }}" class="button-primary">Customize your Nikah order</a>
-                            <a href="{{ route('categories.show', $signatureNikah->category) }}" class="button-ghost">Explore Nikah Collection</a>
-                        </div>
-                    </div>
+                    </x-storefront.carousel>
                 </div>
             </div>
         </section>
     @endif
 
-    {{-- ── FEATURED PRODUCTS ────────────────────────────────────── --}}
-    <section id="architecture" class="section-shell">
+    {{-- ── 8. CINEMATIC CTA FINALE ───────────────────────────── --}}
+    @php($finaleImage = $signatureNikah?->storefront_preview_image_url ?: $bridalWearSpotlight->first()?->storefront_preview_image_url)
+    <section class="section-shell scroll-fade-in">
         <div class="container-shell">
-            <x-storefront.section-header
-                :eyebrow="$homepageSections['featured_products']->subtitle ?? 'Featured products'"
-                :title="$homepageSections['featured_products']->title ?? 'Curated pieces from across the Azraq Bridal catalog.'"
-                :description="$homepageSections['featured_products']->content ?? 'Standard, personalized, bundle, and service products — discoverable at a glance.'"
-            />
-
-            <div class="mt-10 grid gap-6 lg:grid-cols-2 xl:grid-cols-4">
-                @foreach ($featuredProducts as $product)
-                    <x-storefront.listing-card :product="$product" />
-                @endforeach
-            </div>
-        </div>
-    </section>
-
-    {{-- ── COLLECTIONS ──────────────────────────────────────────── --}}
-    <section id="collections" class="section-shell">
-        <div class="container-shell">
-            <div class="glass-panel grid gap-8 p-8 lg:grid-cols-[1fr_0.9fr] lg:p-10">
-                <div>
-                    <span class="section-kicker text-[0.68rem]">Featured collections</span>
-                    <h2 class="mt-4 text-3xl font-semibold text-[var(--text-main)]">{{ $homepageSections['featured_collections']->title ?? 'Collections curated for ceremony, gifting, and bridal wear.' }}</h2>
-                    <p class="mt-4 text-base leading-8 text-[var(--text-muted)]">
-                        {{ $homepageSections['featured_collections']->content ?? 'Best-sellers, combo edits, personalized gift picks, and curated merchandising — all in one place.' }}
-                    </p>
-                    <div class="mt-8">
-                        <a href="{{ $homepageSections['featured_collections']->cta_href ?? route('shop.index') }}" class="button-primary">{{ $homepageSections['featured_collections']->cta_label ?? 'Open full shop' }}</a>
-                    </div>
-                </div>
-
-                <div class="grid gap-4">
-                    @foreach ($featuredCollections as $collection)
-                        <x-storefront.collection-card :collection="$collection" />
-                    @endforeach
-                </div>
-            </div>
-        </div>
-    </section>
-
-    {{-- ── COMBO SPOTLIGHT ──────────────────────────────────────── --}}
-    @if ($comboSpotlight->isNotEmpty())
-        <section class="section-shell">
-            <div class="container-shell">
-                <x-storefront.section-header
-                    eyebrow="Combo spotlight"
-                    title="Curated bundles designed to feel gift-ready, ceremonial, and easy to order."
-                    description="Package pages should feel visually grouped and savings-aware, so the homepage now teases combo value directly."
-                />
-
-                <div class="mt-10 grid gap-6 lg:grid-cols-3">
-                    @foreach ($comboSpotlight as $combo)
-                        <x-storefront.listing-card :product="$combo" />
-                    @endforeach
-                </div>
-            </div>
-        </section>
-    @endif
-
-    {{-- ── BRIDAL WEAR + BOOKING SERVICES ──────────────────────── --}}
-    @if ($bridalWearSpotlight->isNotEmpty() || $bookingHighlights->isNotEmpty())
-        <section class="section-shell">
-            <div class="container-shell grid gap-8 xl:grid-cols-[1.05fr_0.95fr]">
-                @if ($bridalWearSpotlight->isNotEmpty())
-                    <div class="glass-panel p-8 lg:p-10">
-                        <span class="section-kicker text-[0.68rem]">Bridal wear spotlight</span>
-                        <h2 class="mt-4 text-3xl font-semibold text-[var(--text-main)]">Customized bridal wear with soft editorial presentation.</h2>
-                        <div class="mt-8 grid gap-5">
-                            @foreach ($bridalWearSpotlight as $product)
-                                <x-storefront.listing-card :product="$product" />
-                            @endforeach
-                        </div>
-                    </div>
+            <div class="cta-finale">
+                @if ($finaleImage)
+                    <img src="{{ $finaleImage }}" alt="" class="cta-finale__bg" loading="lazy">
+                @else
+                    <div class="cta-finale__fallback"></div>
                 @endif
-
-                @if ($bookingHighlights->isNotEmpty())
-                    <div class="glass-card-brand p-8 lg:p-10">
-                        <span class="section-kicker text-[0.68rem]">Booking / mehendi services</span>
-                        <h2 class="mt-4 text-3xl font-semibold text-[var(--text-main)]">Service-led experiences deserve a gentler, inquiry-first storefront presence.</h2>
-                        <p class="mt-4 text-base leading-8 text-[var(--text-muted)]">Bridal, non-bridal, and mehendi bookings are highlighted separately so they do not feel like stock-first products.</p>
-                        <div class="mt-8 grid gap-4">
-                            @foreach ($bookingHighlights as $service)
-                                @php($serviceImage = $service->storefront_preview_image_url)
-                                <a href="{{ route('products.show', $service) }}" class="glass-panel block overflow-hidden p-0 transition hover:-translate-y-1 hover:shadow-[var(--shadow-card-hover)]">
-                                    <div class="grid gap-0 md:grid-cols-[190px_1fr]">
-                                        <div class="overflow-hidden rounded-l-[var(--radius-2xl)] bg-[var(--bg-section-soft)]">
-                                            @if ($serviceImage)
-                                                <img src="{{ $serviceImage }}" alt="{{ $service->name }}" class="h-full min-h-[200px] w-full object-cover">
-                                            @else
-                                                <div class="h-full min-h-[200px] w-full bg-[radial-gradient(circle_at_top,_rgba(120,0,0,0.08),_transparent_60%),linear-gradient(180deg,rgba(255,255,255,0.9),rgba(244,237,228,0.84))]"></div>
-                                            @endif
-                                        </div>
-                                        <div class="p-5">
-                                            <div class="flex items-start justify-between gap-4">
-                                                <div>
-                                                    <p class="section-kicker text-[0.6rem]">{{ $service->type?->label() }}</p>
-                                                    <h3 class="mt-2 text-2xl font-semibold text-[var(--text-main)]">{{ $service->name }}</h3>
-                                                    <p class="mt-2 text-sm leading-7 text-[var(--text-muted)]">{{ \Illuminate\Support\Str::limit($service->excerpt ?: strip_tags($service->description), 120) }}</p>
-                                                </div>
-                                                <span class="button-pill flex-shrink-0">Inquire</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </a>
-                            @endforeach
-                        </div>
+                <div class="cta-finale__overlay"></div>
+                <div class="cta-finale__content">
+                    <span class="section-kicker text-[0.62rem] text-white/70">Begin the journey</span>
+                    <h2 class="cta-finale__title mt-3" style="color:#fff;">Crafted for moments that last forever.</h2>
+                    <p class="cta-finale__sub">A 15-minute consultation. Zero obligation. Visit our atelier or chat on WhatsApp.</p>
+                    <div class="mt-7 flex flex-wrap items-center justify-center gap-3">
+                        <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-luxury">Book a consultation</a>
+                        <a href="{{ route('shop.index') }}" class="button-outline-gold">Browse the shop</a>
                     </div>
-                @endif
-            </div>
-        </section>
-    @endif
-
-    {{-- ── TESTIMONIALS ─────────────────────────────────────────── --}}
-    @if ($testimonials->isNotEmpty())
-        <section class="section-shell">
-            <div class="container-shell">
-                <x-storefront.section-header
-                    eyebrow="Testimonials"
-                    title="Moments shared by brides and families who trusted Azraq."
-                    description="Social proof stays light and elegant, keeping the focus on the bridal tone rather than looking like a dense review wall."
-                />
-
-                <div class="mt-10 grid gap-6 lg:grid-cols-3">
-                    @foreach ($testimonials as $review)
-                        <x-storefront.review-card :review="$review" />
-                    @endforeach
                 </div>
             </div>
-        </section>
-    @endif
+        </div>
+    </section>
 
-    {{-- ── FAQ PREVIEW ──────────────────────────────────────────── --}}
+    {{-- ── 9. FAQ PRELUDE LINE ───────────────────────────────── --}}
     @if ($faqPreview->isNotEmpty() && ($homepageSections['faq_preview']->is_enabled ?? true))
-        <section class="section-shell">
-            <div class="container-shell">
-                <x-storefront.section-header
-                    :eyebrow="$homepageSections['faq_preview']->subtitle ?? 'FAQ preview'"
-                    :title="$homepageSections['faq_preview']->title ?? 'Frequently asked questions'"
-                    :description="$homepageSections['faq_preview']->content ?? 'Delivery, personalization, and proof expectations — answered clearly.'"
-                />
-
-                <div class="mt-10 grid gap-4">
-                    @foreach ($faqPreview as $faq)
-                        <article class="glass-panel p-6">
-                            <h3 class="text-xl font-semibold text-[var(--text-main)]">{{ $faq->question }}</h3>
-                            <p class="mt-4 text-sm leading-7 text-[var(--text-muted)]">{{ $faq->answer }}</p>
-                        </article>
-                    @endforeach
-                </div>
-
-                <div class="mt-8">
-                    <a href="{{ $homepageSections['faq_preview']->cta_href ?? route('faq.index') }}" class="button-primary">{{ $homepageSections['faq_preview']->cta_label ?? 'Read all FAQs' }}</a>
-                </div>
-            </div>
+        <section class="section-shell--tight pb-12 text-center scroll-fade-in">
+            <p class="text-sm text-[var(--text-muted)]">
+                Have a question?
+                <a href="{{ route('faq.index') }}" class="ml-1 font-semibold text-[var(--accent-primary)] hover:underline">See FAQs →</a>
+            </p>
         </section>
     @endif
 
-    {{-- ── PREMIUM CTA ──────────────────────────────────────────── --}}
-    <section class="section-shell">
-        <div class="container-shell">
-            <div class="glass-card-brand overflow-hidden p-10 text-center lg:p-16">
-                <span class="section-kicker text-[0.68rem]">Azraq Bridal</span>
-                <h2 class="mt-5 text-4xl font-semibold text-[var(--text-main)] sm:text-5xl">Crafted for moments that last forever</h2>
-                <p class="mx-auto mt-5 max-w-xl text-lg leading-8 text-[var(--text-muted)]">From personalized Nikah Namas to full bridal wear and ceremony gifting — every detail is handled with care and presented beautifully.</p>
-                <div class="mt-10 flex flex-wrap items-center justify-center gap-4">
-                    <a href="{{ route('shop.index') }}" class="button-primary">Browse the full collection</a>
-                    <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-ghost">Book a consultation</a>
-                </div>
-            </div>
-        </div>
-    </section>
+    <script>
+        (function () {
+            if (typeof window === 'undefined' || !('IntersectionObserver' in window)) return;
+            document.documentElement.classList.add('js-fade-ready');
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                document.querySelectorAll('.scroll-fade-in').forEach(el => el.classList.add('is-visible'));
+                return;
+            }
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('is-visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+            document.querySelectorAll('.scroll-fade-in').forEach(el => observer.observe(el));
+        })();
+    </script>
 </x-layouts.storefront>

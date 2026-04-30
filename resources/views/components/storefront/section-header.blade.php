@@ -12,7 +12,7 @@
     @endif
 
     <h2 @class([
-        'mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.03em] sm:text-5xl',
+        'mt-3 max-w-3xl text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-3xl lg:text-4xl',
         'text-[var(--text-main)]' => !$dark,
         'text-white' => $dark,
         'mx-auto' => $centered,
@@ -20,7 +20,7 @@
 
     @if ($description)
         <p @class([
-            'mt-5 max-w-2xl text-base leading-8 sm:text-lg',
+            'mt-4 max-w-2xl text-sm leading-7 sm:text-base sm:leading-8',
             'text-[var(--text-muted)]' => !$dark,
             'text-white/60' => $dark,
             'mx-auto' => $centered,
