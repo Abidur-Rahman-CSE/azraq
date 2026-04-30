@@ -1,26 +1,43 @@
 @php
+    // Detect dev/engineering placeholder strings so admin-leftover copy
+    // never reaches the storefront. Match common giveaways from the seeded data.
+    $isDevCopy = function (?string $value): bool {
+        if (! filled($value)) return true;
+        $needles = ['storefront', 'configurable homepage', 'top-of-funnel', 'hardcoding', 'Phase 1', 'catalog architecture'];
+        foreach ($needles as $needle) {
+            if (stripos($value, $needle) !== false) return true;
+        }
+        return false;
+    };
+
     $heroSection = $homepageSections->get('hero');
     $heroImage = data_get($heroSection, 'settings.desktop_image_url')
         ?: $signatureNikah?->storefront_preview_image_url
         ?: $featuredProducts->first()?->storefront_preview_image_url;
 
-    $heroKicker = $heroSection->subtitle ?? 'Bridal Atelier · Dhaka';
-    $heroTitle  = $heroSection->title ?? 'Crafted for the moment that lasts forever.';
-    $heroBody   = $heroSection->content ?? 'Premium Nikah personalization, bridal wear, and ceremony gifting in one curated atelier.';
-    $heroCta    = $heroSection->cta_label ?? 'Configure your Nikah';
-    $heroHref   = $heroSection->cta_href ?? ($signatureNikah ? route('products.show', $signatureNikah) : route('shop.index'));
+    $heroKicker = $isDevCopy($heroSection->subtitle ?? null) ? 'Bridal Atelier · Dhaka' : $heroSection->subtitle;
+    $heroTitle  = $isDevCopy($heroSection->title ?? null) ? 'Crafted for the moment that lasts forever.' : $heroSection->title;
+    $heroBody   = $isDevCopy($heroSection->content ?? null) ? 'Premium Nikah personalization, bridal wear, and ceremony gifting in one curated atelier.' : $heroSection->content;
+    $heroCta    = filled($heroSection?->cta_label ?? null) ? $heroSection->cta_label : 'Configure your Nikah';
+    $heroHref   = filled($heroSection?->cta_href ?? null) ? $heroSection->cta_href : ($signatureNikah ? route('products.show', $signatureNikah) : route('shop.index'));
 
-    // Bento mosaic split: first category becomes hero tile, rest fill bento
+    // Bento mosaic: hero (8col × 2row) + exactly 2 cells (4col each) on the right.
+    // Extras row (below) only renders when 2 leftover categories exist — never 1, to avoid orphan.
     $bentoHero = $featuredCategories->first();
-    $bentoCells = $featuredCategories->skip(1)->take(4);
+    $bentoSidecells = $featuredCategories->skip(1)->take(2);
+    $remaining = $featuredCategories->skip(3);
+    $bentoExtras = $remaining->count() >= 2 ? $remaining->take(2) : collect();
 
-    // Curated editions: merge featured + combo + bridal wear, max 8
-    $curatedEditions = collect()
+    // Curated editions: merge sources, dedupe, then pick a count that
+    // fills exactly one or two desktop rows (4 or 8) — never orphans.
+    $curatedPool = collect()
         ->merge($featuredProducts ?? collect())
         ->merge($comboSpotlight ?? collect())
         ->merge($bridalWearSpotlight ?? collect())
-        ->unique('id')
-        ->take(8);
+        ->unique('id');
+
+    $curatedCount = $curatedPool->count() >= 8 ? 8 : 4;
+    $curatedEditions = $curatedPool->take($curatedCount);
 
     // Stats — fall back to brand defaults if no admin override
     $stats = [
@@ -120,11 +137,13 @@
                             <x-storefront.category-tile :category="$bentoHero" variant="hero" />
                         </div>
                     @endif
-                    @foreach ($bentoCells as $idx => $cat)
-                        <div @class([
-                            'bento-cell',
-                            'bento-cell--half' => $idx >= 2,
-                        ])>
+                    @foreach ($bentoSidecells as $cat)
+                        <div class="bento-cell">
+                            <x-storefront.category-tile :category="$cat" />
+                        </div>
+                    @endforeach
+                    @foreach ($bentoExtras as $cat)
+                        <div class="bento-cell bento-cell--half">
                             <x-storefront.category-tile :category="$cat" />
                         </div>
                     @endforeach
@@ -206,16 +225,16 @@
     {{-- ── 6. EDITORIAL TESTIMONIAL PULL-QUOTE ───────────────── --}}
     @if ($featuredTestimonial)
         <section class="section-shell scroll-fade-in">
-            <div class="container-shell grid gap-6 lg:grid-cols-[1.4fr_1fr]">
-                <article class="editorial-quote">
-                    <p class="editorial-quote__body">"{{ \Illuminate\Support\Str::limit($featuredTestimonial->body, 240) }}"</p>
-                    <div class="editorial-quote__attribution">
-                        <div>
-                            <p class="text-sm font-semibold text-[var(--accent-secondary)]">{{ $featuredTestimonial->author_name }}</p>
+            <div class="container-shell">
+                <article class="editorial-quote mx-auto max-w-3xl text-center">
+                    <p class="editorial-quote__body">"{{ \Illuminate\Support\Str::limit($featuredTestimonial->body, 220) }}"</p>
+                    <div class="editorial-quote__attribution justify-center">
+                        <p class="text-sm font-semibold text-[var(--accent-secondary)]">
+                            {{ $featuredTestimonial->author_name }}
                             @if ($featuredTestimonial->title)
-                                <p class="mt-0.5 text-xs text-[var(--text-muted)]">{{ $featuredTestimonial->title }}</p>
+                                <span class="ml-2 text-[var(--text-muted)] font-normal">· {{ $featuredTestimonial->title }}</span>
                             @endif
-                        </div>
+                        </p>
                         <p class="text-sm tracking-wide text-[var(--azraq-burgundy)]">
                             {{ str_repeat('★', $featuredTestimonial->rating) }}<span class="text-[var(--text-muted)] opacity-30">{{ str_repeat('★', max(0, 5 - $featuredTestimonial->rating)) }}</span>
                         </p>
@@ -223,7 +242,7 @@
                 </article>
 
                 @if ($supportingTestimonials->isNotEmpty())
-                    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+                    <div class="mt-6 grid gap-4 sm:grid-cols-2">
                         @foreach ($supportingTestimonials as $review)
                             <x-storefront.review-card :review="$review" />
                         @endforeach

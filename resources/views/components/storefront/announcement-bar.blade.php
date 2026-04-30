@@ -5,10 +5,9 @@
 
 <div class="announcement-luxury">
     <div class="container-shell flex flex-col gap-2 px-0 py-2.5 text-center text-xs sm:flex-row sm:items-center sm:justify-between">
-        <p class="text-white/75 tracking-[0.06em]">
-            <span class="text-[var(--azraq-blue)] font-semibold uppercase tracking-[0.22em] text-[0.68rem]">Azraq Bridal</span>
-            <span class="gold-dot"></span>
-            {{ $announcementText }}
+        <p class="text-white/75 tracking-[0.04em]">
+            <span class="text-[var(--azraq-blue)] text-[0.6rem]">◆</span>
+            <span class="ml-1.5">{{ $announcementText }}</span>
             @if ($announcementCtaLabel && $announcementCtaHref)
                 <a class="ml-2 text-[var(--azraq-cream)] font-semibold underline decoration-white/20 underline-offset-4" href="{{ $announcementCtaHref }}">{{ $announcementCtaLabel }}</a>
             @endif
