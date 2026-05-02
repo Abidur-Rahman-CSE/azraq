@@ -3566,9 +3566,19 @@
 
 /* ── Hero: overflow fix + visual cap ──────────────────────── */
 .editorial-hero-grid > * { min-width: 0; }
+
+/* Mobile/tablet: cap visual height so hero doesn't overflow viewport */
 .editorial-hero__visual {
-    max-height: clamp(380px, 60vh, 640px);
+    max-height: clamp(380px, 60vh, 580px);
 }
+
+/* Desktop: let the visual fill its column width naturally (no height cap) */
+@media (min-width: 1024px) {
+    .editorial-hero__visual {
+        max-height: none;
+    }
+}
+
 .editorial-hero__visual img,
 .editorial-hero__visual .editorial-hero__img {
     max-width: 100%;

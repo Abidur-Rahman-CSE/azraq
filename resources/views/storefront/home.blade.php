@@ -95,7 +95,7 @@
             </div>
 
             <div class="order-1 lg:order-2 relative min-w-0">
-                <div class="editorial-hero__visual relative overflow-hidden rounded-[var(--radius-3xl)] aspect-[4/5] sm:aspect-[5/4] lg:aspect-[4/5] bg-[var(--bg-section-soft)]">
+                <div class="editorial-hero__visual relative overflow-hidden rounded-[var(--radius-3xl)] aspect-[4/5] sm:aspect-[5/4] lg:aspect-[6/7] bg-[var(--bg-section-soft)]">
                     @if ($heroImage)
                         <img src="{{ $heroImage }}" alt="Azraq Bridal — featured atelier piece" class="editorial-hero__img absolute inset-0 h-full w-full object-cover">
                     @endif
