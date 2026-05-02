@@ -2956,7 +2956,7 @@
 .product-card-lux__body {
     position: relative;
     z-index: 2;
-    padding: 1.1rem 1.25rem 0.75rem;
+    padding: 0.85rem 1rem 0.55rem;
 }
 
 .product-card-lux__kicker {
@@ -2968,11 +2968,15 @@
 }
 
 .product-card-lux__title {
-    margin-top: 0.35rem;
-    font-size: 1rem;
+    margin-top: 0.3rem;
+    font-size: 0.95rem;
     font-weight: 600;
     line-height: 1.3;
     color: var(--text-main);
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .product-card-lux__title a:hover {
@@ -2980,9 +2984,9 @@
 }
 
 .product-card-lux__excerpt {
-    margin-top: 0.5rem;
-    font-size: 0.82rem;
-    line-height: 1.55;
+    margin-top: 0.4rem;
+    font-size: 0.78rem;
+    line-height: 1.5;
     color: var(--text-muted);
     display: -webkit-box;
     -webkit-line-clamp: 2;
@@ -2998,11 +3002,11 @@
     align-items: flex-end;
     justify-content: space-between;
     gap: 0.5rem;
-    padding: 0 1.25rem 1.1rem;
+    padding: 0 1rem 0.9rem;
 }
 
 .product-card-lux__price {
-    font-size: 1rem;
+    font-size: 0.92rem;
     font-weight: 600;
     color: var(--text-main);
     line-height: 1;
@@ -3061,10 +3065,17 @@
     display: block;
     overflow: hidden;
     isolation: isolate;
-    border-radius: var(--radius-3xl);
+    border-radius: var(--radius-2xl);
     aspect-ratio: 4 / 5;
     min-height: 0;
     transition: transform 240ms ease, box-shadow 240ms ease;
+}
+
+@media (min-width: 768px) {
+    .category-card-lux {
+        aspect-ratio: auto;
+        height: 100%;
+    }
 }
 
 .category-card-lux:hover {
@@ -3121,11 +3132,11 @@
     aspect-ratio: 4 / 5;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 768px) {
     .category-card-lux--hero {
         aspect-ratio: auto;
         height: 100%;
-        min-height: 540px;
+        min-height: 0;
     }
 }
 
@@ -3259,8 +3270,8 @@
 @media (min-width: 768px) {
     .bento-mosaic {
         grid-template-columns: repeat(12, minmax(0, 1fr));
-        grid-auto-rows: minmax(220px, auto);
-        gap: 1.25rem;
+        grid-auto-rows: 200px;
+        gap: 1rem;
     }
     .bento-mosaic > .bento-hero {
         grid-column: span 8 / span 8;
