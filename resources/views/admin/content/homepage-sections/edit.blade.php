@@ -11,6 +11,30 @@
             ->all();
         $desktopImageUrl = old('settings.desktop_image_url', data_get($settings ?? [], 'desktop_image_url'));
         $mobileImageUrl = old('settings.mobile_image_url', data_get($settings ?? [], 'mobile_image_url'));
+        $secondaryCtaLabel = old('settings.secondary_cta_label', data_get($settings ?? [], 'secondary_cta_label'));
+        $secondaryCtaHref = old('settings.secondary_cta_href', data_get($settings ?? [], 'secondary_cta_href'));
+        $featuredProductId = old('settings.featured_product_id', data_get($settings ?? [], 'featured_product_id'));
+        $statRows = old('settings.stats', data_get($settings ?? [], 'stats', []));
+        if (! is_array($statRows) || count($statRows) === 0) {
+            $statRows = [['num' => '', 'label' => '']];
+        }
+        $spotlightProductId = old('settings.product_id', data_get($settings ?? [], 'product_id'));
+        $processSteps = old('settings.process_steps', data_get($settings ?? [], 'process_steps', []));
+        if (! is_array($processSteps) || count($processSteps) === 0) {
+            $processSteps = ['', '', ''];
+        }
+        $serviceIds = collect(old('settings.service_ids', data_get($settings ?? [], 'service_ids', [])))
+            ->map(fn ($id) => (string) $id)
+            ->all();
+        $finaleBgUrl = old('settings.background_image_url', data_get($settings ?? [], 'background_image_url'));
+        $instaPosts = old('settings.posts', data_get($settings ?? [], 'posts', []));
+        if (! is_array($instaPosts) || count($instaPosts) === 0) {
+            $instaPosts = [['image_url' => '', 'href' => '']];
+        }
+        $trustSignals = old('settings.signals', data_get($settings ?? [], 'signals', []));
+        if (! is_array($trustSignals) || count($trustSignals) === 0) {
+            $trustSignals = [['icon' => '◆', 'label' => '']];
+        }
     @endphp
     <div class="space-y-6">
         <div>
@@ -71,6 +95,27 @@
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Mobile hero image</span>
                             <input type="file" name="mobile_image_upload" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
                             <input type="text" name="settings[mobile_image_url]" value="{{ $mobileImageUrl }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Optional mobile-specific image URL">
+                        </label>
+
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <label class="space-y-2">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA label</span>
+                                <input type="text" name="settings[secondary_cta_label]" value="{{ $secondaryCtaLabel }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="See curated editions ↓">
+                            </label>
+                            <label class="space-y-2">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA href</span>
+                                <input type="text" name="settings[secondary_cta_href]" value="{{ $secondaryCtaHref }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="#curated">
+                            </label>
+                        </div>
+
+                        <label class="space-y-2">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Featured product chip (overlay)</span>
+                            <select name="settings[featured_product_id]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                                <option value="">— auto (signature Nikah) —</option>
+                                @foreach ($products as $product)
+                                    <option value="{{ $product->id }}" @selected((string) $featuredProductId === (string) $product->id)>{{ $product->name }}</option>
+                                @endforeach
+                            </select>
                         </label>
                     </div>
 
@@ -204,6 +249,162 @@
                                 </div>
                             </article>
                         @endforeach
+                    </div>
+                </section>
+            @endif
+
+            @if ($section->section_key === 'stats_strip')
+                <section class="surface-card space-y-6 p-6">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Stats strip</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Edit the trust numbers</h3>
+                        <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">Up to 6 rows. Two-up on mobile, four-up on desktop.</p>
+                    </div>
+                    <div class="space-y-3">
+                        @foreach ($statRows as $idx => $row)
+                            <div class="grid gap-3 md:grid-cols-[180px_1fr]">
+                                <input type="text" name="settings[stats][{{ $idx }}][num]" value="{{ $row['num'] ?? '' }}" placeholder="350+" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                                <input type="text" name="settings[stats][{{ $idx }}][label]" value="{{ $row['label'] ?? '' }}" placeholder="Brides served" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                            </div>
+                        @endforeach
+                        <div class="grid gap-3 md:grid-cols-[180px_1fr]">
+                            <input type="text" name="settings[stats][{{ count($statRows) }}][num]" placeholder="Add new (number)" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                            <input type="text" name="settings[stats][{{ count($statRows) }}][label]" placeholder="Add new (label)" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                        </div>
+                    </div>
+                    <p class="text-xs text-[var(--color-text-soft)]">Empty rows are removed on save. To delete a row, clear both fields.</p>
+                </section>
+            @endif
+
+            @if ($section->section_key === 'signature_nikah_spotlight')
+                <section class="surface-card space-y-6 p-6">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Signature Nikah spotlight</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Featured product + process steps</h3>
+                    </div>
+                    <label class="space-y-2 block">
+                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Spotlight product</span>
+                        <select name="settings[product_id]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                            <option value="">— auto (first Nikah personalization product) —</option>
+                            @foreach ($products as $product)
+                                <option value="{{ $product->id }}" @selected((string) $spotlightProductId === (string) $product->id)>{{ $product->name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <div class="space-y-2">
+                        <p class="text-sm font-medium text-[var(--color-secondary-900)]">Process steps (3 inline)</p>
+                        @foreach ($processSteps as $idx => $step)
+                            <input type="text" name="settings[process_steps][{{ $idx }}]" value="{{ $step }}" placeholder="01 Fill details" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                        @endforeach
+                        <input type="text" name="settings[process_steps][{{ count($processSteps) }}]" placeholder="Add another step" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                    </div>
+                    <div class="grid gap-3 md:grid-cols-2">
+                        <label class="space-y-2">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA label</span>
+                            <input type="text" name="settings[secondary_cta_label]" value="{{ $secondaryCtaLabel }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Explore Nikah Collection">
+                        </label>
+                        <label class="space-y-2">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA href</span>
+                            <input type="text" name="settings[secondary_cta_href]" value="{{ $secondaryCtaHref }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="/categories/nikah-collection">
+                        </label>
+                    </div>
+                </section>
+            @endif
+
+            @if ($section->section_key === 'atelier_services')
+                <section class="surface-card space-y-6 p-6">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Atelier services</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Choose service products to highlight</h3>
+                        <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">Leave empty to auto-select all service-type products.</p>
+                    </div>
+                    <label class="space-y-2 block">
+                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Selected services</span>
+                        <select name="settings[service_ids][]" multiple class="min-h-56 w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                            @foreach ($products as $product)
+                                <option value="{{ $product->id }}" @selected(in_array((string) $product->id, $serviceIds, true))>{{ $product->name }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                </section>
+            @endif
+
+            @if ($section->section_key === 'finale_cta')
+                <section class="surface-card grid gap-6 p-6 lg:grid-cols-2">
+                    <div class="space-y-5">
+                        <div>
+                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Finale CTA</p>
+                            <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Cinematic close</h3>
+                        </div>
+                        <label class="space-y-2 block">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Background image</span>
+                            <input type="file" name="background_image_upload" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                            <input type="text" name="settings[background_image_url]" value="{{ $finaleBgUrl }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Or paste an image URL">
+                        </label>
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <label class="space-y-2">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA label</span>
+                                <input type="text" name="settings[secondary_cta_label]" value="{{ $secondaryCtaLabel }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Browse the shop">
+                            </label>
+                            <label class="space-y-2">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA href</span>
+                                <input type="text" name="settings[secondary_cta_href]" value="{{ $secondaryCtaHref }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="/shop">
+                            </label>
+                        </div>
+                    </div>
+                    <div class="rounded-3xl border border-[var(--color-border-soft)] bg-white p-4">
+                        <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Preview</p>
+                        <div class="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-cream)]">
+                            @if ($finaleBgUrl)
+                                <img src="{{ $finaleBgUrl }}" alt="Finale CTA preview" class="aspect-[16/9] w-full object-cover">
+                            @else
+                                <div class="flex aspect-[16/9] items-center justify-center px-6 text-center text-sm text-[var(--color-text-soft)]">Falls back to a brand gradient if no image is uploaded.</div>
+                            @endif
+                        </div>
+                    </div>
+                </section>
+            @endif
+
+            @if ($section->section_key === 'instagram_strip')
+                <section class="surface-card space-y-6 p-6">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Instagram strip</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Add Instagram-style image links</h3>
+                        <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">Up to 12 posts. Each row: square image URL + Instagram post link.</p>
+                    </div>
+                    <div class="space-y-3">
+                        @foreach ($instaPosts as $idx => $post)
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <input type="text" name="settings[posts][{{ $idx }}][image_url]" value="{{ $post['image_url'] ?? '' }}" placeholder="https://… (square image URL)" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                                <input type="text" name="settings[posts][{{ $idx }}][href]" value="{{ $post['href'] ?? '' }}" placeholder="https://instagram.com/p/…" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                            </div>
+                        @endforeach
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <input type="text" name="settings[posts][{{ count($instaPosts) }}][image_url]" placeholder="Add new (image URL)" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                            <input type="text" name="settings[posts][{{ count($instaPosts) }}][href]" placeholder="Add new (link)" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                        </div>
+                    </div>
+                </section>
+            @endif
+
+            @if ($section->section_key === 'trust_strip')
+                <section class="surface-card space-y-6 p-6">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Trust strip</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Trust signals shown above the footer</h3>
+                        <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">Up to 6 rows. Icon is a single glyph (◆ ✦ ◈ ❋ ✧).</p>
+                    </div>
+                    <div class="space-y-3">
+                        @foreach ($trustSignals as $idx => $signal)
+                            <div class="grid gap-3 md:grid-cols-[80px_1fr]">
+                                <input type="text" name="settings[signals][{{ $idx }}][icon]" value="{{ $signal['icon'] ?? '◆' }}" maxlength="4" placeholder="◆" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3 text-center">
+                                <input type="text" name="settings[signals][{{ $idx }}][label]" value="{{ $signal['label'] ?? '' }}" placeholder="Hand-finished in Dhaka" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                            </div>
+                        @endforeach
+                        <div class="grid gap-3 md:grid-cols-[80px_1fr]">
+                            <input type="text" name="settings[signals][{{ count($trustSignals) }}][icon]" placeholder="◆" maxlength="4" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3 text-center">
+                            <input type="text" name="settings[signals][{{ count($trustSignals) }}][label]" placeholder="Add new" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                        </div>
                     </div>
                 </section>
             @endif

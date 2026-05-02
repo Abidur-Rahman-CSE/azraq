@@ -48,6 +48,11 @@ class HomepageSectionController extends Controller
                 $request->file('mobile_image_upload'),
                 $incomingSettings['mobile_image_url'] ?? ($settings['mobile_image_url'] ?? null)
             );
+            $settings['secondary_cta_label'] = $incomingSettings['secondary_cta_label'] ?? null;
+            $settings['secondary_cta_href'] = $incomingSettings['secondary_cta_href'] ?? null;
+            $settings['featured_product_id'] = isset($incomingSettings['featured_product_id']) && $incomingSettings['featured_product_id'] !== ''
+                ? (int) $incomingSettings['featured_product_id']
+                : null;
         }
 
         if ($homepageSection->section_key === 'featured_collections') {
@@ -62,9 +67,63 @@ class HomepageSectionController extends Controller
             $settings['selected_category_ids'] = array_values(array_map('intval', $incomingSettings['selected_category_ids'] ?? []));
         }
 
+        if ($homepageSection->section_key === 'stats_strip') {
+            $rows = (array) ($incomingSettings['stats'] ?? []);
+            $settings['stats'] = array_values(array_filter(array_map(function ($row) {
+                $num = trim((string) ($row['num'] ?? ''));
+                $label = trim((string) ($row['label'] ?? ''));
+                return ($num === '' && $label === '') ? null : ['num' => $num, 'label' => $label];
+            }, $rows)));
+        }
+
+        if ($homepageSection->section_key === 'signature_nikah_spotlight') {
+            $settings['product_id'] = isset($incomingSettings['product_id']) && $incomingSettings['product_id'] !== ''
+                ? (int) $incomingSettings['product_id']
+                : null;
+            $steps = (array) ($incomingSettings['process_steps'] ?? []);
+            $settings['process_steps'] = array_values(array_filter(array_map(
+                fn ($s) => trim((string) $s),
+                $steps
+            ), fn ($s) => $s !== ''));
+            $settings['secondary_cta_label'] = $incomingSettings['secondary_cta_label'] ?? null;
+            $settings['secondary_cta_href'] = $incomingSettings['secondary_cta_href'] ?? null;
+        }
+
+        if ($homepageSection->section_key === 'atelier_services') {
+            $settings['service_ids'] = array_values(array_map('intval', $incomingSettings['service_ids'] ?? []));
+        }
+
+        if ($homepageSection->section_key === 'finale_cta') {
+            $settings['background_image_url'] = $this->resolveUpload(
+                $request->file('background_image_upload'),
+                $incomingSettings['background_image_url'] ?? ($settings['background_image_url'] ?? null)
+            );
+            $settings['secondary_cta_label'] = $incomingSettings['secondary_cta_label'] ?? null;
+            $settings['secondary_cta_href'] = $incomingSettings['secondary_cta_href'] ?? null;
+        }
+
+        if ($homepageSection->section_key === 'instagram_strip') {
+            $rows = (array) ($incomingSettings['posts'] ?? []);
+            $settings['posts'] = array_values(array_filter(array_map(function ($row) {
+                $image = trim((string) ($row['image_url'] ?? ''));
+                $href = trim((string) ($row['href'] ?? ''));
+                return $image === '' ? null : ['image_url' => $image, 'href' => $href];
+            }, $rows)));
+        }
+
+        if ($homepageSection->section_key === 'trust_strip') {
+            $rows = (array) ($incomingSettings['signals'] ?? []);
+            $settings['signals'] = array_values(array_filter(array_map(function ($row) {
+                $icon = trim((string) ($row['icon'] ?? ''));
+                $label = trim((string) ($row['label'] ?? ''));
+                return $label === '' ? null : ['icon' => $icon ?: '◆', 'label' => $label];
+            }, $rows)));
+        }
+
         $homepageSection->update($request->safe()->except([
             'desktop_image_upload',
             'mobile_image_upload',
+            'background_image_upload',
             'settings',
         ]) + [
             'is_enabled' => $request->boolean('is_enabled'),
