@@ -143,6 +143,95 @@
                         </div>
                     </div>
                 </section>
+
+                {{-- ── Carousel Slides ──────────────────────────────────────── --}}
+                @php
+                    $heroSlideRows = old('settings.slides', data_get($settings ?? [], 'slides', []));
+                    if (! is_array($heroSlideRows) || count($heroSlideRows) === 0) {
+                        $heroSlideRows = [['title' => '', 'subtitle' => '', 'body' => '', 'cta_label' => '', 'cta_href' => '', 'cta2_label' => '', 'cta2_href' => '', 'image_url' => '']];
+                    }
+                @endphp
+                <section class="surface-card space-y-6 p-6">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Hero carousel</p>
+                        <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Carousel slides</h3>
+                        <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">
+                            Add up to 6 slides. If empty, the single legacy hero image is used. Each slide auto-advances every 4.5 s.
+                        </p>
+                    </div>
+
+                    <div class="space-y-6">
+                        @foreach ($heroSlideRows as $si => $slide)
+                            <div class="rounded-3xl border border-[var(--color-border-soft)] p-5 space-y-4 bg-white">
+                                <p class="text-xs font-bold uppercase tracking-[0.22em] text-[var(--color-primary-900)]">Slide {{ $si + 1 }}</p>
+
+                                <label class="space-y-2 block">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Slide image</span>
+                                    <input type="file" name="slide_images[{{ $si }}]" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                                    <input type="text" name="settings[slides][{{ $si }}][image_url]" value="{{ $slide['image_url'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Or paste URL">
+                                    @if (!empty($slide['image_url']))
+                                        <img src="{{ $slide['image_url'] }}" class="mt-2 h-28 w-full rounded-2xl object-cover" alt="Slide preview">
+                                    @endif
+                                </label>
+
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <label class="space-y-2">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Kicker (subtitle)</span>
+                                        <input type="text" name="settings[slides][{{ $si }}][subtitle]" value="{{ $slide['subtitle'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Bridal Atelier · Dhaka">
+                                    </label>
+                                    <label class="space-y-2">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Headline</span>
+                                        <input type="text" name="settings[slides][{{ $si }}][title]" value="{{ $slide['title'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Crafted for the moment that lasts forever.">
+                                    </label>
+                                </div>
+
+                                <label class="space-y-2 block">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Body</span>
+                                    <textarea name="settings[slides][{{ $si }}][body]" rows="2" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Short description…">{{ $slide['body'] ?? '' }}</textarea>
+                                </label>
+
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <label class="space-y-2">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Primary CTA label</span>
+                                        <input type="text" name="settings[slides][{{ $si }}][cta_label]" value="{{ $slide['cta_label'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Configure your Nikah">
+                                    </label>
+                                    <label class="space-y-2">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Primary CTA href</span>
+                                        <input type="text" name="settings[slides][{{ $si }}][cta_href]" value="{{ $slide['cta_href'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="/products/signature-nikah-nama">
+                                    </label>
+                                    <label class="space-y-2">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA label</span>
+                                        <input type="text" name="settings[slides][{{ $si }}][cta2_label]" value="{{ $slide['cta2_label'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Browse the shop">
+                                    </label>
+                                    <label class="space-y-2">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA href</span>
+                                        <input type="text" name="settings[slides][{{ $si }}][cta2_href]" value="{{ $slide['cta2_href'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="/shop">
+                                    </label>
+                                </div>
+                            </div>
+                        @endforeach
+
+                        {{-- Add slide row --}}
+                        @php($nextSi = count($heroSlideRows))
+                        <details class="rounded-3xl border border-dashed border-[var(--color-border-soft)] p-5">
+                            <summary class="text-sm font-semibold text-[var(--color-primary-900)] cursor-pointer">+ Add slide {{ $nextSi + 1 }}</summary>
+                            <div class="mt-4 space-y-3">
+                                <input type="file" name="slide_images[{{ $nextSi }}]" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
+                                <input type="text" name="settings[slides][{{ $nextSi }}][image_url]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Image URL">
+                                <input type="text" name="settings[slides][{{ $nextSi }}][subtitle]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Kicker">
+                                <input type="text" name="settings[slides][{{ $nextSi }}][title]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Headline *required*">
+                                <textarea name="settings[slides][{{ $nextSi }}][body]" rows="2" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Body"></textarea>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta_label]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="CTA label">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta_href]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="CTA href">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta2_label]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Secondary CTA label">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta2_href]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Secondary CTA href">
+                                </div>
+                            </div>
+                        </details>
+                        <p class="text-xs text-[var(--color-text-soft)]">Leave title + image empty to remove a slide on save. To delete a slide, clear both fields.</p>
+                    </div>
+                </section>
             @endif
 
             @if ($section->section_key === 'featured_collections')

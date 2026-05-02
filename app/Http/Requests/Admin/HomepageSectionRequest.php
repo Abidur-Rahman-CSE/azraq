@@ -27,12 +27,25 @@ class HomepageSectionRequest extends FormRequest
 
             'settings' => ['nullable', 'array'],
 
-            // Hero
+            // Hero — single image (legacy/fallback)
             'settings.desktop_image_url' => ['nullable', 'string', 'max:2048'],
             'settings.mobile_image_url' => ['nullable', 'string', 'max:2048'],
             'settings.secondary_cta_label' => ['nullable', 'string', 'max:100'],
             'settings.secondary_cta_href' => ['nullable', 'string', 'max:255'],
             'settings.featured_product_id' => ['nullable', 'integer', 'exists:products,id'],
+
+            // Hero slides (carousel)
+            'settings.slides' => ['nullable', 'array', 'max:6'],
+            'settings.slides.*.title' => ['nullable', 'string', 'max:200'],
+            'settings.slides.*.subtitle' => ['nullable', 'string', 'max:120'],
+            'settings.slides.*.body' => ['nullable', 'string', 'max:400'],
+            'settings.slides.*.cta_label' => ['nullable', 'string', 'max:80'],
+            'settings.slides.*.cta_href' => ['nullable', 'string', 'max:255'],
+            'settings.slides.*.cta2_label' => ['nullable', 'string', 'max:80'],
+            'settings.slides.*.cta2_href' => ['nullable', 'string', 'max:255'],
+            'settings.slides.*.image_url' => ['nullable', 'string', 'max:2048'],
+            'slide_images' => ['nullable', 'array'],
+            'slide_images.*' => ['nullable', 'image', 'max:10240'],
 
             // Featured collections / products / categories
             'settings.selected_collection_ids' => ['nullable', 'array'],

@@ -53,6 +53,30 @@ class HomepageSectionController extends Controller
             $settings['featured_product_id'] = isset($incomingSettings['featured_product_id']) && $incomingSettings['featured_product_id'] !== ''
                 ? (int) $incomingSettings['featured_product_id']
                 : null;
+
+            // Carousel slides
+            $slideFiles = $request->file('slide_images', []);
+            $rawSlides = (array) ($incomingSettings['slides'] ?? []);
+            $slides = [];
+            foreach ($rawSlides as $idx => $slide) {
+                $title = trim((string) ($slide['title'] ?? ''));
+                $imageUrl = $this->resolveUpload(
+                    $slideFiles[$idx] ?? null,
+                    $slide['image_url'] ?? null
+                );
+                if ($title === '' && $imageUrl === null) continue;
+                $slides[] = [
+                    'image_url'  => $imageUrl,
+                    'title'      => $title,
+                    'subtitle'   => trim((string) ($slide['subtitle'] ?? '')),
+                    'body'       => trim((string) ($slide['body'] ?? '')),
+                    'cta_label'  => trim((string) ($slide['cta_label'] ?? '')),
+                    'cta_href'   => trim((string) ($slide['cta_href'] ?? '')),
+                    'cta2_label' => trim((string) ($slide['cta2_label'] ?? '')),
+                    'cta2_href'  => trim((string) ($slide['cta2_href'] ?? '')),
+                ];
+            }
+            $settings['slides'] = $slides;
         }
 
         if ($homepageSection->section_key === 'featured_collections') {
@@ -124,6 +148,7 @@ class HomepageSectionController extends Controller
             'desktop_image_upload',
             'mobile_image_upload',
             'background_image_upload',
+            'slide_images',
             'settings',
         ]) + [
             'is_enabled' => $request->boolean('is_enabled'),

@@ -25,22 +25,40 @@
     $trustSection     = $homepageSections->get('trust_strip');
     $faqSection       = $homepageSections->get('faq_preview');
 
-    // ── Hero composition
-    $heroImage = data_get($heroSection, 'settings.desktop_image_url')
+    // ── Hero carousel slides (admin-driven via settings.slides[])
+    $defaultHeroImage = data_get($heroSection, 'settings.desktop_image_url')
         ?: $signatureNikah?->storefront_preview_image_url
         ?: $featuredProducts->first()?->storefront_preview_image_url;
-    $heroKicker = $copy($heroSection?->subtitle, 'Bridal Atelier · Dhaka');
-    $heroTitle  = $copy($heroSection?->title, 'Crafted for the moment that lasts forever.');
-    $heroBody   = $copy($heroSection?->content, 'Premium Nikah personalization, bridal wear, and ceremony gifting in one curated atelier.');
-    $heroCta    = filled($heroSection?->cta_label) ? $heroSection->cta_label : 'Configure your Nikah';
-    $heroHref   = filled($heroSection?->cta_href) ? $heroSection->cta_href : ($signatureNikah ? route('products.show', $signatureNikah) : route('shop.index'));
-    $heroSecLabel = data_get($heroSection, 'settings.secondary_cta_label') ?: 'See curated editions ↓';
-    $heroSecHref  = data_get($heroSection, 'settings.secondary_cta_href') ?: '#curated';
 
-    $heroChipProductId = (int) data_get($heroSection, 'settings.featured_product_id');
-    $heroChip = $heroChipProductId > 0
-        ? Product::with('category')->find($heroChipProductId)
-        : $signatureNikah;
+    $defaultSlide = [
+        'image_url'   => $defaultHeroImage,
+        'title'       => $copy($heroSection?->title, 'Crafted for the moment that lasts forever.'),
+        'subtitle'    => $copy($heroSection?->subtitle, 'Bridal Atelier · Dhaka'),
+        'body'        => $copy($heroSection?->content, 'Premium Nikah personalization, bridal wear, and ceremony gifting in one curated atelier.'),
+        'cta_label'   => filled($heroSection?->cta_label) ? $heroSection->cta_label : 'Configure your Nikah',
+        'cta_href'    => filled($heroSection?->cta_href) ? $heroSection->cta_href : ($signatureNikah ? route('products.show', $signatureNikah) : route('shop.index')),
+        'cta2_label'  => data_get($heroSection, 'settings.secondary_cta_label') ?: '',
+        'cta2_href'   => data_get($heroSection, 'settings.secondary_cta_href') ?: '',
+    ];
+
+    $heroSlides = collect(data_get($heroSection, 'settings.slides', []))
+        ->filter(fn ($s) => filled(data_get($s, 'title')) || filled(data_get($s, 'image_url')))
+        ->map(fn ($s) => [
+            'image_url'  => $s['image_url'] ?? $defaultHeroImage,
+            'title'      => $copy($s['title'] ?? null, $defaultSlide['title']),
+            'subtitle'   => $s['subtitle'] ?? $defaultSlide['subtitle'],
+            'body'       => $s['body'] ?? $defaultSlide['body'],
+            'cta_label'  => $s['cta_label'] ?? $defaultSlide['cta_label'],
+            'cta_href'   => $s['cta_href'] ?? $defaultSlide['cta_href'],
+            'cta2_label' => $s['cta2_label'] ?? null,
+            'cta2_href'  => $s['cta2_href'] ?? null,
+        ]);
+
+    if ($heroSlides->isEmpty()) {
+        $heroSlides = collect([$defaultSlide]);
+    }
+
+    $heroImage = $heroSlides->first()['image_url'] ?? $defaultHeroImage;
 
     // ── Stats
     $stats = collect(data_get($statsSection, 'settings.stats', []))
@@ -77,47 +95,108 @@
         ['@context' => 'https://schema.org', '@type' => 'WebSite', 'name' => config('brand.name'), 'url' => route('home')],
     ]"
 >
-    {{-- ── 1. EDITORIAL HERO ─────────────────────────────────── --}}
-    <section class="section-shell section-shell--tight overflow-hidden scroll-fade-in">
-        <div class="container-shell editorial-hero-grid grid items-center gap-8 lg:grid-cols-[0.92fr_1.08fr] lg:gap-12">
-            <div class="order-2 lg:order-1 min-w-0">
-                <span class="section-kicker text-[0.62rem]">{{ $heroKicker }}</span>
-                <h1 class="mt-4 font-serif text-4xl font-semibold leading-[1.05] tracking-[-0.015em] text-[var(--text-main)] sm:text-5xl lg:text-6xl" style="text-wrap: balance; font-family: 'Cormorant Garamond', Georgia, serif;">
-                    {{ $heroTitle }}
-                </h1>
-                <p class="mt-5 max-w-md text-base leading-7 text-[var(--text-muted)] sm:text-lg">
-                    {{ $heroBody }}
-                </p>
-                <div class="mt-7 flex flex-wrap items-center gap-3">
-                    <a href="{{ $heroHref }}" class="button-primary">{{ $heroCta }}</a>
-                    <a href="{{ $heroSecHref }}" class="text-sm font-semibold tracking-[0.06em] text-[var(--accent-secondary)] hover:text-[var(--accent-primary)]">{{ $heroSecLabel }}</a>
+    {{-- ── 1. PREMIUM FULL-BLEED HERO CAROUSEL ─────────────────── --}}
+    @php($heroSlidesJson = json_encode($heroSlides->values()->all()))
+    <div
+        x-data="heroCarousel({{ $heroSlidesJson }})"
+        x-init="init()"
+        @mouseenter="pause()"
+        @mouseleave="resume()"
+        class="hero-carousel scroll-fade-in"
+        role="region"
+        aria-label="Hero"
+    >
+        @foreach ($heroSlides as $idx => $slide)
+            <div
+                class="hero-slide {{ $idx === 0 ? 'is-active' : '' }}"
+                :class="current === {{ $idx }} ? 'is-active' : ''"
+            >
+                @if (!empty($slide['image_url']))
+                    <img src="{{ $slide['image_url'] }}" alt="{{ $slide['title'] }}" class="hero-slide__bg" loading="{{ $idx === 0 ? 'eager' : 'lazy' }}" decoding="async">
+                @else
+                    <div class="hero-slide__bg" style="background: var(--bg-dark-luxury);"></div>
+                @endif
+
+                <div class="hero-slide__overlay"></div>
+
+                <div class="hero-slide__content">
+                    <div class="hero-slide__copy">
+                        <p class="hero-slide__kicker">{{ $slide['subtitle'] ?? 'Azraq Bridal' }}</p>
+                        <h1 class="hero-slide__title">{{ $slide['title'] }}</h1>
+                        @if (!empty($slide['body']))
+                            <p class="hero-slide__body">{{ $slide['body'] }}</p>
+                        @endif
+                        <div class="hero-slide__actions">
+                            @if (!empty($slide['cta_label']) && !empty($slide['cta_href']))
+                                <a href="{{ $slide['cta_href'] }}" class="hero-cta-primary">
+                                    {{ $slide['cta_label'] }}
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8h10M9 4l4 4-4 4"/></svg>
+                                </a>
+                            @endif
+                            @if (!empty($slide['cta2_label']) && !empty($slide['cta2_href']))
+                                <a href="{{ $slide['cta2_href'] }}" class="hero-cta-ghost">{{ $slide['cta2_label'] }}</a>
+                            @endif
+                        </div>
+                    </div>
+
+                    @if ($heroSlides->count() > 1)
+                        <div class="hero-nav-panel">
+                            <p class="hero-counter">
+                                <strong x-text="String(current + 1).padStart(2, '0')">{{ str_pad($idx + 1, 2, '0', STR_PAD_LEFT) }}</strong>
+                                / {{ str_pad($heroSlides->count(), 2, '0', STR_PAD_LEFT) }}
+                            </p>
+                            <div class="hero-arrows">
+                                <button @click.prevent="prev()" class="hero-arrow" aria-label="Previous">
+                                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 3 5 8l5 5"/></svg>
+                                </button>
+                                <button @click.prevent="next()" class="hero-arrow" aria-label="Next">
+                                    <svg class="h-4 w-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3l5 5-5 5"/></svg>
+                                </button>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
+        @endforeach
 
-            <div class="order-1 lg:order-2 relative min-w-0">
-                <div class="editorial-hero__visual relative overflow-hidden rounded-[var(--radius-3xl)] aspect-[4/5] sm:aspect-[5/4] lg:aspect-[6/7] bg-[var(--bg-section-soft)]">
-                    @if ($heroImage)
-                        <img src="{{ $heroImage }}" alt="Azraq Bridal — featured atelier piece" class="editorial-hero__img absolute inset-0 h-full w-full object-cover">
-                    @endif
-                    <div class="absolute inset-0 bg-gradient-to-t from-[rgba(7,14,24,0.55)] via-[rgba(7,14,24,0.10)] to-transparent"></div>
-
-                    <span class="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-[0.62rem] font-semibold uppercase tracking-[0.18em] text-white backdrop-blur-md">
-                        <span class="text-[var(--azraq-blue)]">◆</span> 12 yrs · 350+ brides
-                    </span>
-
-                    @if ($heroChip)
-                        <a href="{{ route('products.show', $heroChip) }}" class="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-3 rounded-[var(--radius-xl)] bg-white/12 px-4 py-3 text-white backdrop-blur-md hover:bg-white/20 transition">
-                            <span class="min-w-0">
-                                <span class="block text-[0.58rem] font-semibold uppercase tracking-[0.2em] text-white/70">Featured · {{ $heroChip->category?->name }}</span>
-                                <span class="mt-0.5 block truncate text-sm font-semibold">{{ $heroChip->name }}</span>
-                            </span>
-                            <span class="flex-shrink-0 text-[0.7rem] font-semibold tracking-[0.12em] uppercase">BDT {{ number_format((float) $heroChip->price, 0) }} →</span>
-                        </a>
-                    @endif
-                </div>
+        @if ($heroSlides->count() > 1)
+            <div class="hero-dots">
+                @foreach ($heroSlides as $idx => $slide)
+                    <button
+                        @click="goTo({{ $idx }})"
+                        :class="current === {{ $idx }} ? 'is-active' : ''"
+                        class="hero-dot {{ $idx === 0 ? 'is-active' : '' }}"
+                        aria-label="Slide {{ $idx + 1 }}"
+                    ></button>
+                @endforeach
             </div>
-        </div>
-    </section>
+            <div
+                x-bind:key="current"
+                :class="!paused ? 'is-running' : ''"
+                class="hero-progress"
+            ></div>
+        @endif
+    </div>
+
+    <script>
+        function heroCarousel(slides) {
+            return {
+                slides, current: 0, paused: false, timer: null,
+                get total() { return this.slides.length; },
+                init() { if (this.total > 1) this.startTimer(); },
+                startTimer() {
+                    clearInterval(this.timer);
+                    this.timer = setInterval(() => { if (!this.paused) this.next(); }, 4500);
+                },
+                next() { this.goTo((this.current + 1) % this.total); },
+                prev() { this.goTo((this.current - 1 + this.total) % this.total); },
+                goTo(i) { this.current = i; if (this.total > 1) this.startTimer(); },
+                pause() { this.paused = true; },
+                resume() { this.paused = false; },
+            };
+        }
+    </script>
+
 
     {{-- ── 2. STATS STRIP ────────────────────────────────────── --}}
     @if ($statsSection && $stats->isNotEmpty())
