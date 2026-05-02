@@ -76,7 +76,8 @@
     --container-2xl: 1280px;
     --container-product: 1360px;
 
-    --section-space-y: clamp(64px, 7vw, 92px);
+    --section-space-y: clamp(48px, 5vw, 72px);
+    --section-space-y-tight: clamp(32px, 3vw, 48px);
     --header-offset: 96px;
     --grid-gap-desktop: 24px;
     --grid-gap-mobile: 16px;

@@ -12,11 +12,11 @@
     @endif
 
     <h2 @class([
-        'mt-3 max-w-3xl text-2xl font-semibold leading-tight tracking-[-0.02em] sm:text-3xl lg:text-4xl',
+        'mt-3 max-w-3xl text-3xl font-semibold leading-[1.1] tracking-[-0.015em] sm:text-4xl lg:text-5xl',
         'text-[var(--text-main)]' => !$dark,
         'text-white' => $dark,
         'mx-auto' => $centered,
-    ])>{{ $title }}</h2>
+    ]) style="font-family: 'Cormorant Garamond', Georgia, serif;">{{ $title }}</h2>
 
     @if ($description)
         <p @class([

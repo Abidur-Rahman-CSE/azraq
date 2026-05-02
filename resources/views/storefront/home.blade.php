@@ -168,7 +168,7 @@
                     </div>
                     <div class="flex flex-col justify-center min-w-0">
                         <span class="section-kicker text-[0.62rem]">{{ $spotlightSection->subtitle ?? 'Signature Nikah Nama' }}</span>
-                        <h2 class="mt-3 text-2xl font-semibold leading-tight text-[var(--text-main)] sm:text-3xl lg:text-4xl">{{ $copy($spotlightSection->title, $signatureNikah->name) }}</h2>
+                        <h2 class="mt-3 text-3xl font-semibold leading-[1.1] tracking-[-0.015em] text-[var(--text-main)] sm:text-4xl lg:text-5xl" style="font-family: 'Cormorant Garamond', Georgia, serif;">{{ $copy($spotlightSection->title, $signatureNikah->name) }}</h2>
                         <p class="mt-4 text-sm leading-7 text-[var(--text-muted)] sm:text-base">{{ \Illuminate\Support\Str::limit($copy($spotlightSection->content, $signatureNikah->description), 220) }}</p>
 
                         @if ($processSteps->isNotEmpty())
@@ -243,7 +243,7 @@
                     centered
                 />
 
-                <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:gap-7">
+                <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
                     @foreach ($featuredCollections as $collection)
                         <x-storefront.collection-card :collection="$collection" />
                     @endforeach
