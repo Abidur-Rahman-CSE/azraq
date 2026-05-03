@@ -14,7 +14,7 @@ class HomepageSectionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['required', 'string', 'max:255'],
+            'title' => ['nullable', 'string', 'max:255'],
             'subtitle' => ['nullable', 'string', 'max:255'],
             'content' => ['nullable', 'string'],
             'cta_label' => ['nullable', 'string', 'max:100'],

@@ -57,13 +57,17 @@ class HomepageSectionController extends Controller
             // Carousel slides
             $slideFiles = $request->file('slide_images', []);
             $rawSlides = (array) ($incomingSettings['slides'] ?? []);
+            $deleteSlides = (array) $request->input('_delete_slide', []);
             $slides = [];
             foreach ($rawSlides as $idx => $slide) {
+                // Skip slides marked for deletion
+                if (!empty($deleteSlides[$idx])) continue;
                 $title = trim((string) ($slide['title'] ?? ''));
                 $imageUrl = $this->resolveUpload(
                     $slideFiles[$idx] ?? null,
                     $slide['image_url'] ?? null
                 );
+                // Skip completely empty rows
                 if ($title === '' && $imageUrl === null) continue;
                 $slides[] = [
                     'image_url'  => $imageUrl,
@@ -76,7 +80,7 @@ class HomepageSectionController extends Controller
                     'cta2_href'  => trim((string) ($slide['cta2_href'] ?? '')),
                 ];
             }
-            $settings['slides'] = $slides;
+            $settings['slides'] = array_values($slides);
         }
 
         if ($homepageSection->section_key === 'featured_collections') {
@@ -144,6 +148,8 @@ class HomepageSectionController extends Controller
             }, $rows)));
         }
 
+        $titleFallback = filled($request->input('title')) ? $request->input('title') : $homepageSection->title;
+
         $homepageSection->update($request->safe()->except([
             'desktop_image_upload',
             'mobile_image_upload',
@@ -151,8 +157,9 @@ class HomepageSectionController extends Controller
             'slide_images',
             'settings',
         ]) + [
+            'title' => $titleFallback,
             'is_enabled' => $request->boolean('is_enabled'),
-            'sort_order' => $request->integer('sort_order'),
+            'sort_order' => (int) ($request->input('sort_order') ?? $homepageSection->sort_order),
             'settings' => $settings,
         ]);
 

@@ -44,6 +44,7 @@
         <form method="POST" action="{{ route('admin.content.homepage-sections.update', $section) }}" enctype="multipart/form-data" class="space-y-6">
             @csrf
             @method('PUT')
+            @if ($section->section_key !== 'hero')
             <section class="surface-card grid gap-6 p-6 md:grid-cols-2">
                 <label class="space-y-2">
                     <span class="text-sm font-medium text-[var(--color-secondary-900)]">Title</span>
@@ -75,162 +76,192 @@
                     Enabled
                 </label>
             </section>
+            @endif
 
             @if ($section->section_key === 'hero')
-                <section class="surface-card grid gap-6 p-6 lg:grid-cols-2">
-                    <div class="space-y-5">
-                        <div>
-                            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Hero images</p>
-                            <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Upload campaign visuals</h3>
-                            <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">These images override the default featured-product collage in the homepage hero.</p>
-                        </div>
-
-                        <label class="space-y-2">
-                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Desktop hero image</span>
-                            <input type="file" name="desktop_image_upload" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
-                            <input type="text" name="settings[desktop_image_url]" value="{{ $desktopImageUrl }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Or paste an image URL">
-                        </label>
-
-                        <label class="space-y-2">
-                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Mobile hero image</span>
-                            <input type="file" name="mobile_image_upload" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
-                            <input type="text" name="settings[mobile_image_url]" value="{{ $mobileImageUrl }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Optional mobile-specific image URL">
-                        </label>
-
-                        <div class="grid gap-3 md:grid-cols-2">
-                            <label class="space-y-2">
-                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA label</span>
-                                <input type="text" name="settings[secondary_cta_label]" value="{{ $secondaryCtaLabel }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="See curated editions ↓">
-                            </label>
-                            <label class="space-y-2">
-                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA href</span>
-                                <input type="text" name="settings[secondary_cta_href]" value="{{ $secondaryCtaHref }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="#curated">
-                            </label>
-                        </div>
-
-                        <label class="space-y-2">
-                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Featured product chip (overlay)</span>
-                            <select name="settings[featured_product_id]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
-                                <option value="">— auto (signature Nikah) —</option>
-                                @foreach ($products as $product)
-                                    <option value="{{ $product->id }}" @selected((string) $featuredProductId === (string) $product->id)>{{ $product->name }}</option>
-                                @endforeach
-                            </select>
-                        </label>
-                    </div>
-
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div class="rounded-3xl border border-[var(--color-border-soft)] bg-white p-4">
-                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Desktop preview</p>
-                            <div class="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-cream)]">
-                                @if ($desktopImageUrl)
-                                    <img src="{{ $desktopImageUrl }}" alt="Desktop hero preview" class="aspect-[4/5] w-full object-cover">
-                                @else
-                                    <div class="flex aspect-[4/5] items-center justify-center px-6 text-center text-sm text-[var(--color-text-soft)]">Falls back to the first featured product image.</div>
-                                @endif
-                            </div>
-                        </div>
-
-                        <div class="rounded-3xl border border-[var(--color-border-soft)] bg-white p-4">
-                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Mobile preview</p>
-                            <div class="mt-4 overflow-hidden rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-cream)]">
-                                @if ($mobileImageUrl)
-                                    <img src="{{ $mobileImageUrl }}" alt="Mobile hero preview" class="aspect-[4/5] w-full object-cover">
-                                @else
-                                    <div class="flex aspect-[4/5] items-center justify-center px-6 text-center text-sm text-[var(--color-text-soft)]">Desktop image is used when no mobile image is supplied.</div>
-                                @endif
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                {{-- ── Carousel Slides ──────────────────────────────────────── --}}
                 @php
                     $heroSlideRows = old('settings.slides', data_get($settings ?? [], 'slides', []));
-                    if (! is_array($heroSlideRows) || count($heroSlideRows) === 0) {
-                        $heroSlideRows = [['title' => '', 'subtitle' => '', 'body' => '', 'cta_label' => '', 'cta_href' => '', 'cta2_label' => '', 'cta2_href' => '', 'image_url' => '']];
-                    }
+                    $hasSlides = is_array($heroSlideRows) && count($heroSlideRows) > 0;
+                    if (! $hasSlides) $heroSlideRows = [];
                 @endphp
-                <section class="surface-card space-y-6 p-6">
-                    <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Hero carousel</p>
-                        <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Carousel slides</h3>
-                        <p class="mt-2 text-sm leading-7 text-[var(--color-text-soft)]">
-                            Add up to 6 slides. If empty, the single legacy hero image is used. Each slide auto-advances every 4.5 s.
-                        </p>
+
+                {{-- ── CAROUSEL SLIDES (primary) ────────────────────────────── --}}
+                <section class="surface-card space-y-0 overflow-hidden">
+                    {{-- Header --}}
+                    <div class="border-b border-[var(--color-border-soft)] px-6 py-5">
+                        <div class="flex items-start justify-between gap-4">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-[0.22em] text-[var(--color-primary-900)]">Hero Carousel</p>
+                                <h3 class="mt-1 text-xl font-semibold text-[var(--color-secondary-900)]">Slides</h3>
+                                <p class="mt-1 text-sm text-[var(--color-text-soft)]">Up to 6 slides · auto-advances 4.5s · each slide has its own image, copy, and CTAs</p>
+                            </div>
+                            <span class="mt-1 inline-flex items-center rounded-full bg-[rgba(120,0,0,0.08)] px-3 py-1 text-xs font-semibold text-[var(--color-primary-900)]">{{ count($heroSlideRows) }} slide{{ count($heroSlideRows) !== 1 ? 's' : '' }}</span>
+                        </div>
                     </div>
 
-                    <div class="space-y-6">
-                        @foreach ($heroSlideRows as $si => $slide)
-                            <div class="rounded-3xl border border-[var(--color-border-soft)] p-5 space-y-4 bg-white">
-                                <p class="text-xs font-bold uppercase tracking-[0.22em] text-[var(--color-primary-900)]">Slide {{ $si + 1 }}</p>
-
-                                <label class="space-y-2 block">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Slide image</span>
-                                    <input type="file" name="slide_images[{{ $si }}]" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
-                                    <input type="text" name="settings[slides][{{ $si }}][image_url]" value="{{ $slide['image_url'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Or paste URL">
-                                    @if (!empty($slide['image_url']))
-                                        <img src="{{ $slide['image_url'] }}" class="mt-2 h-28 w-full rounded-2xl object-cover" alt="Slide preview">
-                                    @endif
+                    {{-- Existing slides --}}
+                    @forelse ($heroSlideRows as $si => $slide)
+                        <div class="border-b border-[var(--color-border-soft)] px-6 py-6 space-y-5">
+                            {{-- Slide header --}}
+                            <div class="flex items-center justify-between gap-3">
+                                <p class="text-xs font-bold uppercase tracking-[0.20em] text-[var(--color-primary-900)]">Slide {{ $si + 1 }}
+                                    @if (!empty($slide['title'])) <span class="ml-2 font-normal normal-case tracking-normal text-[var(--color-text-soft)]">— {{ \Illuminate\Support\Str::limit($slide['title'], 40) }}</span>@endif
+                                </p>
+                                <label class="inline-flex items-center gap-2 text-xs text-[var(--color-text-soft)] cursor-pointer">
+                                    <input type="checkbox" name="_delete_slide[{{ $si }}]" value="1" class="h-3.5 w-3.5 rounded accent-red-700">
+                                    Remove
                                 </label>
-
-                                <div class="grid gap-3 md:grid-cols-2">
-                                    <label class="space-y-2">
-                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Kicker (subtitle)</span>
-                                        <input type="text" name="settings[slides][{{ $si }}][subtitle]" value="{{ $slide['subtitle'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Bridal Atelier · Dhaka">
-                                    </label>
-                                    <label class="space-y-2">
-                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Headline</span>
-                                        <input type="text" name="settings[slides][{{ $si }}][title]" value="{{ $slide['title'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Crafted for the moment that lasts forever.">
-                                    </label>
-                                </div>
-
-                                <label class="space-y-2 block">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Body</span>
-                                    <textarea name="settings[slides][{{ $si }}][body]" rows="2" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Short description…">{{ $slide['body'] ?? '' }}</textarea>
-                                </label>
-
-                                <div class="grid gap-3 md:grid-cols-2">
-                                    <label class="space-y-2">
-                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Primary CTA label</span>
-                                        <input type="text" name="settings[slides][{{ $si }}][cta_label]" value="{{ $slide['cta_label'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Configure your Nikah">
-                                    </label>
-                                    <label class="space-y-2">
-                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Primary CTA href</span>
-                                        <input type="text" name="settings[slides][{{ $si }}][cta_href]" value="{{ $slide['cta_href'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="/products/signature-nikah-nama">
-                                    </label>
-                                    <label class="space-y-2">
-                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA label</span>
-                                        <input type="text" name="settings[slides][{{ $si }}][cta2_label]" value="{{ $slide['cta2_label'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Browse the shop">
-                                    </label>
-                                    <label class="space-y-2">
-                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Secondary CTA href</span>
-                                        <input type="text" name="settings[slides][{{ $si }}][cta2_href]" value="{{ $slide['cta2_href'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="/shop">
-                                    </label>
-                                </div>
                             </div>
-                        @endforeach
 
-                        {{-- Add slide row --}}
-                        @php($nextSi = count($heroSlideRows))
-                        <details class="rounded-3xl border border-dashed border-[var(--color-border-soft)] p-5">
-                            <summary class="text-sm font-semibold text-[var(--color-primary-900)] cursor-pointer">+ Add slide {{ $nextSi + 1 }}</summary>
-                            <div class="mt-4 space-y-3">
-                                <input type="file" name="slide_images[{{ $nextSi }}]" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3">
-                                <input type="text" name="settings[slides][{{ $nextSi }}][image_url]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Image URL">
-                                <input type="text" name="settings[slides][{{ $nextSi }}][subtitle]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Kicker">
-                                <input type="text" name="settings[slides][{{ $nextSi }}][title]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Headline *required*">
-                                <textarea name="settings[slides][{{ $nextSi }}][body]" rows="2" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Body"></textarea>
-                                <div class="grid gap-3 md:grid-cols-2">
-                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta_label]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="CTA label">
-                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta_href]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="CTA href">
-                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta2_label]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Secondary CTA label">
-                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta2_href]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="Secondary CTA href">
+                            {{-- Image --}}
+                            <div class="grid gap-3 lg:grid-cols-[1fr_160px]">
+                                <div class="space-y-2">
+                                    <p class="text-sm font-medium text-[var(--color-secondary-900)]">Slide image</p>
+                                    <input type="file" name="slide_images[{{ $si }}]" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm">
+                                    <input type="text" name="settings[slides][{{ $si }}][image_url]" value="{{ $slide['image_url'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Or paste image URL">
                                 </div>
+                                @if (!empty($slide['image_url']))
+                                    <div class="overflow-hidden rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-cream)]">
+                                        <img src="{{ $slide['image_url'] }}" class="h-full w-full object-cover" alt="Slide {{ $si + 1 }} preview" style="max-height: 120px;">
+                                    </div>
+                                @else
+                                    <div class="flex items-center justify-center rounded-2xl border border-dashed border-[var(--color-border-soft)] bg-[var(--color-surface-cream)] text-xs text-[var(--color-text-soft)]" style="min-height:80px;">No image yet</div>
+                                @endif
+                            </div>
+
+                            {{-- Kicker + Headline --}}
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <label class="space-y-1.5">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Kicker <span class="font-normal text-[var(--color-text-soft)]">(small label above headline)</span></span>
+                                    <input type="text" name="settings[slides][{{ $si }}][subtitle]" value="{{ $slide['subtitle'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="e.g. Bridal Atelier · Dhaka">
+                                </label>
+                                <label class="space-y-1.5">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Headline <span class="text-[var(--color-primary-900)]">*</span></span>
+                                    <input type="text" name="settings[slides][{{ $si }}][title]" value="{{ $slide['title'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="e.g. Crafted for the moment that lasts forever.">
+                                </label>
+                            </div>
+
+                            {{-- Body --}}
+                            <label class="block space-y-1.5">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Body text <span class="font-normal text-[var(--color-text-soft)]">(optional short description)</span></span>
+                                <textarea name="settings[slides][{{ $si }}][body]" rows="2" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Premium Nikah personalization, bridal wear, and ceremony gifting…">{{ $slide['body'] ?? '' }}</textarea>
+                            </label>
+
+                            {{-- CTAs --}}
+                            <div class="grid gap-3 md:grid-cols-2">
+                                <label class="space-y-1.5">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button label</span>
+                                    <input type="text" name="settings[slides][{{ $si }}][cta_label]" value="{{ $slide['cta_label'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Configure your Nikah">
+                                </label>
+                                <label class="space-y-1.5">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button link</span>
+                                    <input type="text" name="settings[slides][{{ $si }}][cta_href]" value="{{ $slide['cta_href'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="/products/signature-nikah-nama">
+                                </label>
+                                <label class="space-y-1.5">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Ghost link label <span class="font-normal text-[var(--color-text-soft)]">(optional)</span></span>
+                                    <input type="text" name="settings[slides][{{ $si }}][cta2_label]" value="{{ $slide['cta2_label'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Browse the shop">
+                                </label>
+                                <label class="space-y-1.5">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Ghost link href</span>
+                                    <input type="text" name="settings[slides][{{ $si }}][cta2_href]" value="{{ $slide['cta2_href'] ?? '' }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="/shop">
+                                </label>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="px-6 py-8 text-center text-sm text-[var(--color-text-soft)]">
+                            No slides yet. Add your first slide below — the hero uses the section fallback copy until a slide is saved.
+                        </div>
+                    @endforelse
+
+                    {{-- Add new slide --}}
+                    @if (count($heroSlideRows) < 6)
+                        @php($nextSi = count($heroSlideRows))
+                        <details class="px-6 py-5">
+                            <summary class="cursor-pointer text-sm font-semibold text-[var(--color-primary-900)] list-none flex items-center gap-2">
+                                <span class="flex h-6 w-6 items-center justify-center rounded-full border border-[var(--color-primary-900)] text-xs">+</span>
+                                Add slide {{ $nextSi + 1 }}
+                            </summary>
+                            <div class="mt-5 space-y-4 rounded-2xl border border-dashed border-[var(--color-border-soft)] p-5">
+                                <div class="space-y-2">
+                                    <p class="text-sm font-medium text-[var(--color-secondary-900)]">Slide image</p>
+                                    <input type="file" name="slide_images[{{ $nextSi }}]" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][image_url]" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Or paste image URL">
+                                </div>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][subtitle]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Kicker (e.g. Bridal Atelier · Dhaka)">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][title]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Headline *">
+                                </div>
+                                <textarea name="settings[slides][{{ $nextSi }}][body]" rows="2" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Body text (optional)"></textarea>
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta_label]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Button label">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta_href]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Button link">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta2_label]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Ghost link label (optional)">
+                                    <input type="text" name="settings[slides][{{ $nextSi }}][cta2_href]" class="rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Ghost link href">
+                                </div>
+                                <p class="text-xs text-[var(--color-text-soft)]">Fill in Headline to save this slide. Leave blank to skip.</p>
                             </div>
                         </details>
-                        <p class="text-xs text-[var(--color-text-soft)]">Leave title + image empty to remove a slide on save. To delete a slide, clear both fields.</p>
+                    @endif
+                </section>
+
+                {{-- ── FALLBACK (when no slides configured) ─────────────────── --}}
+                <details class="surface-card overflow-hidden" {{ $hasSlides ? '' : 'open' }}>
+                    <summary class="cursor-pointer px-6 py-5 flex items-center justify-between gap-4 list-none">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-[0.20em] text-[var(--color-primary-900)]">Fallback content</p>
+                            <p class="mt-0.5 text-sm text-[var(--color-text-soft)]">Used when no carousel slides are configured</p>
+                        </div>
+                        <svg class="h-4 w-4 flex-shrink-0 text-[var(--color-text-soft)]" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6l4 4 4-4"/></svg>
+                    </summary>
+                    <div class="border-t border-[var(--color-border-soft)] px-6 py-6 space-y-5">
+                        <div class="grid gap-4 md:grid-cols-2">
+                            <label class="space-y-1.5">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Kicker</span>
+                                <input type="text" name="subtitle" value="{{ old('subtitle', $section->subtitle) }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Bridal Atelier · Dhaka">
+                            </label>
+                            <label class="space-y-1.5">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Headline</span>
+                                <input type="text" name="title" value="{{ old('title', $section->title) }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Crafted for the moment that lasts forever.">
+                            </label>
+                        </div>
+                        <label class="block space-y-1.5">
+                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Body text</span>
+                            <textarea name="content" rows="2" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Premium Nikah personalization, bridal wear, and ceremony gifting…">{{ old('content', $section->content) }}</textarea>
+                        </label>
+                        <div class="grid gap-3 md:grid-cols-2">
+                            <label class="space-y-1.5">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button label</span>
+                                <input type="text" name="cta_label" value="{{ old('cta_label', $section->cta_label) }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Configure your Nikah">
+                            </label>
+                            <label class="space-y-1.5">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button link</span>
+                                <input type="text" name="cta_href" value="{{ old('cta_href', $section->cta_href) }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="/shop">
+                            </label>
+                        </div>
+                        <div class="space-y-2">
+                            <p class="text-sm font-medium text-[var(--color-secondary-900)]">Fallback image</p>
+                            <input type="file" name="desktop_image_upload" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm">
+                            <input type="text" name="settings[desktop_image_url]" value="{{ $desktopImageUrl }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Or paste image URL">
+                            @if ($desktopImageUrl)
+                                <img src="{{ $desktopImageUrl }}" class="mt-1 h-24 w-full rounded-2xl object-cover" alt="Fallback preview">
+                            @endif
+                        </div>
+                        {{-- hidden required field so form validates --}}
+                        <input type="hidden" name="settings[mobile_image_url]" value="{{ $mobileImageUrl }}">
                     </div>
+                </details>
+
+                {{-- ── SECTION CONTROLS ──────────────────────────────────────── --}}
+                <section class="surface-card grid gap-4 p-6 md:grid-cols-2">
+                    <label class="space-y-1.5">
+                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Sort order</span>
+                        <input type="number" name="sort_order" value="{{ old('sort_order', $section->sort_order) }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm">
+                    </label>
+                    <label class="inline-flex items-center gap-3 text-sm text-[var(--color-secondary-900)]">
+                        <input type="hidden" name="is_enabled" value="0">
+                        <input type="checkbox" name="is_enabled" value="1" @checked(old('is_enabled', $section->is_enabled)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
+                        Show on homepage
+                    </label>
                 </section>
             @endif
 
