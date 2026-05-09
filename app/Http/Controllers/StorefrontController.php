@@ -92,8 +92,11 @@ class StorefrontController extends Controller
                 ->all()
         );
 
+        // Signature Nikah spotlight — admin can override via signature_nikah_spotlight.settings.product_id
+        $spotlightOverrideId = (int) data_get($homepageSections->get('signature_nikah_spotlight'), 'settings.product_id');
         $signatureNikah = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
-            ->where('slug', 'signature-nikah-nama')
+            ->when($spotlightOverrideId > 0, fn ($q) => $q->where('id', $spotlightOverrideId))
+            ->when($spotlightOverrideId === 0, fn ($q) => $q->where('slug', 'signature-nikah-nama'))
             ->first();
 
         $comboSpotlight = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
@@ -103,11 +106,15 @@ class StorefrontController extends Controller
             ->take(3)
             ->get();
 
+        // Atelier services — admin can pin specific service products via atelier_services.settings.service_ids
+        $atelierServiceIds = collect(data_get($homepageSections->get('atelier_services'), 'settings.service_ids', []))
+            ->filter()->map(fn ($id) => (int) $id)->values()->all();
         $bookingHighlights = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
-            ->where('type', ProductType::Service->value)
             ->where('status', 'active')
+            ->when($atelierServiceIds !== [], fn ($q) => $q->whereIn('id', $atelierServiceIds))
+            ->when($atelierServiceIds === [], fn ($q) => $q->where('type', ProductType::Service->value))
             ->latest()
-            ->take(3)
+            ->take(6)
             ->get();
 
         $bridalWearSpotlight = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
