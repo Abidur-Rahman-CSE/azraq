@@ -1,54 +1,40 @@
 @props(['product'])
 
-<article class="surface-product flex h-full flex-col overflow-hidden transition hover:-translate-y-1 hover:shadow-[var(--shadow-medium)]">
+<article class="product-card-lux group">
     @php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
     @php($cardImage = $product->storefront_preview_image_url)
     @php($cardAlt = $primaryImage?->label ?: $product->name)
-    @if ($cardImage)
-        <img
-            src="{{ $cardImage }}"
-            alt="{{ $cardAlt }}"
-            class="aspect-[4/3] w-full object-cover"
-            loading="lazy"
-            decoding="async"
-        >
-    @else
-        <div class="flex aspect-[4/3] items-center justify-center bg-[var(--color-surface-cream)] text-sm text-[var(--color-text-soft)]">
-            Product preview coming soon
-        </div>
-    @endif
-
-    <div class="relative p-6">
-        <div class="flex items-start justify-between gap-4">
-            <span class="eyebrow">{{ $product->type?->label() }}</span>
-            <span class="rounded-full bg-[rgba(0,48,73,0.08)] px-3 py-2 text-xs font-medium text-[var(--accent-secondary)]">
-                {{ $product->manage_stock ? ($product->stock_quantity > 0 ? 'In stock' : 'Out of stock') : 'Made to order' }}
-            </span>
-        </div>
-
-        <div class="mt-7">
-            <p class="text-sm font-medium uppercase tracking-[0.12em] text-[var(--accent-primary)]">{{ $product->category?->name }}</p>
-            <h3 class="mt-3 text-[1.65rem] font-semibold leading-tight text-[var(--text-main)]">{{ $product->name }}</h3>
-            <p class="mt-4 text-sm leading-7 text-[var(--text-muted)]">{{ $product->excerpt ?: $product->description }}</p>
-        </div>
-
-        @if ($product->tags->isNotEmpty())
-            <div class="mt-6 flex flex-wrap gap-2">
-                @foreach ($product->tags->take(3) as $tag)
-                    <span class="rounded-full bg-[rgba(102,155,188,0.12)] px-3 py-2 text-xs font-medium text-[var(--accent-secondary)]">{{ $tag->name }}</span>
-                @endforeach
+    <a href="{{ route('products.show', $product) }}" class="block overflow-hidden rounded-t-[var(--radius-2xl)]" aria-label="View {{ $product->name }}">
+        @if ($cardImage)
+            <img
+                src="{{ $cardImage }}"
+                alt="{{ $cardAlt }}"
+                class="aspect-[4/5] sm:aspect-[4/3] w-full object-cover transition duration-500 ease-out group-hover:scale-105"
+                loading="lazy"
+                decoding="async"
+            >
+        @else
+            <div class="flex aspect-[4/5] sm:aspect-[4/3] items-center justify-center bg-[rgba(253,240,213,0.50)] text-xs text-[var(--text-muted)]">
+                Preview soon
             </div>
         @endif
+    </a>
+
+    <div class="product-card-lux__body">
+        <p class="product-card-lux__kicker">{{ $product->category?->name ?: $product->type?->label() }}</p>
+        <h3 class="product-card-lux__title">
+            <a href="{{ route('products.show', $product) }}">{{ $product->name }}</a>
+        </h3>
+        <p class="product-card-lux__excerpt">{{ \Illuminate\Support\Str::limit($product->excerpt ?: strip_tags($product->description), 90) }}</p>
     </div>
 
-    <div class="mt-auto flex items-center justify-between border-t border-[var(--border-soft)] px-6 py-5">
-        <div>
-            <p class="text-lg font-semibold text-[var(--text-main)]">BDT {{ number_format((float) $product->price, 0) }}</p>
+    <div class="product-card-lux__footer">
+        <div class="product-card-lux__price-block">
+            <p class="product-card-lux__price">BDT {{ number_format((float) $product->price, 0) }}</p>
             @if ($product->compare_at_price)
-                <p class="text-sm text-[var(--text-muted)] line-through">BDT {{ number_format((float) $product->compare_at_price, 0) }}</p>
+                <p class="product-card-lux__compare">BDT {{ number_format((float) $product->compare_at_price, 0) }}</p>
             @endif
         </div>
-
-        <a href="{{ route('products.show', $product) }}" class="button-ghost" aria-label="View details for {{ $product->name }}">View details</a>
+        <a href="{{ route('products.show', $product) }}" class="product-card-lux__cta" aria-label="View {{ $product->name }}">View →</a>
     </div>
 </article>
