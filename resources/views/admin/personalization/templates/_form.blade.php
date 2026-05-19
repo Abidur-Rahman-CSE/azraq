@@ -62,6 +62,7 @@
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
                     // Auto-date companions (active when field_key contains "date")
                     // Default Y positions are just below the date field (position_y + height + 1)
+                    'date_format'         =>          data_get($field, 'settings.date_format', 'long'),
                     'auto_bangla'         => (bool)  data_get($field, 'settings.auto_bangla', false),
                     'bangla_pos_x'        => (float) data_get($field, 'settings.bangla_pos_x', 50),
                     'bangla_pos_y'        => (float) data_get($field, 'settings.bangla_pos_y', (float)($field['position_y'] ?? 50) + (float)($field['height'] ?? 12) + 1),
@@ -892,9 +893,31 @@
                                 <template x-if="field.field_key.includes('date')">
                                     <div class="space-y-5">
                                         <p class="text-xs leading-6 text-[var(--color-text-soft)]">
-                                            Customer enters one English (Gregorian) date. Enable companions below to auto-generate
-                                            a <strong>Bangla (বঙ্গাব্দ)</strong> or <strong>Arabic (Hijri)</strong> date and place it on the canvas.
+                                            Customer enters one date picker input. Admin controls format and optional companions.
                                         </p>
+
+                                        {{-- Date format selector --}}
+                                        <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-white/80 p-4 space-y-3">
+                                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Date format on certificate</p>
+                                            <div class="grid gap-2">
+                                                <template x-for="fmt in [
+                                                    {key:'long',    label:'20 December 2026',   hint:'Day Month Year'},
+                                                    {key:'us',      label:'December 20, 2026',  hint:'Month Day, Year'},
+                                                    {key:'numeric', label:'20/12/2026',          hint:'DD/MM/YYYY'},
+                                                ]" :key="fmt.key">
+                                                    <label class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition"
+                                                           :class="field.settings.date_format === fmt.key
+                                                               ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.04)]'
+                                                               : 'border-[var(--color-border-soft)] hover:border-[var(--color-primary-900)]'">
+                                                        <input type="radio" :value="fmt.key" x-model="field.settings.date_format" class="accent-[var(--color-primary-900)]">
+                                                        <span>
+                                                            <span class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="fmt.label"></span>
+                                                            <span class="ml-2 text-[11px] text-[var(--color-text-soft)]" x-text="fmt.hint"></span>
+                                                        </span>
+                                                    </label>
+                                                </template>
+                                            </div>
+                                        </div>
 
                                         {{-- BANGLA companion --}}
                                         <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-white/80 p-4 space-y-4">

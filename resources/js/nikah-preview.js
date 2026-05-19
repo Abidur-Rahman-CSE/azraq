@@ -1139,19 +1139,25 @@ export function registerNikahPreview(Alpine) {
         // Auto-convert an English (Gregorian) date field to Bangla (Bengali calendar)
         // and Hijri (Arabic/Islamic calendar), then push into this.fields so the canvas renders them.
         computeAutoDates(key, fieldSettings) {
-            const raw = this.fields[key];         // ISO date string "YYYY-MM-DD" or already formatted
+            const raw = this.fields[key];         // ISO date string "YYYY-MM-DD" from <input type="date">
             if (!raw) return;
 
-            // Parse — handle both ISO "2026-12-20" and formatted "20 December 2026"
-            let date = null;
-            if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-                date = new Date(raw + 'T00:00:00');
-            } else {
-                date = new Date(raw);
-            }
+            // Only process ISO format from the date input
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return;
+            const date = new Date(raw + 'T00:00:00');
             if (isNaN(date)) return;
 
             const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+
+            // ── Format English date based on admin-selected format ────────────
+            const EN_M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            const mn = EN_M[m - 1];
+            const fmt = fieldSettings?.date_format ?? 'long';
+            let enFormatted;
+            if (fmt === 'us')           enFormatted = `${mn} ${d}, ${y}`;
+            else if (fmt === 'numeric') enFormatted = `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+            else                        enFormatted = `${d} ${mn} ${y}`;   // 'long' default
+            this.fields[key] = enFormatted;
 
             // ── Bengali calendar (বঙ্গাব্দ) ────────────────────────────────────
             if (fieldSettings?.auto_bangla) {
