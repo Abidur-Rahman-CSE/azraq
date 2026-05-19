@@ -534,4 +534,70 @@
             </div>
         </form>
     </div>
+
+    @if ($section->section_key === 'hero')
+    <script>
+    (function () {
+        // Live image preview for any file input named slide_images[N]
+        function attachPreview(fileInput) {
+            fileInput.addEventListener('change', function () {
+                const file = this.files[0];
+                if (!file || !file.type.startsWith('image/')) return;
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    // Find or create preview img next to this input
+                    let preview = fileInput.parentElement.querySelector('img.file-preview');
+                    if (!preview) {
+                        preview = document.createElement('img');
+                        preview.className = 'file-preview mt-2 h-28 w-full rounded-2xl object-cover';
+                        fileInput.parentElement.appendChild(preview);
+                    }
+                    preview.src = e.target.result;
+
+                    // Also clear the URL text input since file takes priority
+                    const urlInput = fileInput.parentElement.querySelector('input[type=text]');
+                    if (urlInput) urlInput.value = '';
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Attach to all existing file inputs
+        document.querySelectorAll('input[type=file][name^="slide_images"]').forEach(attachPreview);
+
+        // MutationObserver: attach to any new file inputs added (e.g. when <details> opens)
+        const observer = new MutationObserver(function (mutations) {
+            mutations.forEach(function (m) {
+                m.addedNodes.forEach(function (node) {
+                    if (node.nodeType !== 1) return;
+                    node.querySelectorAll('input[type=file][name^="slide_images"]').forEach(attachPreview);
+                    if (node.matches && node.matches('input[type=file][name^="slide_images"]')) attachPreview(node);
+                });
+            });
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+
+        // For desktop_image_upload (legacy fallback)
+        const desktopInput = document.querySelector('input[name="desktop_image_upload"]');
+        if (desktopInput) {
+            desktopInput.addEventListener('change', function () {
+                const file = this.files[0];
+                if (!file || !file.type.startsWith('image/')) return;
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    let preview = desktopInput.parentElement.querySelector('img.file-preview');
+                    if (!preview) {
+                        preview = document.createElement('img');
+                        preview.className = 'file-preview mt-2 h-24 w-full rounded-2xl object-cover';
+                        desktopInput.parentElement.appendChild(preview);
+                    }
+                    preview.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+    })();
+    </script>
+    @endif
 </x-layouts.admin>
