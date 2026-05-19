@@ -272,7 +272,8 @@ class PersonalizationTemplateController extends Controller
                     'font_family_override' => data_get($field, 'settings.font_family_override'),
                     'font_weight' => data_get($field, 'settings.font_weight', '600'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
-                    // Auto-date companions
+                    // Date formatting + auto-date companions
+                    'date_format'          =>          data_get($field, 'settings.date_format', 'long'),
                     'auto_bangla'          => (bool)  data_get($field, 'settings.auto_bangla', false),
                     'bangla_pos_x'         => (float) data_get($field, 'settings.bangla_pos_x', 50),
                     'bangla_pos_y'         => (float) data_get($field, 'settings.bangla_pos_y', 0),
