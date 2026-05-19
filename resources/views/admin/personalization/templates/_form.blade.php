@@ -61,9 +61,10 @@
                     'font_weight' => (string) data_get($field, 'settings.font_weight', '600'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
                     // Auto-date companions (active when field_key contains "date")
+                    // Default Y positions are just below the date field (position_y + height + 1)
                     'auto_bangla'         => (bool)  data_get($field, 'settings.auto_bangla', false),
                     'bangla_pos_x'        => (float) data_get($field, 'settings.bangla_pos_x', 50),
-                    'bangla_pos_y'        => (float) data_get($field, 'settings.bangla_pos_y', 0),
+                    'bangla_pos_y'        => (float) data_get($field, 'settings.bangla_pos_y', (float)($field['position_y'] ?? 50) + (float)($field['height'] ?? 12) + 1),
                     'bangla_width'        => (float) data_get($field, 'settings.bangla_width', 70),
                     'bangla_height'       => (float) data_get($field, 'settings.bangla_height', 8),
                     'bangla_color'        =>          data_get($field, 'settings.bangla_color', '#780000'),
@@ -71,7 +72,7 @@
                     'bangla_font_size_max'=> (int)   data_get($field, 'settings.bangla_font_size_max', 16),
                     'auto_arabic'         => (bool)  data_get($field, 'settings.auto_arabic', false),
                     'arabic_pos_x'        => (float) data_get($field, 'settings.arabic_pos_x', 50),
-                    'arabic_pos_y'        => (float) data_get($field, 'settings.arabic_pos_y', 0),
+                    'arabic_pos_y'        => (float) data_get($field, 'settings.arabic_pos_y', (float)($field['position_y'] ?? 50) + (float)($field['height'] ?? 12) + 10),
                     'arabic_width'        => (float) data_get($field, 'settings.arabic_width', 70),
                     'arabic_height'       => (float) data_get($field, 'settings.arabic_height', 8),
                     'arabic_color'        =>          data_get($field, 'settings.arabic_color', '#3D3730'),
@@ -565,18 +566,24 @@
                                     <div
                                         class="absolute transition-[box-shadow,transform] duration-150"
                                         :style="canvasFieldShellStyle(field)"
-                                        @click.stop="focusField(field.id, { scroll: false })"
-                                        @mousedown.prevent="beginDragById(field.id, $event)"
+                                        @click.stop="!field._virtual && focusField(field.id, { scroll: false })"
+                                        @mousedown.prevent="!field._virtual && beginDragById(field.id, $event)"
+                                        :class="field._virtual ? 'pointer-events-none opacity-80' : ''"
                                     >
                                         <div
                                             class="flex h-full w-full items-center justify-center overflow-hidden rounded-[22px] px-[6px] text-center"
-                                            :class="canvasFieldClass(field)"
+                                            :class="field._virtual ? 'border border-dashed border-[rgba(120,0,0,0.35)] bg-[rgba(120,0,0,0.04)]' : canvasFieldClass(field)"
                                             :style="canvasFieldInnerStyle(field)"
                                         >
                                             <p class="max-w-full break-words leading-tight" :style="canvasFieldTextStyle(field)" x-text="fieldPreviewText(field)"></p>
                                         </div>
 
-                                        <template x-if="activeFieldId === field.id">
+                                        {{-- Label badge for virtual fields --}}
+                                        <template x-if="field._virtual">
+                                            <div class="absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(120,0,0,0.90)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white" x-text="field.label"></div>
+                                        </template>
+
+                                        <template x-if="!field._virtual && activeFieldId === field.id">
                                             <div>
                                                 <div class="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(255,255,255,0.94)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)] shadow-[0_10px_24px_rgba(0,48,73,0.12)]" x-text="field.label || field.field_key || 'Field'"></div>
                                                 <button type="button" class="absolute -left-2 -top-2 h-4 w-4 rounded-full border-2 border-white bg-[var(--color-primary-900)] shadow-[0_8px_18px_rgba(0,48,73,0.2)]" @mousedown.prevent.stop="beginResizeById(field.id, 'top-left', $event)"></button>
@@ -1434,9 +1441,58 @@ document.addEventListener('alpine:init', () => {
             this.constrainField(field);
         },
         sortedFields() {
-            return [...this.fields]
+            const base = [...this.fields]
                 .filter((field) => field.label || field.field_key)
                 .sort((a, b) => Number(a.z_index) - Number(b.z_index));
+
+            // Append virtual auto-date fields for preview (non-editable overlays)
+            const virtual = [];
+            base.forEach((field) => {
+                if (!field.field_key.includes('date')) return;
+                if (field.settings?.auto_bangla) {
+                    virtual.push({
+                        id: field.id * 1000 + 1,
+                        _virtual: true,
+                        label: 'বাংলা তারিখ',
+                        field_key: field.field_key + '_bangla',
+                        position_x: field.settings.bangla_pos_x ?? 50,
+                        position_y: field.settings.bangla_pos_y ?? (Number(field.position_y) + Number(field.height) + 1),
+                        width: field.settings.bangla_width ?? 70,
+                        height: field.settings.bangla_height ?? 8,
+                        rotation: 0,
+                        z_index: field.z_index + 1,
+                        text_color: field.settings.bangla_color ?? '#780000',
+                        line_height: field.line_height,
+                        letter_spacing: field.letter_spacing,
+                        font_size_min: field.settings.bangla_font_size_min ?? 10,
+                        font_size_max: field.settings.bangla_font_size_max ?? 16,
+                        settings: { ...field.settings, font_weight: field.settings.font_weight ?? '600', text_transform: 'none' },
+                    });
+                }
+                if (field.settings?.auto_arabic) {
+                    const bnOffset = field.settings?.auto_bangla ? (field.settings.bangla_height ?? 8) + 1 : 0;
+                    virtual.push({
+                        id: field.id * 1000 + 2,
+                        _virtual: true,
+                        label: 'Arabic / Hijri',
+                        field_key: field.field_key + '_arabic',
+                        position_x: field.settings.arabic_pos_x ?? 50,
+                        position_y: field.settings.arabic_pos_y ?? (Number(field.position_y) + Number(field.height) + 1 + bnOffset),
+                        width: field.settings.arabic_width ?? 70,
+                        height: field.settings.arabic_height ?? 8,
+                        rotation: 0,
+                        z_index: field.z_index + 2,
+                        text_color: field.settings.arabic_color ?? '#3D3730',
+                        line_height: field.line_height,
+                        letter_spacing: field.letter_spacing,
+                        font_size_min: field.settings.arabic_font_size_min ?? 10,
+                        font_size_max: field.settings.arabic_font_size_max ?? 14,
+                        settings: { ...field.settings, font_weight: field.settings.font_weight ?? '600', text_transform: 'none' },
+                    });
+                }
+            });
+
+            return [...base, ...virtual];
         },
         activeFieldSummary() {
             const field = this.fields.find((item) => item.id === this.activeFieldId);
@@ -1847,6 +1903,10 @@ document.addEventListener('alpine:init', () => {
                 ceremony_date: this.previewData.ceremony_date,
                 venue: this.previewData.venue,
             };
+
+            // Auto-date virtual fields — fixed samples
+            if (fieldKey.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
+            if (fieldKey.endsWith('_arabic')) return '19 Jumada al-Awwal 1448';
 
             return map[fieldKey] || fallback || 'Sample text';
         },
