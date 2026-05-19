@@ -16,37 +16,64 @@ class ProductionDataSeeder extends Seeder
 
         DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
-        // Insert in FK-safe order
+        // Order matters: parent tables before child tables
         $tables = [
+            // Auth / base
             'users',
+            'settings',
+            'pages',
+
+            // Catalog
             'categories',
             'collections',
             'tags',
             'products',
             'product_images',
-            'collection_products',
-            'product_tags',
+            'product_variants',
+            'bundle_items',
+            'service_product_meta',
+
+            // Pivot / relations
+            'collection_product',
+            'product_tag',
+            'product_related',
+            'product_related_categories',
+            'category_related',
+
+            // Personalization
+            'personalization_templates',
+            'personalization_mockups',
+            'personalization_mockup_maps',
+            'personalization_fields',
+            'personalization_fonts',
+            'product_personalization_mockup',
+
+            // Content
             'faqs',
-            'pages',
+            'homepage_sections',
             'reviews',
             'coupons',
-            'homepage_sections',
+
+            // Commerce
             'orders',
             'order_items',
+            'order_events',
+            'inventory_movements',
+            'booking_requests',
         ];
 
         foreach ($tables as $table) {
             $rows = $dump[$table] ?? [];
-            if (empty($rows)) {
-                continue;
-            }
 
             DB::table($table)->truncate();
 
-            // Cast objects → arrays (JSON strings stay as-is, Laravel PDO binds correctly)
+            if (empty($rows)) {
+                $this->command->getOutput()->writeln("  <comment>–</comment> $table: empty");
+                continue;
+            }
+
             $rows = array_map(fn ($row) => (array) $row, $rows);
 
-            // Chunk to avoid max_allowed_packet limits
             foreach (array_chunk($rows, 50) as $chunk) {
                 DB::table($table)->insert($chunk);
             }
