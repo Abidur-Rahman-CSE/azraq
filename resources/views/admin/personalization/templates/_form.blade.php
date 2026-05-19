@@ -60,6 +60,23 @@
                     'font_family_override' => data_get($field, 'settings.font_family_override', ''),
                     'font_weight' => (string) data_get($field, 'settings.font_weight', '600'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
+                    // Auto-date companions (active when field_key contains "date")
+                    'auto_bangla'         => (bool)  data_get($field, 'settings.auto_bangla', false),
+                    'bangla_pos_x'        => (float) data_get($field, 'settings.bangla_pos_x', 50),
+                    'bangla_pos_y'        => (float) data_get($field, 'settings.bangla_pos_y', 0),
+                    'bangla_width'        => (float) data_get($field, 'settings.bangla_width', 70),
+                    'bangla_height'       => (float) data_get($field, 'settings.bangla_height', 8),
+                    'bangla_color'        =>          data_get($field, 'settings.bangla_color', '#780000'),
+                    'bangla_font_size_min'=> (int)   data_get($field, 'settings.bangla_font_size_min', 10),
+                    'bangla_font_size_max'=> (int)   data_get($field, 'settings.bangla_font_size_max', 16),
+                    'auto_arabic'         => (bool)  data_get($field, 'settings.auto_arabic', false),
+                    'arabic_pos_x'        => (float) data_get($field, 'settings.arabic_pos_x', 50),
+                    'arabic_pos_y'        => (float) data_get($field, 'settings.arabic_pos_y', 0),
+                    'arabic_width'        => (float) data_get($field, 'settings.arabic_width', 70),
+                    'arabic_height'       => (float) data_get($field, 'settings.arabic_height', 8),
+                    'arabic_color'        =>          data_get($field, 'settings.arabic_color', '#3D3730'),
+                    'arabic_font_size_min'=> (int)   data_get($field, 'settings.arabic_font_size_min', 10),
+                    'arabic_font_size_max'=> (int)   data_get($field, 'settings.arabic_font_size_max', 14),
                 ],
             ];
         })
@@ -860,6 +877,112 @@
                                 </div>
                             </div>
 
+                            {{-- ── DATE OPTIONS TAB (only shown for date fields) ─────────────────── --}}
+                            <div x-show="currentFieldTab(index) === 'date'" class="space-y-5">
+                                <template x-if="!field.field_key.includes('date')">
+                                    <p class="text-sm text-[var(--color-text-soft)]">Date options only apply to fields whose key contains "date" (e.g. <code>ceremony_date</code>).</p>
+                                </template>
+
+                                <template x-if="field.field_key.includes('date')">
+                                    <div class="space-y-5">
+                                        <p class="text-xs leading-6 text-[var(--color-text-soft)]">
+                                            Customer enters one English (Gregorian) date. Enable companions below to auto-generate
+                                            a <strong>Bangla (বঙ্গাব্দ)</strong> or <strong>Arabic (Hijri)</strong> date and place it on the canvas.
+                                        </p>
+
+                                        {{-- BANGLA companion --}}
+                                        <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-white/80 p-4 space-y-4">
+                                            <label class="flex cursor-pointer items-center justify-between gap-4">
+                                                <div>
+                                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">বাংলা তারিখ (Bangla calendar)</p>
+                                                    <p class="text-[11px] text-[var(--color-text-soft)]">বঙ্গাব্দ — Bangla script, Bengali months. e.g. <em>৫ পৌষ ১৪৩৩</em></p>
+                                                </div>
+                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)]" x-model="field.settings.auto_bangla">
+                                            </label>
+
+                                            <div x-show="field.settings.auto_bangla" x-transition class="grid gap-3 sm:grid-cols-2">
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">X (%)</span>
+                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.bangla_pos_x">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Y (%)</span>
+                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.bangla_pos_y">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Width (%)</span>
+                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.bangla_width">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Height (%)</span>
+                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.bangla_height">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size min</span>
+                                                    <input type="number" min="6" max="80" class="field-input" x-model.number="field.settings.bangla_font_size_min">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size max</span>
+                                                    <input type="number" min="6" max="80" class="field-input" x-model.number="field.settings.bangla_font_size_max">
+                                                </label>
+                                                <label class="field-shell sm:col-span-2">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Text color</span>
+                                                    <div class="flex items-center gap-2">
+                                                        <input type="color" class="h-9 w-12 cursor-pointer rounded border border-[var(--color-border-soft)]" x-model="field.settings.bangla_color">
+                                                        <input type="text" class="field-input" x-model="field.settings.bangla_color" maxlength="9">
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+
+                                        {{-- ARABIC companion --}}
+                                        <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-white/80 p-4 space-y-4">
+                                            <label class="flex cursor-pointer items-center justify-between gap-4">
+                                                <div>
+                                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Arabic date (Hijri calendar)</p>
+                                                    <p class="text-[11px] text-[var(--color-text-soft)]">Islamic/Hijri calendar in English. e.g. <em>19 Jumada al-Awwal 1448</em></p>
+                                                </div>
+                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)]" x-model="field.settings.auto_arabic">
+                                            </label>
+
+                                            <div x-show="field.settings.auto_arabic" x-transition class="grid gap-3 sm:grid-cols-2">
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">X (%)</span>
+                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.arabic_pos_x">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Y (%)</span>
+                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.arabic_pos_y">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Width (%)</span>
+                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.arabic_width">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Height (%)</span>
+                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.arabic_height">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size min</span>
+                                                    <input type="number" min="6" max="80" class="field-input" x-model.number="field.settings.arabic_font_size_min">
+                                                </label>
+                                                <label class="field-shell">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size max</span>
+                                                    <input type="number" min="6" max="80" class="field-input" x-model.number="field.settings.arabic_font_size_max">
+                                                </label>
+                                                <label class="field-shell sm:col-span-2">
+                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Text color</span>
+                                                    <div class="flex items-center gap-2">
+                                                        <input type="color" class="h-9 w-12 cursor-pointer rounded border border-[var(--color-border-soft)]" x-model="field.settings.arabic_color">
+                                                        <input type="text" class="field-input" x-model="field.settings.arabic_color" maxlength="9">
+                                                    </div>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
                             <div x-show="currentFieldTab(index) === 'tools'" class="flex flex-wrap gap-3">
                                 <button type="button" class="button-ghost" @click="focusField(field.id)">Focus on canvas</button>
                                 <button type="button" class="button-ghost" @click="moveField(field.id, -1)">Move up</button>
@@ -1078,6 +1201,7 @@ document.addEventListener('alpine:init', () => {
             { key: 'layout', label: 'Layout' },
             { key: 'typography', label: 'Typography' },
             { key: 'fitting', label: 'Fitting' },
+            { key: 'date', label: 'Date' },
             { key: 'tools', label: 'Tools' },
         ],
         activeTabs: {},
