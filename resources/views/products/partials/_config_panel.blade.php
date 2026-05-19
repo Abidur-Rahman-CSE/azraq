@@ -88,9 +88,16 @@
                                 name="personalization[{{ $fieldKey }}]"
                                 value="{{ old($fieldName, $field->default_value ?? '') }}"
                                 x-model="fields['{{ $fieldKey }}']"
-                                @change="renderPreview()"
+                                @change="computeAutoDates('{{ $fieldKey }}', @js($field->settings ?? [])); renderPreview()"
                                 class="field-input !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
                             >
+                            {{-- Hidden inputs for auto-dates (submitted with order) --}}
+                            @if (data_get($field->settings, 'auto_bangla'))
+                                <input type="hidden" name="personalization[{{ $fieldKey }}_bangla]" :value="fields['{{ $fieldKey }}_bangla'] || ''">
+                            @endif
+                            @if (data_get($field->settings, 'auto_arabic'))
+                                <input type="hidden" name="personalization[{{ $fieldKey }}_arabic]" :value="fields['{{ $fieldKey }}_arabic'] || ''">
+                            @endif
                         @else
                             <input
                                 id="field-{{ $fieldKey }}"
