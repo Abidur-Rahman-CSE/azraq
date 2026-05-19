@@ -566,24 +566,23 @@
                                     <div
                                         class="absolute transition-[box-shadow,transform] duration-150"
                                         :style="canvasFieldShellStyle(field)"
-                                        @click.stop="!field._virtual && focusField(field.id, { scroll: false })"
-                                        @mousedown.prevent="!field._virtual && beginDragById(field.id, $event)"
-                                        :class="field._virtual ? 'pointer-events-none opacity-80' : ''"
+                                        @click.stop="focusField(field.id, { scroll: false })"
+                                        @mousedown.prevent="beginDragById(field.id, $event)"
                                     >
                                         <div
                                             class="flex h-full w-full items-center justify-center overflow-hidden rounded-[22px] px-[6px] text-center"
-                                            :class="field._virtual ? 'border border-dashed border-[rgba(120,0,0,0.35)] bg-[rgba(120,0,0,0.04)]' : canvasFieldClass(field)"
+                                            :class="field._companion_for ? 'border border-dashed border-[rgba(120,0,0,0.50)] bg-[rgba(120,0,0,0.05)]' : canvasFieldClass(field)"
                                             :style="canvasFieldInnerStyle(field)"
                                         >
                                             <p class="max-w-full break-words leading-tight" :style="canvasFieldTextStyle(field)" x-text="fieldPreviewText(field)"></p>
                                         </div>
 
-                                        {{-- Label badge for virtual fields --}}
-                                        <template x-if="field._virtual">
-                                            <div class="absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(120,0,0,0.90)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-white" x-text="field.label"></div>
+                                        {{-- Companion label badge (burgundy pill above zone) --}}
+                                        <template x-if="field._companion_for">
+                                            <div class="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[rgba(120,0,0,0.88)] px-2 py-0.5 text-[9px] font-semibold tracking-[0.12em] text-white" x-text="field.label"></div>
                                         </template>
 
-                                        <template x-if="!field._virtual && activeFieldId === field.id">
+                                        <template x-if="activeFieldId === field.id">
                                             <div>
                                                 <div class="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(255,255,255,0.94)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)] shadow-[0_10px_24px_rgba(0,48,73,0.12)]" x-text="field.label || field.field_key || 'Field'"></div>
                                                 <button type="button" class="absolute -left-2 -top-2 h-4 w-4 rounded-full border-2 border-white bg-[var(--color-primary-900)] shadow-[0_8px_18px_rgba(0,48,73,0.2)]" @mousedown.prevent.stop="beginResizeById(field.id, 'top-left', $event)"></button>
@@ -904,7 +903,9 @@
                                                     <p class="text-sm font-semibold text-[var(--color-secondary-900)]">বাংলা তারিখ (Bangla calendar)</p>
                                                     <p class="text-[11px] text-[var(--color-text-soft)]">বঙ্গাব্দ — Bangla script, Bengali months. e.g. <em>৫ পৌষ ১৪৩৩</em></p>
                                                 </div>
-                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)]" x-model="field.settings.auto_bangla">
+                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)]"
+                                                       :checked="field.settings.auto_bangla"
+                                                       @change="toggleCompanion(field, 'bangla', $event.target.checked)">
                                             </label>
 
                                             <div x-show="field.settings.auto_bangla" x-transition class="grid gap-3 sm:grid-cols-2">
@@ -949,7 +950,9 @@
                                                     <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Arabic date (Hijri calendar)</p>
                                                     <p class="text-[11px] text-[var(--color-text-soft)]">Islamic/Hijri calendar in English. e.g. <em>19 Jumada al-Awwal 1448</em></p>
                                                 </div>
-                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)]" x-model="field.settings.auto_arabic">
+                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)]"
+                                                       :checked="field.settings.auto_arabic"
+                                                       @change="toggleCompanion(field, 'arabic', $event.target.checked)">
                                             </label>
 
                                             <div x-show="field.settings.auto_arabic" x-transition class="grid gap-3 sm:grid-cols-2">
@@ -1236,6 +1239,14 @@ document.addEventListener('alpine:init', () => {
                 this.collectiveTextColor = this.fields[0].text_color || '#780000';
                 this.collectiveFontWeight = this.fields[0].settings.font_weight || '600';
             }
+            // Inject companion fields for any date fields that already have auto-dates enabled
+            const companions = [];
+            this.fields.forEach(f => {
+                if (!f.field_key.includes('date')) return;
+                if (f.settings?.auto_bangla) companions.push(this.buildCompanionField(f, 'bangla'));
+                if (f.settings?.auto_arabic) companions.push(this.buildCompanionField(f, 'arabic'));
+            });
+            this.fields.push(...companions);
         },
         normalizedField(field, index) {
             return {
@@ -1441,58 +1452,64 @@ document.addEventListener('alpine:init', () => {
             this.constrainField(field);
         },
         sortedFields() {
-            const base = [...this.fields]
+            return [...this.fields]
                 .filter((field) => field.label || field.field_key)
                 .sort((a, b) => Number(a.z_index) - Number(b.z_index));
+        },
 
-            // Append virtual auto-date fields for preview (non-editable overlays)
-            const virtual = [];
-            base.forEach((field) => {
-                if (!field.field_key.includes('date')) return;
-                if (field.settings?.auto_bangla) {
-                    virtual.push({
-                        id: field.id * 1000 + 1,
-                        _virtual: true,
-                        label: 'বাংলা তারিখ',
-                        field_key: field.field_key + '_bangla',
-                        position_x: field.settings.bangla_pos_x ?? 50,
-                        position_y: field.settings.bangla_pos_y ?? (Number(field.position_y) + Number(field.height) + 1),
-                        width: field.settings.bangla_width ?? 70,
-                        height: field.settings.bangla_height ?? 8,
-                        rotation: 0,
-                        z_index: field.z_index + 1,
-                        text_color: field.settings.bangla_color ?? '#780000',
-                        line_height: field.line_height,
-                        letter_spacing: field.letter_spacing,
-                        font_size_min: field.settings.bangla_font_size_min ?? 10,
-                        font_size_max: field.settings.bangla_font_size_max ?? 16,
-                        settings: { ...field.settings, font_weight: field.settings.font_weight ?? '600', text_transform: 'none' },
-                    });
-                }
-                if (field.settings?.auto_arabic) {
-                    const bnOffset = field.settings?.auto_bangla ? (field.settings.bangla_height ?? 8) + 1 : 0;
-                    virtual.push({
-                        id: field.id * 1000 + 2,
-                        _virtual: true,
-                        label: 'Arabic / Hijri',
-                        field_key: field.field_key + '_arabic',
-                        position_x: field.settings.arabic_pos_x ?? 50,
-                        position_y: field.settings.arabic_pos_y ?? (Number(field.position_y) + Number(field.height) + 1 + bnOffset),
-                        width: field.settings.arabic_width ?? 70,
-                        height: field.settings.arabic_height ?? 8,
-                        rotation: 0,
-                        z_index: field.z_index + 2,
-                        text_color: field.settings.arabic_color ?? '#3D3730',
-                        line_height: field.line_height,
-                        letter_spacing: field.letter_spacing,
-                        font_size_min: field.settings.arabic_font_size_min ?? 10,
-                        font_size_max: field.settings.arabic_font_size_max ?? 14,
-                        settings: { ...field.settings, font_weight: field.settings.font_weight ?? '600', text_transform: 'none' },
-                    });
-                }
-            });
+        // Build a draggable companion field from a date field's settings
+        buildCompanionField(parentField, type) {
+            const isArabic = type === 'arabic';
+            const prefix = isArabic ? 'arabic' : 'bangla';
+            const bnOffset = (!isArabic) ? 0 : (parentField.settings?.auto_bangla ? (Number(parentField.settings.bangla_height ?? 8) + 1) : 0);
+            return {
+                id: parentField.id * 1000 + (isArabic ? 2 : 1),
+                _companion_for: parentField.id,
+                _companion_type: type,
+                label: isArabic ? 'Arabic / Hijri' : 'বাংলা তারিখ',
+                field_key: parentField.field_key + '_' + type,
+                placeholder: '',
+                help_text: '',
+                default_value: '',
+                preview_sample_value: isArabic ? '19 Jumada al-Awwal 1448' : '৫ পৌষ ১৪৩৩',
+                is_required: false,
+                max_length: 120,
+                min_length: 0,
+                font_size_min: Number(parentField.settings?.[`${prefix}_font_size_min`] ?? 10),
+                font_size_max: Number(parentField.settings?.[`${prefix}_font_size_max`] ?? (isArabic ? 14 : 16)),
+                line_height: Number(parentField.line_height ?? 1.2),
+                letter_spacing: Number(parentField.letter_spacing ?? 0),
+                text_align: 'center',
+                text_color: parentField.settings?.[`${prefix}_color`] ?? (isArabic ? '#3D3730' : '#780000'),
+                position_x: Number(parentField.settings?.[`${prefix}_pos_x`] ?? 50),
+                position_y: Number(parentField.settings?.[`${prefix}_pos_y`] ?? (Number(parentField.position_y) + Number(parentField.height) + 1 + bnOffset)),
+                width: Number(parentField.settings?.[`${prefix}_width`] ?? 70),
+                height: Number(parentField.settings?.[`${prefix}_height`] ?? 8),
+                rotation: 0,
+                z_index: Number(parentField.z_index) + (isArabic ? 2 : 1),
+                settings: {
+                    auto_fit: true,
+                    allow_multiline: false,
+                    max_lines: 1,
+                    overflow_behavior: 'shrink_only',
+                    font_family_override: parentField.settings?.font_family_override ?? '',
+                    font_weight: parentField.settings?.font_weight ?? '600',
+                    text_transform: 'none',
+                },
+            };
+        },
 
-            return [...base, ...virtual];
+        // Toggle companion on/off; adds to / removes from this.fields
+        toggleCompanion(parentField, type, enabled) {
+            parentField.settings['auto_' + type] = enabled;
+            const companionId = parentField.id * 1000 + (type === 'arabic' ? 2 : 1);
+            if (enabled) {
+                if (!this.fields.find(f => f.id === companionId)) {
+                    this.fields.push(this.buildCompanionField(parentField, type));
+                }
+            } else {
+                this.fields = this.fields.filter(f => f.id !== companionId);
+            }
         },
         activeFieldSummary() {
             const field = this.fields.find((item) => item.id === this.activeFieldId);
@@ -1719,7 +1736,22 @@ document.addEventListener('alpine:init', () => {
             });
         },
         serializableFields() {
-            return this.fields.map((field, index) => ({
+            // Sync companion field positions back to parent date field settings before serializing
+            this.fields.filter(f => f._companion_for).forEach(companion => {
+                const parent = this.fields.find(p => p.id === companion._companion_for);
+                if (!parent) return;
+                const t = companion._companion_type;
+                const prefix = t === 'arabic' ? 'arabic' : 'bangla';
+                parent.settings[`${prefix}_pos_x`]         = companion.position_x;
+                parent.settings[`${prefix}_pos_y`]         = companion.position_y;
+                parent.settings[`${prefix}_width`]         = companion.width;
+                parent.settings[`${prefix}_height`]        = companion.height;
+                parent.settings[`${prefix}_color`]         = companion.text_color;
+                parent.settings[`${prefix}_font_size_min`] = companion.font_size_min;
+                parent.settings[`${prefix}_font_size_max`] = companion.font_size_max;
+            });
+
+            return this.fields.filter(f => !f._companion_for).map((field, index) => ({
                 label: field.label ?? '',
                 field_key: field.field_key ?? '',
                 placeholder: field.placeholder ?? '',
