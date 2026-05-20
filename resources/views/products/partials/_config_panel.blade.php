@@ -65,9 +65,17 @@
                     @php
                         $fieldName = 'personalization.'.$field->field_key;
                         $fieldKey = $field->field_key;
-                        $isDate = str($field->field_key)->contains('date') || $field->type === 'date';
+                        $isAutoDate = str($fieldKey)->endsWith('_bangla') || str($fieldKey)->endsWith('_arabic');
+                        $isDate = !$isAutoDate && (str($fieldKey)->contains('date') || ($field->type ?? '') === 'date');
                         $fieldMax = $field->max_length ?: 100;
                     @endphp
+
+                    {{-- Auto-computed date fields (Bangla/Arabic) — hidden, filled by computeAutoDates --}}
+                    @if ($isAutoDate)
+                        <input type="hidden" name="personalization[{{ $fieldKey }}]" :value="fields['{{ $fieldKey }}'] || ''">
+                        @continue
+                    @endif
+
                     <div class="field-group">
                         <div class="mb-1 flex items-baseline justify-between gap-3">
                             <label for="field-{{ $fieldKey }}" class="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">
@@ -91,13 +99,6 @@
                                 @change="computeAutoDates('{{ $fieldKey }}', @js($field->settings ?? [])); renderPreview()"
                                 class="field-input !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
                             >
-                            {{-- Hidden inputs for auto-dates (submitted with order) --}}
-                            @if (data_get($field->settings, 'auto_bangla'))
-                                <input type="hidden" name="personalization[{{ $fieldKey }}_bangla]" :value="fields['{{ $fieldKey }}_bangla'] || ''">
-                            @endif
-                            @if (data_get($field->settings, 'auto_arabic'))
-                                <input type="hidden" name="personalization[{{ $fieldKey }}_arabic]" :value="fields['{{ $fieldKey }}_arabic'] || ''">
-                            @endif
                         @else
                             <input
                                 id="field-{{ $fieldKey }}"

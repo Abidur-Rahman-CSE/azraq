@@ -1159,8 +1159,13 @@ export function registerNikahPreview(Alpine) {
             else                        enFormatted = `${d} ${mn} ${y}`;   // 'long' default
             this.fields[key] = enFormatted;
 
+            // Auto-detect companion fields from template config (key_bangla / key_arabic)
+            const templateFields = window.__TEMPLATE__?.fields ?? [];
+            const hasBangla = templateFields.some(f => f.field_key === key + '_bangla');
+            const hasArabic = templateFields.some(f => f.field_key === key + '_arabic');
+
             // ── Bengali calendar (বঙ্গাব্দ) ────────────────────────────────────
-            if (fieldSettings?.auto_bangla) {
+            if (hasBangla) {
                 const BN_MONTHS = ['বৈশাখ','জ্যৈষ্ঠ','আষাঢ়','শ্রাবণ','ভাদ্র','আশ্বিন','কার্তিক','অগ্রহায়ণ','পৌষ','মাঘ','ফাল্গুন','চৈত্র'];
                 // Gregorian month start days for Bengali months (approx, non-leap year)
                 const BN_START = [[4,14],[5,15],[6,15],[7,16],[8,17],[9,17],[10,18],[11,17],[12,16],[1,14],[2,13],[3,14]];
@@ -1189,7 +1194,7 @@ export function registerNikahPreview(Alpine) {
             }
 
             // ── Hijri calendar (Islamic, in English) ─────────────────────────
-            if (fieldSettings?.auto_arabic) {
+            if (hasArabic) {
                 const HJ_MONTHS = ['Muharram','Safar','Rabi al-Awwal','Rabi al-Thani','Jumada al-Awwal','Jumada al-Thani','Rajab',"Sha'ban",'Ramadan','Shawwal','Dhul Qadah','Dhul Hijjah'];
                 // Kuwaiti algorithm for approximate Hijri date
                 const jd = Math.floor((1461 * (y + 4800 + Math.floor((m - 14) / 12))) / 4)

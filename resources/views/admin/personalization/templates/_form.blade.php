@@ -60,25 +60,7 @@
                     'font_family_override' => data_get($field, 'settings.font_family_override', ''),
                     'font_weight' => (string) data_get($field, 'settings.font_weight', '600'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
-                    // Auto-date companions (active when field_key contains "date")
-                    // Default Y positions are just below the date field (position_y + height + 1)
-                    'date_format'         =>          data_get($field, 'settings.date_format', 'long'),
-                    'auto_bangla'         => (bool)  data_get($field, 'settings.auto_bangla', false),
-                    'bangla_pos_x'        => (float) data_get($field, 'settings.bangla_pos_x', 50),
-                    'bangla_pos_y'        => ((float) data_get($field, 'settings.bangla_pos_y', 0)) > 0 ? (float) data_get($field, 'settings.bangla_pos_y') : -1,
-                    'bangla_width'        => (float) data_get($field, 'settings.bangla_width', 70),
-                    'bangla_height'       => (float) data_get($field, 'settings.bangla_height', 8),
-                    'bangla_color'        =>          data_get($field, 'settings.bangla_color', '#780000'),
-                    'bangla_font_size_min'=> (int)   data_get($field, 'settings.bangla_font_size_min', 10),
-                    'bangla_font_size_max'=> (int)   data_get($field, 'settings.bangla_font_size_max', 16),
-                    'auto_arabic'         => (bool)  data_get($field, 'settings.auto_arabic', false),
-                    'arabic_pos_x'        => (float) data_get($field, 'settings.arabic_pos_x', 50),
-                    'arabic_pos_y'        => ((float) data_get($field, 'settings.arabic_pos_y', 0)) > 0 ? (float) data_get($field, 'settings.arabic_pos_y') : -1,
-                    'arabic_width'        => (float) data_get($field, 'settings.arabic_width', 70),
-                    'arabic_height'       => (float) data_get($field, 'settings.arabic_height', 8),
-                    'arabic_color'        =>          data_get($field, 'settings.arabic_color', '#3D3730'),
-                    'arabic_font_size_min'=> (int)   data_get($field, 'settings.arabic_font_size_min', 10),
-                    'arabic_font_size_max'=> (int)   data_get($field, 'settings.arabic_font_size_max', 14),
+                    'date_format' => data_get($field, 'settings.date_format', 'long'),
                 ],
             ];
         })
@@ -576,14 +558,14 @@
                                     >
                                         <div
                                             class="flex h-full w-full items-center justify-center overflow-hidden rounded-[22px] px-[6px] text-center"
-                                            :class="field._companion_for ? 'border border-dashed border-[rgba(120,0,0,0.50)] bg-[rgba(120,0,0,0.05)]' : canvasFieldClass(field)"
+                                            :class="(field.field_key.endsWith('_bangla') || field.field_key.endsWith('_arabic')) ? 'border border-dashed border-[rgba(120,0,0,0.50)] bg-[rgba(120,0,0,0.05)]' : canvasFieldClass(field)"
                                             :style="canvasFieldInnerStyle(field)"
                                         >
                                             <p class="max-w-full break-words leading-tight" :style="canvasFieldTextStyle(field)" x-text="fieldPreviewText(field)"></p>
                                         </div>
 
-                                        {{-- Companion label badge (burgundy pill above zone) --}}
-                                        <template x-if="field._companion_for">
+                                        {{-- Auto-date label badge --}}
+                                        <template x-if="field.field_key.endsWith('_bangla') || field.field_key.endsWith('_arabic')">
                                             <div class="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[rgba(120,0,0,0.88)] px-2 py-0.5 text-[9px] font-semibold tracking-[0.12em] text-white" x-text="field.label"></div>
                                         </template>
 
@@ -888,133 +870,40 @@
                                 </div>
                             </div>
 
-                            {{-- ── DATE OPTIONS TAB (only shown for date fields) ─────────────────── --}}
-                            <div x-show="currentFieldTab(index) === 'date'" class="space-y-5">
-                                <template x-if="!field.field_key.includes('date') || field._companion_for">
-                                    <p class="text-sm text-[var(--color-text-soft)]">Date options only apply to the main date field (e.g. <code>ceremony_date</code>), not to auto-generated companions.</p>
+                            {{-- ── DATE FORMAT TAB ─────────────────────────────────────────────── --}}
+                            <div x-show="currentFieldTab(index) === 'date'" class="space-y-4">
+                                <template x-if="!field.field_key.includes('date')">
+                                    <p class="text-sm text-[var(--color-text-soft)]">Date tab applies to fields whose key contains "date".</p>
                                 </template>
 
-                                <template x-if="field.field_key.includes('date') && !field._companion_for">
-                                    <div class="space-y-5">
-                                        <p class="text-xs leading-6 text-[var(--color-text-soft)]">
-                                            Customer enters one date picker input. Admin controls format and optional companions.
-                                        </p>
+                                <template x-if="field.field_key.endsWith('_bangla') || field.field_key.endsWith('_arabic')">
+                                    <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-[rgba(120,0,0,0.03)] p-4 space-y-2">
+                                        <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Auto-computed date field</p>
+                                        <p class="text-[11px] text-[var(--color-text-soft)]" x-text="field.field_key.endsWith('_bangla') ? 'Auto-filled with Bengali calendar (বঙ্গাব্দ) when customer enters a date.' : 'Auto-filled with Hijri calendar date when customer enters a date.'"></p>
+                                        <p class="text-[11px] text-[var(--color-text-soft)]">Position and style using Layout / Typography tabs above. No separate format needed.</p>
+                                    </div>
+                                </template>
 
-                                        {{-- Date format selector --}}
-                                        <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-white/80 p-4 space-y-3">
-                                            <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Date format on certificate</p>
-                                            <div class="grid gap-2">
-                                                <template x-for="fmt in [
-                                                    {key:'long',    label:'20 December 2026',   hint:'Day Month Year'},
-                                                    {key:'us',      label:'December 20, 2026',  hint:'Month Day, Year'},
-                                                    {key:'numeric', label:'20/12/2026',          hint:'DD/MM/YYYY'},
-                                                ]" :key="fmt.key">
-                                                    <label class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition"
-                                                           :class="field.settings.date_format === fmt.key
-                                                               ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.04)]'
-                                                               : 'border-[var(--color-border-soft)] hover:border-[var(--color-primary-900)]'">
-                                                        <input type="radio" :value="fmt.key" x-model="field.settings.date_format" class="accent-[var(--color-primary-900)]">
-                                                        <span>
-                                                            <span class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="fmt.label"></span>
-                                                            <span class="ml-2 text-[11px] text-[var(--color-text-soft)]" x-text="fmt.hint"></span>
-                                                        </span>
-                                                    </label>
-                                                </template>
-                                            </div>
-                                        </div>
-
-                                        {{-- BANGLA companion --}}
-                                        <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-white/80 p-4 space-y-4">
-                                            <label class="flex cursor-pointer items-center justify-between gap-4">
-                                                <div>
-                                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">বাংলা তারিখ (Bangla calendar)</p>
-                                                    <p class="text-[11px] text-[var(--color-text-soft)]">বঙ্গাব্দ — Bangla script, Bengali months. e.g. <em>৫ পৌষ ১৪৩৩</em></p>
-                                                </div>
-                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)]"
-                                                       :checked="field.settings.auto_bangla"
-                                                       @change="toggleCompanion(field, 'bangla', $event.target.checked)">
-                                            </label>
-
-                                            <div x-show="field.settings.auto_bangla" x-transition class="grid gap-3 sm:grid-cols-2">
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">X (%)</span>
-                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.bangla_pos_x">
+                                <template x-if="field.field_key.includes('date') && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')">
+                                    <div class="space-y-3">
+                                        <p class="text-xs text-[var(--color-text-soft)]">Format used when displaying this date on the certificate. Bangla/Arabic companion fields are added separately via presets.</p>
+                                        <div class="grid gap-2">
+                                            <template x-for="fmt in [
+                                                {key:'long',    label:'20 December 2026',   hint:'Day Month Year'},
+                                                {key:'us',      label:'December 20, 2026',  hint:'Month Day, Year'},
+                                                {key:'numeric', label:'20/12/2026',          hint:'DD/MM/YYYY'},
+                                            ]" :key="fmt.key">
+                                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition"
+                                                       :class="field.settings.date_format === fmt.key
+                                                           ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.04)]'
+                                                           : 'border-[var(--color-border-soft)] hover:border-[var(--color-primary-900)]'">
+                                                    <input type="radio" :value="fmt.key" x-model="field.settings.date_format" class="accent-[var(--color-primary-900)]">
+                                                    <span>
+                                                        <span class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="fmt.label"></span>
+                                                        <span class="ml-2 text-[11px] text-[var(--color-text-soft)]" x-text="fmt.hint"></span>
+                                                    </span>
                                                 </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Y (%)</span>
-                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.bangla_pos_y">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Width (%)</span>
-                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.bangla_width">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Height (%)</span>
-                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.bangla_height">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size min</span>
-                                                    <input type="number" min="6" max="80" class="field-input" x-model.number="field.settings.bangla_font_size_min">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size max</span>
-                                                    <input type="number" min="6" max="80" class="field-input" x-model.number="field.settings.bangla_font_size_max">
-                                                </label>
-                                                <label class="field-shell sm:col-span-2">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Text color</span>
-                                                    <div class="flex items-center gap-2">
-                                                        <input type="color" class="h-9 w-12 cursor-pointer rounded border border-[var(--color-border-soft)]" x-model="field.settings.bangla_color">
-                                                        <input type="text" class="field-input" x-model="field.settings.bangla_color" maxlength="9">
-                                                    </div>
-                                                </label>
-                                            </div>
-                                        </div>
-
-                                        {{-- ARABIC companion --}}
-                                        <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-white/80 p-4 space-y-4">
-                                            <label class="flex cursor-pointer items-center justify-between gap-4">
-                                                <div>
-                                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Arabic date (Hijri calendar)</p>
-                                                    <p class="text-[11px] text-[var(--color-text-soft)]">Islamic/Hijri calendar in English. e.g. <em>19 Jumada al-Awwal 1448</em></p>
-                                                </div>
-                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)]"
-                                                       :checked="field.settings.auto_arabic"
-                                                       @change="toggleCompanion(field, 'arabic', $event.target.checked)">
-                                            </label>
-
-                                            <div x-show="field.settings.auto_arabic" x-transition class="grid gap-3 sm:grid-cols-2">
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">X (%)</span>
-                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.arabic_pos_x">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Y (%)</span>
-                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.arabic_pos_y">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Width (%)</span>
-                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.arabic_width">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Height (%)</span>
-                                                    <input type="number" step="0.1" class="field-input" x-model.number="field.settings.arabic_height">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size min</span>
-                                                    <input type="number" min="6" max="80" class="field-input" x-model.number="field.settings.arabic_font_size_min">
-                                                </label>
-                                                <label class="field-shell">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size max</span>
-                                                    <input type="number" min="6" max="80" class="field-input" x-model.number="field.settings.arabic_font_size_max">
-                                                </label>
-                                                <label class="field-shell sm:col-span-2">
-                                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Text color</span>
-                                                    <div class="flex items-center gap-2">
-                                                        <input type="color" class="h-9 w-12 cursor-pointer rounded border border-[var(--color-border-soft)]" x-model="field.settings.arabic_color">
-                                                        <input type="text" class="field-input" x-model="field.settings.arabic_color" maxlength="9">
-                                                    </div>
-                                                </label>
-                                            </div>
+                                            </template>
                                         </div>
                                     </div>
                                 </template>
@@ -1250,10 +1139,13 @@ document.addEventListener('alpine:init', () => {
         nextFieldId: 1,
         nextFontId: 1,
         fieldPresets: [
-            { key: 'bride_name', label: 'Bride name', position_x: 50, position_y: 27, width: 56, height: 14, transform: 'uppercase', multiline: false },
-            { key: 'groom_name', label: 'Groom name', position_x: 50, position_y: 43, width: 56, height: 14, transform: 'uppercase', multiline: false },
-            { key: 'ceremony_date', label: 'Ceremony date', position_x: 50, position_y: 61, width: 40, height: 12, transform: 'uppercase', multiline: true },
-            { key: 'venue', label: 'Venue', position_x: 50, position_y: 75, width: 50, height: 14, transform: 'uppercase', multiline: true },
+            { key: 'bride_name',             label: 'Bride name',              position_x: 50, position_y: 27, width: 56, height: 14, transform: 'uppercase', multiline: false },
+            { key: 'groom_name',             label: 'Groom name',              position_x: 50, position_y: 43, width: 56, height: 14, transform: 'uppercase', multiline: false },
+            { key: 'ceremony_date',          label: 'Ceremony date',           position_x: 50, position_y: 61, width: 40, height: 12, transform: 'uppercase', multiline: true  },
+            { key: 'ceremony_date_bangla',   label: 'Bangla date (বঙ্গাব্দ)',   position_x: 50, position_y: 67, width: 50, height: 10, transform: 'none',      multiline: false },
+            { key: 'ceremony_date_arabic',   label: 'Arabic date (Hijri)',      position_x: 50, position_y: 74, width: 50, height: 10, transform: 'none',      multiline: false },
+            { key: 'venue',                  label: 'Venue',                   position_x: 50, position_y: 81, width: 50, height: 14, transform: 'uppercase', multiline: true  },
+            { key: 'quotation',              label: 'Quotation',               position_x: 50, position_y: 88, width: 70, height: 14, transform: 'none',      multiline: true  },
         ],
         init() {
             this.fields = this.initialFields.map((field, index) => this.normalizedField(field, index));
@@ -1266,14 +1158,6 @@ document.addEventListener('alpine:init', () => {
                 this.collectiveTextColor = this.fields[0].text_color || '#780000';
                 this.collectiveFontWeight = this.fields[0].settings.font_weight || '600';
             }
-            // Inject companion fields for any date fields that already have auto-dates enabled
-            const companions = [];
-            this.fields.forEach(f => {
-                if (!f.field_key.includes('date')) return;
-                if (f.settings?.auto_bangla) companions.push(this.buildCompanionField(f, 'bangla'));
-                if (f.settings?.auto_arabic) companions.push(this.buildCompanionField(f, 'arabic'));
-            });
-            this.fields.push(...companions);
         },
         normalizedField(field, index) {
             return {
@@ -1308,24 +1192,7 @@ document.addEventListener('alpine:init', () => {
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: String(field.settings?.font_weight ?? '600'),
                     text_transform: field.settings?.text_transform ?? 'none',
-                    // Date-specific settings (preserved from DB; defaults used for non-date fields)
-                    date_format:          field.settings?.date_format ?? 'long',
-                    auto_bangla:          Boolean(field.settings?.auto_bangla ?? false),
-                    bangla_pos_x:         Number(field.settings?.bangla_pos_x ?? 50),
-                    bangla_pos_y:         Number(field.settings?.bangla_pos_y ?? -1),
-                    bangla_width:         Number(field.settings?.bangla_width ?? 70),
-                    bangla_height:        Number(field.settings?.bangla_height ?? 8),
-                    bangla_color:         field.settings?.bangla_color ?? '#780000',
-                    bangla_font_size_min: Number(field.settings?.bangla_font_size_min ?? 10),
-                    bangla_font_size_max: Number(field.settings?.bangla_font_size_max ?? 16),
-                    auto_arabic:          Boolean(field.settings?.auto_arabic ?? false),
-                    arabic_pos_x:         Number(field.settings?.arabic_pos_x ?? 50),
-                    arabic_pos_y:         Number(field.settings?.arabic_pos_y ?? -1),
-                    arabic_width:         Number(field.settings?.arabic_width ?? 70),
-                    arabic_height:        Number(field.settings?.arabic_height ?? 8),
-                    arabic_color:         field.settings?.arabic_color ?? '#3D3730',
-                    arabic_font_size_min: Number(field.settings?.arabic_font_size_min ?? 10),
-                    arabic_font_size_max: Number(field.settings?.arabic_font_size_max ?? 14),
+                    date_format: field.settings?.date_format ?? 'long',
                 },
             };
         },
@@ -1501,63 +1368,6 @@ document.addEventListener('alpine:init', () => {
             return [...this.fields]
                 .filter((field) => field.label || field.field_key)
                 .sort((a, b) => Number(a.z_index) - Number(b.z_index));
-        },
-
-        // Build a draggable companion field from a date field's settings
-        buildCompanionField(parentField, type) {
-            const isArabic = type === 'arabic';
-            const prefix = isArabic ? 'arabic' : 'bangla';
-            const bnOffset = (!isArabic) ? 0 : (parentField.settings?.auto_bangla ? (Number(parentField.settings.bangla_height ?? 8) + 1) : 0);
-            return {
-                id: parentField.id * 1000 + (isArabic ? 2 : 1),
-                _companion_for: parentField.id,
-                _companion_type: type,
-                label: isArabic ? 'Arabic / Hijri' : 'বাংলা তারিখ',
-                field_key: parentField.field_key + '_' + type,
-                placeholder: '',
-                help_text: '',
-                default_value: '',
-                preview_sample_value: isArabic ? '19 Jumada al-Awwal 1448' : '৫ পৌষ ১৪৩৩',
-                is_required: false,
-                max_length: 120,
-                min_length: 0,
-                font_size_min: Number(parentField.settings?.[`${prefix}_font_size_min`] ?? 10),
-                font_size_max: Number(parentField.settings?.[`${prefix}_font_size_max`] ?? (isArabic ? 14 : 16)),
-                line_height: Number(parentField.line_height ?? 1.2),
-                letter_spacing: Number(parentField.letter_spacing ?? 0),
-                text_align: 'center',
-                text_color: parentField.settings?.[`${prefix}_color`] ?? (isArabic ? '#3D3730' : '#780000'),
-                position_x: Number(parentField.settings?.[`${prefix}_pos_x`] ?? 50),
-                position_y: (Number(parentField.settings?.[`${prefix}_pos_y`]) > 0)
-                    ? Number(parentField.settings[`${prefix}_pos_y`])
-                    : (Number(parentField.position_y) + Number(parentField.height) + 1 + bnOffset),
-                width: Number(parentField.settings?.[`${prefix}_width`] ?? 70),
-                height: Number(parentField.settings?.[`${prefix}_height`] ?? 8),
-                rotation: 0,
-                z_index: Number(parentField.z_index) + (isArabic ? 2 : 1),
-                settings: {
-                    auto_fit: true,
-                    allow_multiline: false,
-                    max_lines: 1,
-                    overflow_behavior: 'shrink_only',
-                    font_family_override: parentField.settings?.font_family_override ?? '',
-                    font_weight: parentField.settings?.font_weight ?? '600',
-                    text_transform: 'none',
-                },
-            };
-        },
-
-        // Toggle companion on/off; adds to / removes from this.fields
-        toggleCompanion(parentField, type, enabled) {
-            parentField.settings['auto_' + type] = enabled;
-            const companionId = parentField.id * 1000 + (type === 'arabic' ? 2 : 1);
-            if (enabled) {
-                if (!this.fields.find(f => f.id === companionId)) {
-                    this.fields.push(this.buildCompanionField(parentField, type));
-                }
-            } else {
-                this.fields = this.fields.filter(f => f.id !== companionId);
-            }
         },
         activeFieldSummary() {
             const field = this.fields.find((item) => item.id === this.activeFieldId);
@@ -1784,22 +1594,7 @@ document.addEventListener('alpine:init', () => {
             });
         },
         serializableFields() {
-            // Sync companion field positions back to parent date field settings before serializing
-            this.fields.filter(f => f._companion_for).forEach(companion => {
-                const parent = this.fields.find(p => p.id === companion._companion_for);
-                if (!parent) return;
-                const t = companion._companion_type;
-                const prefix = t === 'arabic' ? 'arabic' : 'bangla';
-                parent.settings[`${prefix}_pos_x`]         = companion.position_x;
-                parent.settings[`${prefix}_pos_y`]         = companion.position_y;
-                parent.settings[`${prefix}_width`]         = companion.width;
-                parent.settings[`${prefix}_height`]        = companion.height;
-                parent.settings[`${prefix}_color`]         = companion.text_color;
-                parent.settings[`${prefix}_font_size_min`] = companion.font_size_min;
-                parent.settings[`${prefix}_font_size_max`] = companion.font_size_max;
-            });
-
-            return this.fields.filter(f => !f._companion_for).map((field, index) => ({
+            return this.fields.map((field, index) => ({
                 label: field.label ?? '',
                 field_key: field.field_key ?? '',
                 placeholder: field.placeholder ?? '',
@@ -1829,24 +1624,7 @@ document.addEventListener('alpine:init', () => {
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: field.settings?.font_weight ?? '600',
                     text_transform: field.settings?.text_transform ?? 'none',
-                    // Date-specific settings (always serialized; ignored by non-date fields)
-                    date_format:          field.settings?.date_format ?? 'long',
-                    auto_bangla:          field.settings?.auto_bangla ? 1 : 0,
-                    bangla_pos_x:         Number(field.settings?.bangla_pos_x ?? 50),
-                    bangla_pos_y:         Number(field.settings?.bangla_pos_y ?? -1),
-                    bangla_width:         Number(field.settings?.bangla_width ?? 70),
-                    bangla_height:        Number(field.settings?.bangla_height ?? 8),
-                    bangla_color:         field.settings?.bangla_color ?? '#780000',
-                    bangla_font_size_min: Number(field.settings?.bangla_font_size_min ?? 10),
-                    bangla_font_size_max: Number(field.settings?.bangla_font_size_max ?? 16),
-                    auto_arabic:          field.settings?.auto_arabic ? 1 : 0,
-                    arabic_pos_x:         Number(field.settings?.arabic_pos_x ?? 50),
-                    arabic_pos_y:         Number(field.settings?.arabic_pos_y ?? -1),
-                    arabic_width:         Number(field.settings?.arabic_width ?? 70),
-                    arabic_height:        Number(field.settings?.arabic_height ?? 8),
-                    arabic_color:         field.settings?.arabic_color ?? '#3D3730',
-                    arabic_font_size_min: Number(field.settings?.arabic_font_size_min ?? 10),
-                    arabic_font_size_max: Number(field.settings?.arabic_font_size_max ?? 14),
+                    date_format: field.settings?.date_format ?? 'long',
                 },
             }));
         },
