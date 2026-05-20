@@ -42,91 +42,27 @@
             'editor_canvas_width' => 980,
             'storefront_text_scale' => 1.08,
             'preview_data_presets' => $template->preview_data_presets ?? [],
-            'fields' => (function () use ($template) {
-                $all = [];
-                foreach ($template->fields as $field) {
-                    $s = $field->settings ?? [];
-                    $all[] = [
-                        'name' => $field->field_key,
-                        'field_key' => $field->field_key,
-                        'label' => $field->label,
-                        'placeholder' => $field->placeholder,
-                        'default_value' => $field->default_value,
-                        'preview_sample_value' => $field->preview_sample_value,
-                        'position_x' => (float) $field->position_x,
-                        'position_y' => (float) $field->position_y,
-                        'width' => (float) $field->width,
-                        'height' => (float) $field->height,
-                        'rotation' => (float) $field->rotation,
-                        'text_align' => $field->text_align,
-                        'text_color' => $field->text_color,
-                        'line_height' => (float) $field->line_height,
-                        'letter_spacing' => (float) $field->letter_spacing,
-                        'font_size_min' => (int) $field->font_size_min,
-                        'font_size_max' => (int) $field->font_size_max,
-                        'z_index' => (int) ($field->z_index ?? 1),
-                        'settings' => $s,
-                    ];
-
-                    // Inject virtual companion fields for Bangla/Arabic auto-dates
-                    if (str_contains($field->field_key, 'date')) {
-                        $baseZ = (int) ($field->z_index ?? 1);
-                        $posYBase = (float) $field->position_y + (float) $field->height + 1;
-
-                        if (!empty($s['auto_bangla'])) {
-                            $by = (float) ($s['bangla_pos_y'] ?? -1) > 0 ? (float) $s['bangla_pos_y'] : $posYBase;
-                            $all[] = [
-                                'name' => $field->field_key.'_bangla',
-                                'field_key' => $field->field_key.'_bangla',
-                                'label' => 'Bangla date',
-                                'placeholder' => '',
-                                'default_value' => '',
-                                'preview_sample_value' => '',
-                                'position_x' => (float) ($s['bangla_pos_x'] ?? 50),
-                                'position_y' => $by,
-                                'width' => (float) ($s['bangla_width'] ?? 70),
-                                'height' => (float) ($s['bangla_height'] ?? 8),
-                                'rotation' => 0,
-                                'text_align' => 'center',
-                                'text_color' => $s['bangla_color'] ?? '#780000',
-                                'line_height' => (float) $field->line_height,
-                                'letter_spacing' => (float) $field->letter_spacing,
-                                'font_size_min' => (int) ($s['bangla_font_size_min'] ?? 10),
-                                'font_size_max' => (int) ($s['bangla_font_size_max'] ?? 16),
-                                'z_index' => $baseZ + 1,
-                                'settings' => ['auto_fit' => true, 'allow_multiline' => false, 'max_lines' => 1, 'overflow_behavior' => 'shrink_only', 'font_weight' => $s['font_weight'] ?? '600', 'text_transform' => 'none'],
-                            ];
-                        }
-
-                        if (!empty($s['auto_arabic'])) {
-                            $bnH = !empty($s['auto_bangla']) ? ((float) ($s['bangla_height'] ?? 8) + 1) : 0;
-                            $ay = (float) ($s['arabic_pos_y'] ?? -1) > 0 ? (float) $s['arabic_pos_y'] : ($posYBase + $bnH);
-                            $all[] = [
-                                'name' => $field->field_key.'_arabic',
-                                'field_key' => $field->field_key.'_arabic',
-                                'label' => 'Arabic date',
-                                'placeholder' => '',
-                                'default_value' => '',
-                                'preview_sample_value' => '',
-                                'position_x' => (float) ($s['arabic_pos_x'] ?? 50),
-                                'position_y' => $ay,
-                                'width' => (float) ($s['arabic_width'] ?? 70),
-                                'height' => (float) ($s['arabic_height'] ?? 8),
-                                'rotation' => 0,
-                                'text_align' => 'center',
-                                'text_color' => $s['arabic_color'] ?? '#3D3730',
-                                'line_height' => (float) $field->line_height,
-                                'letter_spacing' => (float) $field->letter_spacing,
-                                'font_size_min' => (int) ($s['arabic_font_size_min'] ?? 10),
-                                'font_size_max' => (int) ($s['arabic_font_size_max'] ?? 14),
-                                'z_index' => $baseZ + 2,
-                                'settings' => ['auto_fit' => true, 'allow_multiline' => false, 'max_lines' => 1, 'overflow_behavior' => 'shrink_only', 'font_weight' => $s['font_weight'] ?? '600', 'text_transform' => 'none'],
-                            ];
-                        }
-                    }
-                }
-                return $all;
-            })(),
+            'fields' => $template->fields->map(fn ($field) => [
+                'name'               => $field->field_key,
+                'field_key'          => $field->field_key,
+                'label'              => $field->label,
+                'placeholder'        => $field->placeholder,
+                'default_value'      => $field->default_value,
+                'preview_sample_value' => $field->preview_sample_value,
+                'position_x'         => (float) $field->position_x,
+                'position_y'         => (float) $field->position_y,
+                'width'              => (float) $field->width,
+                'height'             => (float) $field->height,
+                'rotation'           => (float) $field->rotation,
+                'text_align'         => $field->text_align,
+                'text_color'         => $field->text_color,
+                'line_height'        => (float) $field->line_height,
+                'letter_spacing'     => (float) $field->letter_spacing,
+                'font_size_min'      => (int) $field->font_size_min,
+                'font_size_max'      => (int) $field->font_size_max,
+                'z_index'            => (int) ($field->z_index ?? 1),
+                'settings'           => $field->settings ?? [],
+            ])->values()->all(),
         ]
         : null;
 
