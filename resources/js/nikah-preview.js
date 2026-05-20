@@ -1166,14 +1166,18 @@ export function registerNikahPreview(Alpine) {
                 const BN_START = [[4,14],[5,15],[6,15],[7,16],[8,17],[9,17],[10,18],[11,17],[12,16],[1,14],[2,13],[3,14]];
                 // Determine Bengali month and day
                 let bnMonth = -1, bnDay = 0, bnYear = y - 593;
+                const dt = new Date(y, m - 1, d);
                 for (let i = 0; i < 12; i++) {
                     const [sm, sd] = BN_START[i];
                     const [nm, nd] = BN_START[(i + 1) % 12];
-                    const smAdj = (i >= 9) ? ((y - 1) * 12 + sm) : (y * 12 + sm);
-                    const nmAdj = (i >= 9 && i <= 10) ? (y * 12 + nm) : ((i === 11) ? (y * 12 + nm) : (y * 12 + nm));
-                    const cur = new Date(y, sm - 1, sd);
-                    const nxt = new Date(i === 11 ? y + 1 : y, nm - 1, nd);
-                    const dt  = new Date(y, m - 1, d);
+                    // If Bengali month starts in a month LATER than the input month,
+                    // it started in the PREVIOUS Gregorian year (e.g. পৌষ starts Dec,
+                    // so a Jan input date falls in পৌষ that started last December)
+                    const curYear = sm > m ? y - 1 : y;
+                    const cur = new Date(curYear, sm - 1, sd);
+                    // Next month boundary: cross year when next month number < current start month number
+                    const nxtYear = nm < sm ? curYear + 1 : curYear;
+                    const nxt = new Date(nxtYear, nm - 1, nd);
                     if (dt >= cur && dt < nxt) { bnMonth = i; bnDay = Math.floor((dt - cur) / 86400000) + 1; break; }
                 }
                 // If January-March, Bengali year is y - 594 before Bangla New Year
