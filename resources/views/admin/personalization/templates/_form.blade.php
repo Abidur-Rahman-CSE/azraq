@@ -886,11 +886,11 @@
 
                             {{-- ── DATE OPTIONS TAB (only shown for date fields) ─────────────────── --}}
                             <div x-show="currentFieldTab(index) === 'date'" class="space-y-5">
-                                <template x-if="!field.field_key.includes('date')">
-                                    <p class="text-sm text-[var(--color-text-soft)]">Date options only apply to fields whose key contains "date" (e.g. <code>ceremony_date</code>).</p>
+                                <template x-if="!field.field_key.includes('date') || field._companion_for">
+                                    <p class="text-sm text-[var(--color-text-soft)]">Date options only apply to the main date field (e.g. <code>ceremony_date</code>), not to auto-generated companions.</p>
                                 </template>
 
-                                <template x-if="field.field_key.includes('date')">
+                                <template x-if="field.field_key.includes('date') && !field._companion_for">
                                     <div class="space-y-5">
                                         <p class="text-xs leading-6 text-[var(--color-text-soft)]">
                                             Customer enters one date picker input. Admin controls format and optional companions.
@@ -1804,6 +1804,24 @@ document.addEventListener('alpine:init', () => {
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: field.settings?.font_weight ?? '600',
                     text_transform: field.settings?.text_transform ?? 'none',
+                    // Date-specific settings (always serialized; ignored by non-date fields)
+                    date_format:          field.settings?.date_format ?? 'long',
+                    auto_bangla:          field.settings?.auto_bangla ? 1 : 0,
+                    bangla_pos_x:         Number(field.settings?.bangla_pos_x ?? 50),
+                    bangla_pos_y:         Number(field.settings?.bangla_pos_y ?? 0),
+                    bangla_width:         Number(field.settings?.bangla_width ?? 70),
+                    bangla_height:        Number(field.settings?.bangla_height ?? 8),
+                    bangla_color:         field.settings?.bangla_color ?? '#780000',
+                    bangla_font_size_min: Number(field.settings?.bangla_font_size_min ?? 10),
+                    bangla_font_size_max: Number(field.settings?.bangla_font_size_max ?? 16),
+                    auto_arabic:          field.settings?.auto_arabic ? 1 : 0,
+                    arabic_pos_x:         Number(field.settings?.arabic_pos_x ?? 50),
+                    arabic_pos_y:         Number(field.settings?.arabic_pos_y ?? 0),
+                    arabic_width:         Number(field.settings?.arabic_width ?? 70),
+                    arabic_height:        Number(field.settings?.arabic_height ?? 8),
+                    arabic_color:         field.settings?.arabic_color ?? '#3D3730',
+                    arabic_font_size_min: Number(field.settings?.arabic_font_size_min ?? 10),
+                    arabic_font_size_max: Number(field.settings?.arabic_font_size_max ?? 14),
                 },
             }));
         },
@@ -1949,7 +1967,21 @@ document.addEventListener('alpine:init', () => {
             return `color:${field.text_color || '#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing || 0)}px; line-height:${Number(field.line_height || 1.2)}; font-weight:${field.settings.font_weight || '600'}; font-family:${field.settings.font_family_override || '"Poppins", sans-serif'}; text-transform:${field.settings.text_transform || 'none'};`;
         },
         fieldPreviewText(field) {
+            // For date fields, apply the selected format to the preview date
+            if (field.field_key.includes('date') && !field._companion_for) {
+                return this.formatDateSample(this.previewData?.ceremony_date ?? '12 December 2026', field.settings?.date_format ?? 'long');
+            }
             return this.sampleValue(field.field_key, field.preview_sample_value || field.default_value || field.placeholder || 'Sample text');
+        },
+        formatDateSample(dateStr, fmt) {
+            const EN_M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            // Parse "12 December 2026" style or ISO
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const day = d.getDate(), month = d.getMonth(), year = d.getFullYear(), mn = EN_M[month];
+            if (fmt === 'us')      return `${mn} ${day}, ${year}`;
+            if (fmt === 'numeric') return `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
+            return `${day} ${mn} ${year}`;
         },
         sampleValue(fieldKey, fallback = '') {
             const map = {
@@ -1959,7 +1991,7 @@ document.addEventListener('alpine:init', () => {
                 venue: this.previewData.venue,
             };
 
-            // Auto-date virtual fields — fixed samples
+            // Auto-date companion fields
             if (fieldKey.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
             if (fieldKey.endsWith('_arabic')) return '19 Jumada al-Awwal 1448';
 
