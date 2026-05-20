@@ -90,15 +90,20 @@
                         </div>
 
                         @if ($isDate)
+                            {{-- Date picker keeps ISO value; formatted string goes into fields[key] for canvas --}}
                             <input
                                 id="field-{{ $fieldKey }}"
                                 type="date"
-                                name="personalization[{{ $fieldKey }}]"
                                 value="{{ old($fieldName, $field->default_value ?? '') }}"
-                                x-model="fields['{{ $fieldKey }}']"
-                                @change="computeAutoDates('{{ $fieldKey }}', @js($field->settings ?? [])); renderPreview()"
+                                @change="
+                                    fields['{{ $fieldKey }}'] = $event.target.value;
+                                    computeAutoDates('{{ $fieldKey }}', @js($field->settings ?? []));
+                                    renderPreview();
+                                "
                                 class="field-input !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
                             >
+                            {{-- Hidden input carries the formatted English date to the server --}}
+                            <input type="hidden" name="personalization[{{ $fieldKey }}]" :value="fields['{{ $fieldKey }}'] || ''">
                         @else
                             <input
                                 id="field-{{ $fieldKey }}"
