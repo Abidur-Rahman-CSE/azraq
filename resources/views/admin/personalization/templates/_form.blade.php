@@ -1300,6 +1300,7 @@ document.addEventListener('alpine:init', () => {
                 rotation: Number(field.rotation ?? 0),
                 z_index: Number(field.z_index ?? index),
                 settings: {
+                    // Core fitting/typography settings
                     auto_fit: Boolean(field.settings?.auto_fit ?? this.previewRules.auto_fit_enabled ?? true),
                     allow_multiline: Boolean(field.settings?.allow_multiline ?? this.previewRules.allow_multiline ?? true),
                     max_lines: Number(field.settings?.max_lines ?? 3),
@@ -1307,6 +1308,24 @@ document.addEventListener('alpine:init', () => {
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: String(field.settings?.font_weight ?? '600'),
                     text_transform: field.settings?.text_transform ?? 'none',
+                    // Date-specific settings (preserved from DB; defaults used for non-date fields)
+                    date_format:          field.settings?.date_format ?? 'long',
+                    auto_bangla:          Boolean(field.settings?.auto_bangla ?? false),
+                    bangla_pos_x:         Number(field.settings?.bangla_pos_x ?? 50),
+                    bangla_pos_y:         Number(field.settings?.bangla_pos_y ?? 0),
+                    bangla_width:         Number(field.settings?.bangla_width ?? 70),
+                    bangla_height:        Number(field.settings?.bangla_height ?? 8),
+                    bangla_color:         field.settings?.bangla_color ?? '#780000',
+                    bangla_font_size_min: Number(field.settings?.bangla_font_size_min ?? 10),
+                    bangla_font_size_max: Number(field.settings?.bangla_font_size_max ?? 16),
+                    auto_arabic:          Boolean(field.settings?.auto_arabic ?? false),
+                    arabic_pos_x:         Number(field.settings?.arabic_pos_x ?? 50),
+                    arabic_pos_y:         Number(field.settings?.arabic_pos_y ?? 0),
+                    arabic_width:         Number(field.settings?.arabic_width ?? 70),
+                    arabic_height:        Number(field.settings?.arabic_height ?? 8),
+                    arabic_color:         field.settings?.arabic_color ?? '#3D3730',
+                    arabic_font_size_min: Number(field.settings?.arabic_font_size_min ?? 10),
+                    arabic_font_size_max: Number(field.settings?.arabic_font_size_max ?? 14),
                 },
             };
         },
