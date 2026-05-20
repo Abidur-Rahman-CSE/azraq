@@ -889,9 +889,10 @@
                                         <p class="text-xs text-[var(--color-text-soft)]">Format used when displaying this date on the certificate. Bangla/Arabic companion fields are added separately via presets.</p>
                                         <div class="grid gap-2">
                                             <template x-for="fmt in [
-                                                {key:'long',    label:'20 December 2026',   hint:'Day Month Year'},
-                                                {key:'us',      label:'December 20, 2026',  hint:'Month Day, Year'},
-                                                {key:'numeric', label:'20/12/2026',          hint:'DD/MM/YYYY'},
+                                                {key:'ordinal', label:'20th December 2026, Sunday', hint:'Day(ordinal) Month Year, Weekday'},
+                                                {key:'long',    label:'20 December 2026',            hint:'Day Month Year'},
+                                                {key:'us',      label:'December 20, 2026',           hint:'Month Day, Year'},
+                                                {key:'numeric', label:'20/12/2026',                  hint:'DD/MM/YYYY'},
                                             ]" :key="fmt.key">
                                                 <label class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition"
                                                        :class="field.settings.date_format === fmt.key
@@ -1777,11 +1778,14 @@ document.addEventListener('alpine:init', () => {
             return this.sampleValue(field.field_key, field.preview_sample_value || field.default_value || field.placeholder || 'Sample text');
         },
         formatDateSample(dateStr, fmt) {
-            const EN_M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-            // Parse "12 December 2026" style or ISO
+            const EN_M    = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            const EN_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+            const ordinal = n => { const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
             const d = new Date(dateStr);
             if (isNaN(d.getTime())) return dateStr;
-            const day = d.getDate(), month = d.getMonth(), year = d.getFullYear(), mn = EN_M[month];
+            const day = d.getDate(), month = d.getMonth(), year = d.getFullYear();
+            const mn = EN_M[month], dayName = EN_DAYS[d.getDay()];
+            if (fmt === 'ordinal') return `${ordinal(day)} ${mn} ${year}, ${dayName}`;
             if (fmt === 'us')      return `${mn} ${day}, ${year}`;
             if (fmt === 'numeric') return `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
             return `${day} ${mn} ${year}`;

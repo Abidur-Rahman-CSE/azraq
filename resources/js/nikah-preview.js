@@ -1149,13 +1149,19 @@ export function registerNikahPreview(Alpine) {
 
             const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
 
-            // ── Format English date based on admin-selected format ────────────
-            const EN_M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-            const mn = EN_M[m - 1];
+            // ── Helpers ───────────────────────────────────────────────────────
+            const EN_M    = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            const EN_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+            const ordinal = n => { const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+            const mn      = EN_M[m - 1];
+            const dayName = EN_DAYS[date.getDay()];
+
+            // ── Format English date ───────────────────────────────────────────
             const fmt = fieldSettings?.date_format ?? 'long';
             let enFormatted;
             if (fmt === 'us')           enFormatted = `${mn} ${d}, ${y}`;
             else if (fmt === 'numeric') enFormatted = `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+            else if (fmt === 'ordinal') enFormatted = `${ordinal(d)} ${mn} ${y}, ${dayName}`;
             else                        enFormatted = `${d} ${mn} ${y}`;   // 'long' default
             this.fields[key] = enFormatted;
 
@@ -1209,7 +1215,7 @@ export function registerNikahPreview(Alpine) {
                 const hMonth = Math.floor((24 * l) / 709);
                 const hDay   = l - Math.floor((709 * hMonth) / 24);
                 const hYear  = 30 * n + j - 30;
-                this.fields[key + '_arabic'] = `${hDay} ${HJ_MONTHS[hMonth - 1]} ${hYear}`;
+                this.fields[key + '_arabic'] = `${ordinal(hDay)} ${HJ_MONTHS[hMonth - 1]} ${hYear} AH`;
             }
         },
 
