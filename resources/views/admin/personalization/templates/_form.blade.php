@@ -1770,8 +1770,8 @@ document.addEventListener('alpine:init', () => {
             return `color:${field.text_color || '#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing || 0)}px; line-height:${Number(field.line_height || 1.2)}; font-weight:${field.settings.font_weight || '600'}; font-family:${field.settings.font_family_override || '"Poppins", sans-serif'}; text-transform:${field.settings.text_transform || 'none'};`;
         },
         fieldPreviewText(field) {
-            // For date fields, apply the selected format to the preview date
-            if (field.field_key.includes('date') && !field._companion_for) {
+            // Main date field: apply selected format to preview sample
+            if (field.field_key.includes('date') && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')) {
                 return this.formatDateSample(this.previewData?.ceremony_date ?? '12 December 2026', field.settings?.date_format ?? 'long');
             }
             return this.sampleValue(field.field_key, field.preview_sample_value || field.default_value || field.placeholder || 'Sample text');
