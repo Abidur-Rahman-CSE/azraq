@@ -182,6 +182,10 @@
     enctype="multipart/form-data"
     novalidate
     class="space-y-8"
+    @submit="
+        $el.querySelector('[name=fields_payload]').value = JSON.stringify(serializableFields());
+        $el.querySelector('[name=fonts_payload]').value  = JSON.stringify(serializableFonts());
+    "
     x-data="nikahTemplateEditor({
         mode: @js($isEdit ? 'edit' : 'create'),
         templateName: @js(old('name', $template->name)),
@@ -1205,8 +1209,8 @@
         </div>
     </section>
 
-    <input type="hidden" name="fields_payload" :value="JSON.stringify(serializableFields())">
-    <input type="hidden" name="fonts_payload" :value="JSON.stringify(serializableFonts())">
+    <input type="hidden" name="fields_payload" value="">
+    <input type="hidden" name="fonts_payload"  value="">
 
     <div class="flex flex-wrap justify-end gap-3">
         <button type="submit" class="button-ghost" name="save_mode" value="draft">Save draft</button>
