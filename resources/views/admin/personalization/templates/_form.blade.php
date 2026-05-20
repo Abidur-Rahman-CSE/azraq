@@ -558,16 +558,12 @@
                                     >
                                         <div
                                             class="flex h-full w-full items-center justify-center overflow-hidden rounded-[22px] px-[6px] text-center"
-                                            :class="(field.field_key.endsWith('_bangla') || field.field_key.endsWith('_arabic')) ? 'border border-dashed border-[rgba(120,0,0,0.50)] bg-[rgba(120,0,0,0.05)]' : canvasFieldClass(field)"
+                                            :class="canvasFieldClass(field)"
                                             :style="canvasFieldInnerStyle(field)"
                                         >
                                             <p class="max-w-full break-words leading-tight" :style="canvasFieldTextStyle(field)" x-text="fieldPreviewText(field)"></p>
                                         </div>
 
-                                        {{-- Auto-date label badge --}}
-                                        <template x-if="field.field_key.endsWith('_bangla') || field.field_key.endsWith('_arabic')">
-                                            <div class="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[rgba(120,0,0,0.88)] px-2 py-0.5 text-[9px] font-semibold tracking-[0.12em] text-white" x-text="field.label"></div>
-                                        </template>
 
                                         <template x-if="activeFieldId === field.id">
                                             <div>
@@ -1800,7 +1796,7 @@ document.addEventListener('alpine:init', () => {
 
             // Auto-date companion fields
             if (fieldKey.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
-            if (fieldKey.endsWith('_arabic')) return '19 Jumada al-Awwal 1448';
+            if (fieldKey.endsWith('_arabic')) return '19th Jumada al-Awwal 1447 AH';
 
             return map[fieldKey] || fallback || 'Sample text';
         },
