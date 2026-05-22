@@ -550,7 +550,9 @@
                         >
                             <div class="absolute inset-0 transition-transform duration-200 ease-out" :style="`transform: scale(${canvasZoom}); transform-origin: center top;`">
                                 <template x-if="canvasArtworkUrl">
-                                    <img :src="canvasArtworkUrl" alt="Template artwork" class="absolute inset-0 h-full w-full object-contain">
+                                    <img :src="canvasArtworkUrl" alt="Template artwork"
+                                         class="absolute inset-0 h-full w-full object-fill"
+                                         @load="detectedImageRatio = $el.naturalWidth / $el.naturalHeight">
                                 </template>
                                 <template x-if="!canvasArtworkUrl">
                                     <div class="flex h-full items-center justify-center bg-[linear-gradient(135deg,rgba(253,240,213,0.78),rgba(255,255,255,0.96))] px-10 text-center text-sm leading-7 text-[var(--color-text-soft)]">
@@ -1228,6 +1230,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('nikahTemplateEditor', (config) => ({
         ...config,
         canvasZoom: 1,
+        detectedImageRatio: null,
         showSafeAreas: true,
         showFieldBounds: true,
         showAdvancedAssets: false,
@@ -1365,15 +1368,19 @@ document.addEventListener('alpine:init', () => {
             return [...this.fonts].sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
         },
         stageStyle() {
-            const width = Math.max(1, Number(this.exportRatioWidth) || 9);
-            const height = Math.max(1, Number(this.exportRatioHeight) || 13);
+            const ratio = this.detectedImageRatio
+                ? this.detectedImageRatio
+                : (Math.max(1, Number(this.exportRatioWidth) || 9) / Math.max(1, Number(this.exportRatioHeight) || 13));
             const viewportHeight = Math.max(480, window.innerHeight || 900);
-            const canvasWidth = Math.min(1400, Math.round(viewportHeight * 0.90 * (width / height)));
+            const canvasWidth = Math.min(1400, Math.round(viewportHeight * 0.90 * ratio));
 
-            return `aspect-ratio:${width}/${height}; width:min(100%, ${canvasWidth}px); min-width:min(100%, 320px);`;
+            return `aspect-ratio:${ratio}; width:min(100%, ${canvasWidth}px); min-width:min(100%, 320px);`;
         },
         get canvasArtworkUrl() {
-            return this.assetValue('baseTemplateUrl') || this.assetValue('previewImageUrl') || '';
+            const url = this.assetValue('baseTemplateUrl') || this.assetValue('previewImageUrl') || '';
+            // Reset detected ratio whenever the source URL changes
+            if (url !== this._lastArtworkUrl) { this._lastArtworkUrl = url; this.detectedImageRatio = null; }
+            return url;
         },
         assetValue(key) {
             return this.assetPreviewUrls[key] || this[key] || '';
