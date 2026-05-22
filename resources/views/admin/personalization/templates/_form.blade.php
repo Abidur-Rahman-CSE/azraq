@@ -1054,7 +1054,7 @@
                                              get italicMode(){ return part.key==='prefix' ? (field.settings.prefix_italic_mode||'auto')  : (field.settings.postfix_italic_mode||'auto'); },
                                              get transform() { return part.key==='prefix' ? (field.settings.prefix_transform||'none') : (field.settings.postfix_transform||'none'); },
                                              get color()     { return part.key==='prefix' ? (field.settings.prefix_color||field.text_color||'#780000') : (field.settings.postfix_color||field.text_color||'#780000'); },
-                                             resolvedSize()  { const base = this.fieldFit ? this.fieldFit(field).fontSize : (field.font_size_min||12); return Math.max(6, base + this.offset); },
+                                             resolvedSize()  { const base = Number(field.font_size_max||field.font_size_min||24); return Math.max(6, base + this.offset); },
                                              resolvedWeight(){ const weights=[400,500,600,700,800]; const base=Number(field.settings.font_weight||600); const idx=weights.indexOf(base); return weights[Math.max(0,Math.min(weights.length-1,idx+this.wDelta))]; },
                                              resolvedItalic(){ if(this.italicMode==='italic') return true; if(this.italicMode==='normal') return false; return (field.settings.font_style||'normal')==='italic'; },
                                          }">
