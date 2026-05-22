@@ -18,7 +18,8 @@
         [
             'label' => 'Personalization',
             'items' => [
-                ['label' => 'Personalization', 'route' => 'admin.personalization.templates.index', 'match' => ['admin.personalization.templates.*']],
+                ['label' => 'Templates', 'route' => 'admin.personalization.templates.index', 'match' => ['admin.personalization.templates.*']],
+                ['label' => 'Fonts', 'route' => 'admin.personalization.fonts.index', 'match' => ['admin.personalization.fonts.*']],
                 ['label' => 'Mockups', 'route' => 'admin.mockups.index', 'match' => ['admin.mockups.*']],
             ],
         ],
