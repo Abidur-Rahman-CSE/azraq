@@ -59,6 +59,7 @@
                     'overflow_behavior' => data_get($field, 'settings.overflow_behavior', 'shrink_then_wrap'),
                     'font_family_override' => data_get($field, 'settings.font_family_override', ''),
                     'font_weight' => (string) data_get($field, 'settings.font_weight', '600'),
+                    'font_style'  => data_get($field, 'settings.font_style', 'normal'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
                     'field_type' => data_get($field, 'settings.field_type', 'text'),
                     'date_format' => data_get($field, 'settings.date_format', 'long'),
@@ -695,38 +696,38 @@
             <template x-for="(field, index) in fields" :key="field.id">
                 <div :id="`field-accordion-${field.id}`" class="rounded-[20px] border border-[rgba(0,48,73,0.08)] bg-white/90 shadow-[0_10px_24px_rgba(0,48,73,0.05)]">
                     <div class="px-3 py-2">
-                        <div class="flex flex-wrap items-start justify-between gap-2.5">
+                        {{-- Row 1: label + actions --}}
+                        <div class="flex items-start justify-between gap-2">
                             <button type="button" class="min-w-0 flex-1 text-left" @click="toggleField(index)">
-                                <div class="flex flex-wrap items-center gap-1.5">
-                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="field.label || 'Untitled field'"></p>
-                                    <span class="rounded-full bg-[rgba(0,48,73,0.08)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-secondary-900)]" x-text="field.field_key || 'field_key'"></span>
-                                    {{-- Type badge --}}
-                                    <span class="rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]"
-                                          :class="{
-                                            'bg-[rgba(120,0,0,0.10)] text-[var(--color-primary-900)]': field.field_type === 'date',
-                                            'bg-[rgba(0,48,73,0.10)] text-[var(--color-secondary-900)]': field.field_type === 'static',
-                                            'bg-[rgba(102,155,188,0.16)] text-[var(--color-secondary-900)]': !field.field_type || field.field_type === 'text',
-                                          }"
-                                          x-text="field.field_type || 'text'"></span>
-                                    <span x-show="field.field_type !== 'static'" class="rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]" :class="fitBadgeClass(field)" x-text="fitBadgeLabel(field)"></span>
-                                    <span class="rounded-full bg-[rgba(253,240,213,0.95)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]" x-text="`${field.font_size_min}–${field.font_size_max}px`"></span>
-                                </div>
-                                <p class="mt-0.5 truncate text-xs leading-4 text-[var(--color-text-soft)]" x-text="fieldPreviewText(field)"></p>
+                                <p class="text-sm font-semibold leading-tight text-[var(--color-secondary-900)]" x-text="field.label || 'Untitled field'"></p>
                             </button>
-
-                            <div class="flex flex-wrap items-center gap-1.5">
-                                <button type="button" class="button-ghost !px-2.5 !py-1.5 text-xs" @click.stop="toggleField(index)" x-text="openFieldIndex === index ? 'Collapse' : 'Expand'"></button>
-                                <button type="button" class="button-ghost !px-2.5 !py-1.5 text-xs" @click.stop="focusField(field.id)">Canvas</button>
-                                <button type="button" class="button-ghost !px-2.5 !py-1.5 text-xs" @click.stop="duplicateField(field.id)">Duplicate</button>
-                                <button type="button" class="button-ghost !px-2.5 !py-1.5 text-xs" @click.stop="confirmDeleteField(field.id)">Delete</button>
+                            <div class="flex flex-shrink-0 items-center gap-1">
+                                <button type="button" class="button-ghost !px-2 !py-1 text-[11px]" @click.stop="toggleField(index)" x-text="openFieldIndex === index ? 'Collapse' : 'Expand'"></button>
+                                <button type="button" class="button-ghost !px-2 !py-1 text-[11px]" @click.stop="focusField(field.id)">Canvas</button>
+                                <button type="button" class="button-ghost !px-2 !py-1 text-[11px]" @click.stop="duplicateField(field.id)">Dup</button>
+                                <button type="button" class="button-ghost !px-2 !py-1 text-[11px]" @click.stop="confirmDeleteField(field.id)">Del</button>
                             </div>
                         </div>
-
-                        <div class="mt-1 flex flex-wrap items-center gap-1.5">
-                            <span class="rounded-full bg-[rgba(0,48,73,0.05)] px-2 py-1 text-[10px] font-medium text-[var(--color-text-soft)]" x-text="fitBadgeDetail(field)"></span>
+                        {{-- Row 2: all badges on one line --}}
+                        <div class="mt-1 flex flex-wrap items-center gap-1">
+                            <span class="rounded-full bg-[rgba(0,48,73,0.08)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--color-secondary-900)]" x-text="field.field_key || 'field_key'"></span>
+                            <span class="rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em]"
+                                  :class="{
+                                    'bg-[rgba(120,0,0,0.10)] text-[var(--color-primary-900)]': field.field_type === 'date',
+                                    'bg-[rgba(0,48,73,0.10)] text-[var(--color-secondary-900)]': field.field_type === 'static',
+                                    'bg-[rgba(102,155,188,0.16)] text-[var(--color-secondary-900)]': !field.field_type || field.field_type === 'text',
+                                  }"
+                                  x-text="field.field_type || 'text'"></span>
+                            <span x-show="field.field_type !== 'static'" class="rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em]" :class="fitBadgeClass(field)" x-text="fitBadgeLabel(field)"></span>
+                            <span class="rounded-full bg-[rgba(253,240,213,0.95)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-[var(--color-primary-900)]" x-text="`${field.font_size_min}–${field.font_size_max}px`"></span>
                             <template x-if="activeFieldId === field.id">
-                                <span class="rounded-full bg-[rgba(193,18,31,0.08)] px-2 py-1 text-[10px] font-medium text-[var(--color-primary-900)]">Selected on canvas</span>
+                                <span class="rounded-full bg-[rgba(193,18,31,0.08)] px-2 py-0.5 text-[9px] font-semibold text-[var(--color-primary-900)]">● canvas</span>
                             </template>
+                        </div>
+                        {{-- Row 3: preview text + fit detail --}}
+                        <div class="mt-0.5 flex items-center gap-2">
+                            <p class="min-w-0 flex-1 truncate text-[11px] leading-4 text-[var(--color-text-soft)]" x-text="fieldPreviewText(field)"></p>
+                            <span class="flex-shrink-0 text-[10px] text-[var(--color-text-soft)]" x-text="fitBadgeDetail(field)"></span>
                         </div>
                     </div>
 
@@ -865,16 +866,27 @@
                                          x-text="fieldPreviewText(field)||'Amena & Hassan'">
                                     </div>
                                 </div>
-                                <label class="field-shell">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font weight</span>
-                                    <select class="field-select" x-model="field.settings.font_weight">
-                                        <option value="400">Regular</option>
-                                        <option value="500">Medium</option>
-                                        <option value="600">Semibold</option>
-                                        <option value="700">Bold</option>
-                                        <option value="800">Extra bold</option>
-                                    </select>
-                                </label>
+                                <div class="field-shell">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Weight &amp; style</span>
+                                    <div class="flex gap-2">
+                                        <select class="field-select flex-1" x-model="field.settings.font_weight">
+                                            <option value="400">Regular</option>
+                                            <option value="500">Medium</option>
+                                            <option value="600">Semibold</option>
+                                            <option value="700">Bold</option>
+                                            <option value="800">Extra bold</option>
+                                        </select>
+                                        <button type="button"
+                                                class="flex-shrink-0 rounded-xl border px-3 py-2 text-sm transition"
+                                                :class="field.settings.font_style === 'italic'
+                                                    ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)] italic'
+                                                    : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)]'"
+                                                @click="field.settings.font_style = field.settings.font_style === 'italic' ? 'normal' : 'italic'"
+                                                title="Toggle italic">
+                                            <em class="font-bold not-italic" style="font-style:italic">I</em>
+                                        </button>
+                                    </div>
+                                </div>
                                 <label class="field-shell"><span class="text-sm font-medium text-[var(--color-secondary-900)]">Letter spacing</span><input type="number" step="0.01" class="field-input" x-model.number="field.letter_spacing"></label>
                                 <label class="field-shell"><span class="text-sm font-medium text-[var(--color-secondary-900)]">Line height</span><input type="number" step="0.01" class="field-input" x-model.number="field.line_height"></label>
                                 <label class="field-shell">
@@ -1322,6 +1334,7 @@ document.addEventListener('alpine:init', () => {
                     overflow_behavior: field.settings?.overflow_behavior ?? 'shrink_then_wrap',
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: String(field.settings?.font_weight ?? '600'),
+                    font_style:  field.settings?.font_style ?? 'normal',
                     text_transform: field.settings?.text_transform ?? 'none',
                     date_format: field.settings?.date_format ?? 'long',
                     prefix:  field.settings?.prefix  ?? '',
@@ -1915,7 +1928,7 @@ document.addEventListener('alpine:init', () => {
             const fit = this.fieldFit(field);
             const previewFontSize = Math.max(8, Number((fit.fontSize * this.previewTextScale).toFixed(2)));
 
-            return `color:${field.text_color || '#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing || 0)}px; line-height:${Number(field.line_height || 1.2)}; font-weight:${field.settings.font_weight || '600'}; font-family:${field.settings.font_family_override || '"Poppins", sans-serif'}; text-transform:${field.settings.text_transform || 'none'};`;
+            return `color:${field.text_color||'#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing||0)}px; line-height:${Number(field.line_height||1.2)}; font-weight:${field.settings.font_weight||'600'}; font-style:${field.settings.font_style||'normal'}; font-family:${field.settings.font_family_override||'"Poppins", sans-serif'}; text-transform:${field.settings.text_transform||'none'};`;
         },
         fieldPreviewText(field) {
             // Main date field: apply selected format to preview sample

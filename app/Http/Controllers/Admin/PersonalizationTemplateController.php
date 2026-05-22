@@ -271,6 +271,7 @@ class PersonalizationTemplateController extends Controller
                     'overflow_behavior' => data_get($field, 'settings.overflow_behavior', 'shrink_then_wrap'),
                     'font_family_override' => data_get($field, 'settings.font_family_override'),
                     'font_weight' => data_get($field, 'settings.font_weight', '600'),
+                    'font_style'  => data_get($field, 'settings.font_style', 'normal'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
                     'field_type' => data_get($field, 'settings.field_type', 'text'),
                     'date_format' => data_get($field, 'settings.date_format', 'long'),
