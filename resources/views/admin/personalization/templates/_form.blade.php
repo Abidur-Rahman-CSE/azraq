@@ -201,7 +201,7 @@
         <div class="flex flex-wrap items-start justify-between gap-5">
             <div class="max-w-3xl">
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-primary-900)]">Flat Certificate Editor</p>
-                <h2 class="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--color-secondary-900)]">Edit Nikah Nama template</h2>
+                <h2 class="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--color-secondary-900)]">{{ $isEdit ? 'Edit Nikah Nama template' : 'Create Nikah Nama template' }}</h2>
                 <p class="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-soft)]">
                     Define certificate artwork, safe areas, text zones, and fitting behavior.
                 </p>
