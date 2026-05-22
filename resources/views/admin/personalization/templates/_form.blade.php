@@ -539,7 +539,7 @@
                 </div>
             </div>
 
-            <div class="mt-3 overflow-auto rounded-[28px] border border-[rgba(120,0,0,0.08)] bg-[rgba(253,240,213,0.18)] p-1">
+            <div class="mt-3" style="display:table; margin:0 auto; max-width:100%;">
                         <div
                             x-ref="previewStage"
                             tabindex="0"
@@ -1371,9 +1371,11 @@ document.addEventListener('alpine:init', () => {
             const ratio = this.detectedImageRatio
                 ? this.detectedImageRatio
                 : (Math.max(1, Number(this.exportRatioWidth) || 9) / Math.max(1, Number(this.exportRatioHeight) || 13));
+            const viewportHeight = Math.max(480, window.innerHeight || 900);
+            // Fixed px width — lets display:table parent shrink-wrap it exactly
+            const canvasWidth = Math.max(320, Math.min(1400, Math.round(viewportHeight * 0.88 * ratio)));
 
-            // Fill full container width; max-height prevents overflow on tall portrait certificates
-            return `aspect-ratio:${ratio}; width:100%; max-height:90vh; min-width:320px;`;
+            return `aspect-ratio:${ratio}; width:${canvasWidth}px; max-width:100%;`;
         },
         get canvasArtworkUrl() {
             const url = this.assetValue('baseTemplateUrl') || this.assetValue('previewImageUrl') || '';
