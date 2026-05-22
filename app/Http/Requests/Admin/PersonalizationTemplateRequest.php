@@ -157,9 +157,10 @@ class PersonalizationTemplateRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $template = $this->route('template');
-            $hasUploadedBase = $this->file('base_template_upload') !== null;
+            $isRemovingBase = $this->boolean('remove_base_template');
+            $hasUploadedBase = $this->file('base_template_upload') !== null && ! $isRemovingBase;
             $hasIncomingBaseUrl = filled($this->input('base_template_url'));
-            $hasExistingBaseUrl = filled($template?->base_template_url) && ! $this->boolean('remove_base_template');
+            $hasExistingBaseUrl = filled($template?->base_template_url) && ! $isRemovingBase;
 
             if (! $hasUploadedBase && ! $hasIncomingBaseUrl && ! $hasExistingBaseUrl) {
                 $validator->errors()->add('base_template_upload', 'A base template image is required before the template can be saved.');

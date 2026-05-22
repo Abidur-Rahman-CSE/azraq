@@ -222,7 +222,13 @@ class PersonalizationTemplateController extends Controller
     public function update(PersonalizationTemplateRequest $request, PersonalizationTemplate $template)
     {
         DB::transaction(function () use ($request, $template): void {
-            $template->update($this->templatePayload($request, $template));
+            $payload = $this->templatePayload($request, $template);
+
+            if ($request->input('save_mode') === 'draft') {
+                $payload['is_active'] = (bool) $template->getOriginal('is_active');
+            }
+
+            $template->update($payload);
 
             $this->syncTemplateChildren($template, $request->validated());
         });
@@ -334,6 +340,8 @@ class PersonalizationTemplateController extends Controller
 
     private function templatePayload(PersonalizationTemplateRequest $request, ?PersonalizationTemplate $template = null): array
     {
+        $isDraftUpdate = $template !== null && $request->input('save_mode') === 'draft';
+
         return [
             'product_id' => filled($request->input('product_id')) ? $request->integer('product_id') : null,
             'name' => $request->string('name')->toString(),
@@ -368,7 +376,7 @@ class PersonalizationTemplateController extends Controller
             'instructions' => $request->input('instructions'),
             'safe_zone_notes' => $request->input('safe_zone_notes'),
             'proof_note_label' => $request->input('proof_note_label'),
-            'is_active' => $request->boolean('is_active', true),
+            'is_active' => $isDraftUpdate ? $template->is_active : $request->boolean('is_active', true),
         ];
     }
 
