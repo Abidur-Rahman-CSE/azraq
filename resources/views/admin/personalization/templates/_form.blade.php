@@ -1997,7 +1997,7 @@ document.addEventListener('alpine:init', () => {
             }
             if (dateKey.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
             if (dateKey.endsWith('_arabic')) return '19th Jumada al-Awwal 1447 AH';
-            return field.preview_sample_value || field.default_value || field.placeholder || 'Sample text';
+            return field.default_value || field.preview_sample_value || field.placeholder || 'Sample text';
         },
         fieldPreviewText(field) {
             // Explicit access (no optional chaining) so Alpine tracks prefix/postfix as reactive deps
@@ -2025,17 +2025,17 @@ document.addEventListener('alpine:init', () => {
             if (field.field_key.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
             if (field.field_key.endsWith('_arabic')) return '19th Jumada al-Awwal 1447 AH';
 
-            // Known previewData keys
-            const mapped = {
+            // field.default_value beats everything (admin explicitly set it)
+            if (field.default_value) return wrap(field.default_value);
+
+            // Fall back to preview_sample_value, then previewData, then placeholder
+            const previewFallback = {
                 bride_name:    this.previewData.bride_name,
                 groom_name:    this.previewData.groom_name,
                 ceremony_date: this.previewData.ceremony_date,
                 venue:         this.previewData.venue,
             }[field.field_key];
-            if (mapped) return wrap(mapped);
-
-            // Custom/new fields: show default_value when typed, else preview_sample_value / placeholder
-            const content = field.default_value || field.preview_sample_value || field.placeholder || 'Sample text';
+            const content = field.preview_sample_value || previewFallback || field.placeholder || 'Sample text';
             return wrap(content);
         },
         formatDateSample(dateStr, fmt) {
