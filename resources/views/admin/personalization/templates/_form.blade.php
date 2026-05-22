@@ -547,7 +547,7 @@
                             <div class="absolute inset-0 transition-transform duration-200 ease-out" :style="`transform: scale(${canvasZoom}); transform-origin: center top;`">
                                 <template x-if="canvasArtworkUrl">
                                     <img :src="canvasArtworkUrl" alt="Template artwork"
-                                         class="absolute inset-0 h-full w-full object-fill"
+                                         class="absolute inset-0 h-full w-full object-contain"
                                          @load="detectedImageRatio = $el.naturalWidth / $el.naturalHeight">
                                 </template>
                                 <template x-if="!canvasArtworkUrl">
