@@ -539,11 +539,11 @@
                 </div>
             </div>
 
-            <div class="mt-6 overflow-auto rounded-[28px] border border-[rgba(120,0,0,0.08)] bg-[rgba(253,240,213,0.18)] p-2">
+            <div class="mt-3 overflow-auto rounded-[28px] border border-[rgba(120,0,0,0.08)] bg-[rgba(253,240,213,0.18)] p-1">
                         <div
                             x-ref="previewStage"
                             tabindex="0"
-                            class="relative mx-auto overflow-hidden rounded-[24px] border border-[rgba(120,0,0,0.12)] bg-white shadow-[0_32px_80px_rgba(0,48,73,0.12)] outline-none"
+                            class="relative overflow-hidden rounded-[24px] border border-[rgba(120,0,0,0.12)] bg-white shadow-[0_32px_80px_rgba(0,48,73,0.12)] outline-none"
                             :style="stageStyle()"
                             @click.self="clearSelection()"
                             @keydown.stop.prevent="handleCanvasKeydown($event)"
@@ -1371,10 +1371,9 @@ document.addEventListener('alpine:init', () => {
             const ratio = this.detectedImageRatio
                 ? this.detectedImageRatio
                 : (Math.max(1, Number(this.exportRatioWidth) || 9) / Math.max(1, Number(this.exportRatioHeight) || 13));
-            const viewportHeight = Math.max(480, window.innerHeight || 900);
-            const canvasWidth = Math.min(1400, Math.round(viewportHeight * 0.90 * ratio));
 
-            return `aspect-ratio:${ratio}; width:min(100%, ${canvasWidth}px); min-width:min(100%, 320px);`;
+            // Fill full container width; max-height prevents overflow on tall portrait certificates
+            return `aspect-ratio:${ratio}; width:100%; max-height:90vh; min-width:320px;`;
         },
         get canvasArtworkUrl() {
             const url = this.assetValue('baseTemplateUrl') || this.assetValue('previewImageUrl') || '';
