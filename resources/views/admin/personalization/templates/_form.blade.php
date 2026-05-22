@@ -694,7 +694,7 @@
             <div class="mt-4 space-y-2.5 max-h-[72vh] overflow-y-auto pr-1">
             <template x-for="(field, index) in fields" :key="field.id">
                 <div :id="`field-accordion-${field.id}`" class="rounded-[20px] border border-[rgba(0,48,73,0.08)] bg-white/90 shadow-[0_10px_24px_rgba(0,48,73,0.05)]">
-                    <div class="px-3.5 py-3.5">
+                    <div class="px-3 py-2">
                         <div class="flex flex-wrap items-start justify-between gap-2.5">
                             <button type="button" class="min-w-0 flex-1 text-left" @click="toggleField(index)">
                                 <div class="flex flex-wrap items-center gap-1.5">
@@ -711,7 +711,7 @@
                                     <span x-show="field.field_type !== 'static'" class="rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]" :class="fitBadgeClass(field)" x-text="fitBadgeLabel(field)"></span>
                                     <span class="rounded-full bg-[rgba(253,240,213,0.95)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]" x-text="`${field.font_size_min}–${field.font_size_max}px`"></span>
                                 </div>
-                                <p class="mt-1.5 truncate text-xs leading-5 text-[var(--color-text-soft)]" x-text="fieldPreviewText(field)"></p>
+                                <p class="mt-0.5 truncate text-xs leading-4 text-[var(--color-text-soft)]" x-text="fieldPreviewText(field)"></p>
                             </button>
 
                             <div class="flex flex-wrap items-center gap-1.5">
@@ -722,7 +722,7 @@
                             </div>
                         </div>
 
-                        <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+                        <div class="mt-1 flex flex-wrap items-center gap-1.5">
                             <span class="rounded-full bg-[rgba(0,48,73,0.05)] px-2 py-1 text-[10px] font-medium text-[var(--color-text-soft)]" x-text="fitBadgeDetail(field)"></span>
                             <template x-if="activeFieldId === field.id">
                                 <span class="rounded-full bg-[rgba(193,18,31,0.08)] px-2 py-1 text-[10px] font-medium text-[var(--color-primary-900)]">Selected on canvas</span>
@@ -838,7 +838,33 @@
 
                             <div x-show="currentFieldTab(index) === 'typography'" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                                 <label class="field-shell"><span class="text-sm font-medium text-[var(--color-secondary-900)]">Color</span><input class="field-input" x-model="field.text_color"></label>
-                                <label class="field-shell"><span class="text-sm font-medium text-[var(--color-secondary-900)]">Font family override</span><input class="field-input" x-model="field.settings.font_family_override" placeholder='"Poppins", sans-serif'></label>
+                                <div class="field-shell md:col-span-2 xl:col-span-3">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font family <span class="font-normal text-[var(--color-text-soft)]">(blank = customer's chosen preset)</span></span>
+                                    <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                        <label class="cursor-pointer">
+                                            <input type="radio" value="" x-model="field.settings.font_family_override" class="sr-only">
+                                            <span class="block rounded-full border px-3 py-1.5 text-[0.72rem] font-semibold transition"
+                                                  :class="!field.settings.font_family_override ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)]' : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)]'">
+                                                Auto
+                                            </span>
+                                        </label>
+                                        <template x-for="f in sortedFonts()" :key="f.id">
+                                            <label class="cursor-pointer">
+                                                <input type="radio" :value="f.font_family || f.css_font_family" x-model="field.settings.font_family_override" class="sr-only">
+                                                <span class="block rounded-full border px-3 py-1.5 text-sm transition"
+                                                      :class="field.settings.font_family_override === (f.font_family || f.css_font_family) ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)]' : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)]'"
+                                                      :style="`font-family:${f.font_family||f.css_font_family};font-weight:${f.font_weight_default||'600'};`"
+                                                      x-text="f.name||f.internal_name">
+                                                </span>
+                                            </label>
+                                        </template>
+                                    </div>
+                                    <div x-show="field.settings.font_family_override"
+                                         class="mt-2 rounded-xl border border-[var(--color-border-soft)] bg-[rgba(253,240,213,0.42)] px-4 py-3 text-center text-xl"
+                                         :style="`font-family:${field.settings.font_family_override||'inherit'};font-weight:600;`"
+                                         x-text="fieldPreviewText(field)||'Amena & Hassan'">
+                                    </div>
+                                </div>
                                 <label class="field-shell">
                                     <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font weight</span>
                                     <select class="field-select" x-model="field.settings.font_weight">
@@ -1139,6 +1165,57 @@
                     </div>
                 </div>
             </template>
+        </div>
+
+        {{-- ── FONT SELECTION (demo cards + enable/disable) ───────────────── --}}
+        <div class="mt-8 rounded-[28px] border border-[var(--color-border-soft)] bg-[rgba(255,253,249,0.86)] p-6 shadow-[0_10px_24px_rgba(0,48,73,0.04)]">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Font selection</p>
+                    <h3 class="mt-1 text-xl font-semibold text-[var(--color-secondary-900)]">Choose fonts available to customers</h3>
+                    <p class="mt-1 text-sm text-[var(--color-text-soft)]">All active fonts appear on the storefront. Click to toggle.</p>
+                </div>
+                {{-- Import from starter presets --}}
+                <details class="group">
+                    <summary class="button-ghost cursor-pointer list-none text-sm">+ Import presets</summary>
+                    <div class="absolute z-10 mt-2 w-80 rounded-[20px] border border-[var(--color-border-soft)] bg-white p-4 shadow-[0_20px_48px_rgba(0,48,73,0.14)]">
+                        <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]">Starter presets</p>
+                        <div class="mt-3 space-y-2">
+                            @foreach ($starterFontPresets as $sp)
+                                <button type="button"
+                                        class="w-full rounded-xl border border-[var(--color-border-soft)] bg-[rgba(253,240,213,0.40)] px-4 py-2.5 text-left transition hover:border-[var(--color-primary-900)]"
+                                        @click="addFontFromPreset(@js($sp))">
+                                    <span class="block text-sm font-semibold" style="font-family: {{ $sp['font_family'] ?? 'inherit' }}">{{ $sp['name'] }}</span>
+                                    <span class="text-xs text-[var(--color-text-soft)]">{{ $sp['font_family'] ?? '' }}</span>
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                </details>
+            </div>
+
+            <div class="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <template x-for="font in sortedFonts()" :key="font.id">
+                    <div class="relative cursor-pointer select-none rounded-[20px] border-2 p-4 transition"
+                         :class="font.is_active !== false ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.03)]' : 'border-[var(--color-border-soft)] bg-white/60 opacity-60'"
+                         @click="font.is_active = font.is_active === false ? true : false">
+                        {{-- Check indicator --}}
+                        <span class="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full transition"
+                              :class="font.is_active !== false ? 'bg-[var(--color-primary-900)] text-white' : 'border border-[var(--color-border-soft)] bg-white'">
+                            <svg x-show="font.is_active !== false" class="h-3 w-3" fill="none" viewBox="0 0 12 12" stroke="currentColor" stroke-width="2.5"><path d="M2 6l3 3 5-5"/></svg>
+                        </span>
+                        {{-- Font name in its own typeface --}}
+                        <p class="pr-6 text-base font-semibold leading-snug text-[var(--color-secondary-900)]"
+                           :style="`font-family:${font.font_family||font.css_font_family};font-weight:${font.font_weight_default||'600'};`"
+                           x-text="font.name||font.internal_name"></p>
+                        {{-- Sample text --}}
+                        <p class="mt-2 text-sm text-[var(--color-text-soft)]"
+                           :style="`font-family:${font.font_family||font.css_font_family};font-weight:${font.font_weight_default||'600'};letter-spacing:${font.letter_spacing_default||0}px;`"
+                           x-text="font.preview_sample_text||'بسم الله الرحمن الرحيم'"></p>
+                        <p class="mt-1.5 truncate text-[10px] text-[var(--color-text-soft)] opacity-70" x-text="font.font_family||font.css_font_family"></p>
+                    </div>
+                </template>
+            </div>
         </div>
     </section>
 
@@ -1556,6 +1633,16 @@ document.addEventListener('alpine:init', () => {
                 text_transform_default: 'none',
                 recommended_for: 'all',
                 is_default: this.fonts.length === 0,
+                is_active: true,
+                sort_order: this.fonts.length,
+            }, this.fonts.length));
+        },
+        addFontFromPreset(preset) {
+            // Check not already added by name
+            if (this.fonts.some(f => f.name === preset.name)) return;
+            this.fonts.push(this.normalizedFont({
+                id: this.nextFontId++,
+                ...preset,
                 is_active: true,
                 sort_order: this.fonts.length,
             }, this.fonts.length));
