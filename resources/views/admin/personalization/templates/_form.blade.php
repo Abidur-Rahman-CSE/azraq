@@ -1372,7 +1372,7 @@ document.addEventListener('alpine:init', () => {
             const width = Math.max(1, Number(this.exportRatioWidth) || 9);
             const height = Math.max(1, Number(this.exportRatioHeight) || 13);
             const viewportHeight = Math.max(480, window.innerHeight || 900);
-            const canvasWidth = Math.min(980, Math.round(viewportHeight * 0.72 * (width / height)));
+            const canvasWidth = Math.min(1400, Math.round(viewportHeight * 0.90 * (width / height)));
 
             return `aspect-ratio:${width}/${height}; width:min(100%, ${canvasWidth}px); min-width:min(100%, 320px);`;
         },
