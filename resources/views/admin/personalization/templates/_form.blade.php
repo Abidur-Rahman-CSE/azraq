@@ -539,13 +539,11 @@
                 </div>
             </div>
 
-            <div class="mt-6 rounded-[32px] border border-[rgba(120,0,0,0.1)] bg-[linear-gradient(180deg,rgba(253,240,213,0.78),rgba(255,255,255,0.96))] p-4 sm:p-6">
-                <div class="mx-auto max-w-4xl">
-                    <div class="overflow-auto rounded-[28px] border border-[rgba(0,48,73,0.08)] bg-white/60 p-4 sm:p-6">
+            <div class="mt-6 overflow-auto rounded-[28px] border border-[rgba(120,0,0,0.08)] bg-[rgba(253,240,213,0.18)] p-2">
                         <div
                             x-ref="previewStage"
                             tabindex="0"
-                            class="relative mx-auto overflow-hidden rounded-[28px] border border-[rgba(120,0,0,0.12)] bg-white shadow-[0_32px_80px_rgba(0,48,73,0.12)] outline-none"
+                            class="relative mx-auto overflow-hidden rounded-[24px] border border-[rgba(120,0,0,0.12)] bg-white shadow-[0_32px_80px_rgba(0,48,73,0.12)] outline-none"
                             :style="stageStyle()"
                             @click.self="clearSelection()"
                             @keydown.stop.prevent="handleCanvasKeydown($event)"
@@ -607,8 +605,6 @@
                                 </template>
                             </div>
                         </div>
-                    </div>
-                </div>
             </div>
 
             <div class="mt-5 rounded-[26px] border border-[rgba(0,48,73,0.08)] bg-[rgba(255,255,255,0.9)] px-4 py-4">
