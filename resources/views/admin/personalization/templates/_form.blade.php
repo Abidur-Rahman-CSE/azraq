@@ -1777,8 +1777,9 @@ document.addEventListener('alpine:init', () => {
             return `color:${field.text_color||'#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing||0)}px; line-height:${Number(field.line_height||1.2)}; font-weight:${field.settings.font_weight||'600'}; font-style:${field.settings.font_style||'normal'}; font-family:${field.settings.font_family_override||'"Poppins", sans-serif'}; text-transform:${field.settings.text_transform||'none'};`;
         },
         fieldPreviewText(field) {
-            const pre  = field.settings?.prefix  ?? '';
-            const post = field.settings?.postfix ?? '';
+            // Explicit access (no optional chaining) so Alpine tracks prefix/postfix as reactive deps
+            const pre  = (field.settings && field.settings.prefix)  ? field.settings.prefix  : '';
+            const post = (field.settings && field.settings.postfix) ? field.settings.postfix : '';
             const wrap = s => `${pre}${s}${post}`.trim() || 'Sample text';
 
             // Date type: show formatted date sample
