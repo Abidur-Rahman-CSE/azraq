@@ -997,6 +997,82 @@
                                 </template>
                             </div>
 
+                            {{-- ── PREFIX / POSTFIX TAB ────────────────────────────────── --}}
+                            <div x-show="currentFieldTab(index) === 'prefix_postfix'" class="space-y-4">
+                                <p class="text-xs text-[var(--color-text-soft)]">Set text + styling for the prefix and postfix labels. Each renders on its own line.</p>
+
+                                <template x-for="part in [{key:'prefix',label:'Prefix (above / before)'},{key:'postfix',label:'Postfix (below / after)'}]" :key="part.key">
+                                    <div class="rounded-[18px] border border-[var(--color-border-soft)] bg-white/80 p-4 space-y-3">
+                                        <p class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="part.label"></p>
+
+                                        <label class="field-shell">
+                                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Text</span>
+                                            <input class="field-input" :x-model="`field.settings[part.key]`"
+                                                   :value="part.key === 'prefix' ? field.settings.prefix : field.settings.postfix"
+                                                   @input="part.key === 'prefix' ? field.settings.prefix = $event.target.value : field.settings.postfix = $event.target.value"
+                                                   :placeholder="part.key === 'prefix' ? 'e.g. THIS AGREEMENT MADE ON THE' : 'e.g. CE'">
+                                        </label>
+
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            {{-- Bold --}}
+                                            <button type="button"
+                                                    class="rounded-lg border px-3 py-1.5 text-sm font-bold transition"
+                                                    :class="(part.key==='prefix'?field.settings.prefix_bold:field.settings.postfix_bold) ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)]' : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)]'"
+                                                    @click="part.key==='prefix' ? field.settings.prefix_bold=!field.settings.prefix_bold : field.settings.postfix_bold=!field.settings.postfix_bold"
+                                                    title="Bold">B</button>
+
+                                            {{-- Italic --}}
+                                            <button type="button"
+                                                    class="rounded-lg border px-3 py-1.5 text-sm italic transition"
+                                                    :class="(part.key==='prefix'?field.settings.prefix_italic:field.settings.postfix_italic) ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)]' : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)]'"
+                                                    @click="part.key==='prefix' ? field.settings.prefix_italic=!field.settings.prefix_italic : field.settings.postfix_italic=!field.settings.postfix_italic"
+                                                    title="Italic"><em>I</em></button>
+
+                                            {{-- Size --}}
+                                            <div class="flex items-center gap-1">
+                                                <button type="button" class="rounded-lg border border-[var(--color-border-soft)] px-2 py-1.5 text-xs transition hover:border-[var(--color-primary-900)]"
+                                                        @click="part.key==='prefix' ? field.settings.prefix_size=Math.max(6,Number(field.settings.prefix_size||0)-2) : field.settings.postfix_size=Math.max(6,Number(field.settings.postfix_size||0)-2)">
+                                                    A−
+                                                </button>
+                                                <span class="w-12 text-center text-xs text-[var(--color-text-soft)]"
+                                                      x-text="(part.key==='prefix'?field.settings.prefix_size:field.settings.postfix_size) || 'auto'"></span>
+                                                <button type="button" class="rounded-lg border border-[var(--color-border-soft)] px-2 py-1.5 text-xs transition hover:border-[var(--color-primary-900)]"
+                                                        @click="part.key==='prefix' ? field.settings.prefix_size=Number(field.settings.prefix_size||field.font_size_min||12)+2 : field.settings.postfix_size=Number(field.settings.postfix_size||field.font_size_min||12)+2">
+                                                    A+
+                                                </button>
+                                            </div>
+
+                                            {{-- Text transform --}}
+                                            <select class="rounded-xl border border-[var(--color-border-soft)] px-2 py-1.5 text-xs"
+                                                    :value="part.key==='prefix'?field.settings.prefix_transform:field.settings.postfix_transform"
+                                                    @change="part.key==='prefix'?field.settings.prefix_transform=$event.target.value:field.settings.postfix_transform=$event.target.value">
+                                                <option value="none">None</option>
+                                                <option value="uppercase">UPPER</option>
+                                                <option value="lowercase">lower</option>
+                                                <option value="capitalize">Capitalize</option>
+                                            </select>
+
+                                            {{-- Color --}}
+                                            <input type="color" class="h-7 w-9 cursor-pointer rounded border border-[var(--color-border-soft)]"
+                                                   :value="part.key==='prefix'?field.settings.prefix_color||field.text_color:field.settings.postfix_color||field.text_color"
+                                                   @input="part.key==='prefix'?field.settings.prefix_color=$event.target.value:field.settings.postfix_color=$event.target.value">
+                                        </div>
+
+                                        {{-- Live preview --}}
+                                        <p class="rounded-xl border border-[var(--color-border-soft)] bg-[rgba(253,240,213,0.42)] px-4 py-2 text-sm"
+                                           :style="`
+                                               font-weight: ${(part.key==='prefix'?field.settings.prefix_bold:field.settings.postfix_bold) ? '700' : '400'};
+                                               font-style: ${(part.key==='prefix'?field.settings.prefix_italic:field.settings.postfix_italic) ? 'italic' : 'normal'};
+                                               font-size: ${(part.key==='prefix'?field.settings.prefix_size:field.settings.postfix_size) ? (part.key==='prefix'?field.settings.prefix_size:field.settings.postfix_size)+'px' : 'inherit'};
+                                               text-transform: ${part.key==='prefix'?field.settings.prefix_transform:field.settings.postfix_transform};
+                                               color: ${part.key==='prefix'?(field.settings.prefix_color||field.text_color):(field.settings.postfix_color||field.text_color)};
+                                           `"
+                                           x-text="(part.key==='prefix'?field.settings.prefix:field.settings.postfix)||'Preview text'">
+                                        </p>
+                                    </div>
+                                </template>
+                            </div>
+
                             <div x-show="currentFieldTab(index) === 'tools'" class="flex flex-wrap gap-3">
                                 <button type="button" class="button-ghost" @click="focusField(field.id)">Focus on canvas</button>
                                 <button type="button" class="button-ghost" @click="moveField(field.id, -1)">Move up</button>
@@ -1103,6 +1179,7 @@ document.addEventListener('alpine:init', () => {
         activeFieldId: null,
         fieldTabs: [
             { key: 'basic', label: 'Basic' },
+            { key: 'prefix_postfix', label: 'Pre / Post' },
             { key: 'layout', label: 'Layout' },
             { key: 'typography', label: 'Typography' },
             { key: 'fitting', label: 'Fitting' },
@@ -1183,8 +1260,18 @@ document.addEventListener('alpine:init', () => {
                     font_style:  field.settings?.font_style ?? 'normal',
                     text_transform: field.settings?.text_transform ?? 'none',
                     date_format: field.settings?.date_format ?? 'long',
-                    prefix:  field.settings?.prefix  ?? '',
-                    postfix: field.settings?.postfix ?? '',
+                    prefix:         field.settings?.prefix  ?? '',
+                    prefix_bold:    Boolean(field.settings?.prefix_bold ?? false),
+                    prefix_italic:  Boolean(field.settings?.prefix_italic ?? false),
+                    prefix_size:    Number(field.settings?.prefix_size ?? 0),
+                    prefix_color:   field.settings?.prefix_color ?? '',
+                    prefix_transform: field.settings?.prefix_transform ?? 'none',
+                    postfix:        field.settings?.postfix ?? '',
+                    postfix_bold:   Boolean(field.settings?.postfix_bold ?? false),
+                    postfix_italic: Boolean(field.settings?.postfix_italic ?? false),
+                    postfix_size:   Number(field.settings?.postfix_size ?? 0),
+                    postfix_color:  field.settings?.postfix_color ?? '',
+                    postfix_transform: field.settings?.postfix_transform ?? 'none',
                 },
             };
         },
@@ -1630,8 +1717,18 @@ document.addEventListener('alpine:init', () => {
                     text_transform: field.settings?.text_transform ?? 'none',
                     field_type: field.field_type ?? 'text',
                     date_format: field.settings?.date_format ?? 'long',
-                    prefix:  field.settings?.prefix  ?? '',
-                    postfix: field.settings?.postfix ?? '',
+                    prefix:         field.settings?.prefix  ?? '',
+                    prefix_bold:    Boolean(field.settings?.prefix_bold ?? false),
+                    prefix_italic:  Boolean(field.settings?.prefix_italic ?? false),
+                    prefix_size:    Number(field.settings?.prefix_size ?? 0),
+                    prefix_color:   field.settings?.prefix_color ?? '',
+                    prefix_transform: field.settings?.prefix_transform ?? 'none',
+                    postfix:        field.settings?.postfix ?? '',
+                    postfix_bold:   Boolean(field.settings?.postfix_bold ?? false),
+                    postfix_italic: Boolean(field.settings?.postfix_italic ?? false),
+                    postfix_size:   Number(field.settings?.postfix_size ?? 0),
+                    postfix_color:  field.settings?.postfix_color ?? '',
+                    postfix_transform: field.settings?.postfix_transform ?? 'none',
                 },
             }));
         },
@@ -1778,9 +1875,15 @@ document.addEventListener('alpine:init', () => {
         },
         fieldPreviewText(field) {
             // Explicit access (no optional chaining) so Alpine tracks prefix/postfix as reactive deps
-            const pre  = (field.settings && field.settings.prefix)  ? field.settings.prefix  : '';
-            const post = (field.settings && field.settings.postfix) ? field.settings.postfix : '';
-            const wrap = s => `${pre}${s}${post}`.trim() || 'Sample text';
+            const pre  = (field.settings && field.settings.prefix)  || '';
+            const post = (field.settings && field.settings.postfix) || '';
+            const wrap = s => {
+                const parts = [];
+                if (pre)  parts.push(pre);
+                parts.push(s || '…');
+                if (post) parts.push(post);
+                return parts.filter(Boolean).join(' ') || 'Sample text';
+            };
 
             // Date type: show formatted date sample
             if ((field.field_type === 'date' || field.field_key.includes('date')) && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')) {

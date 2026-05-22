@@ -680,10 +680,30 @@ const NikahPreview = {
             const fieldValue = isStaticField
                 ? (field.default_value || '')
                 : (fields[fieldKey] ?? fields[field.field_key] ?? fields[field.name]);
-            const prefix  = field.prefix  ?? field.settings?.prefix  ?? '';
-            const postfix = field.postfix ?? field.settings?.postfix ?? '';
+            const prefix  = ((field.prefix  ?? field.settings?.prefix  ?? '') + '').trim();
+            const postfix = ((field.postfix ?? field.settings?.postfix ?? '') + '').trim();
             const baseText = `${fieldValue || (!isStaticField ? (field.default_value || field.preview_sample_value || this.template.preview_data_presets?.[fieldKey] || field.placeholder || '') : '')}`.trim();
-            const rawText = `${prefix}${baseText}${postfix}`.trim();
+
+            // Build prefix/postfix fontStyle specs
+            const prefixFontStyle = prefix ? {
+                ...fontStyle,
+                fontWeight:    field.settings?.prefix_bold   ? '700' : (fontStyle.fontWeight || '600'),
+                fontStyle:     field.settings?.prefix_italic ? 'italic' : 'normal',
+                textTransform: field.settings?.prefix_transform || 'none',
+                _color:        field.settings?.prefix_color  || field.text_color || '#780000',
+                _size:         field.settings?.prefix_size   ? Number(field.settings.prefix_size) * fontScale : 0,
+            } : null;
+            const postfixFontStyle = postfix ? {
+                ...fontStyle,
+                fontWeight:    field.settings?.postfix_bold   ? '700' : (fontStyle.fontWeight || '600'),
+                fontStyle:     field.settings?.postfix_italic ? 'italic' : 'normal',
+                textTransform: field.settings?.postfix_transform || 'none',
+                _color:        field.settings?.postfix_color  || field.text_color || '#780000',
+                _size:         field.settings?.postfix_size   ? Number(field.settings.postfix_size) * fontScale : 0,
+            } : null;
+
+            const hasStyledLines = prefixFontStyle || postfixFontStyle;
+            const rawText = hasStyledLines ? baseText : [prefix, baseText, postfix].filter(Boolean).join(' ');
             const text = applyTextTransform(rawText, fontStyle.textTransform);
 
             if (!text) {
@@ -706,6 +726,25 @@ const NikahPreview = {
             const align = field.text_align === 'start' ? 'left' : (field.text_align === 'end' ? 'right' : 'center');
             const drawX = align === 'left' ? contentLeft : (align === 'right' ? contentLeft + contentWidth : x);
 
+            // Helper to draw a single-line label (prefix or postfix) at given Y offset from box center
+            const drawLabel = async (text, labelStyle, yOffset) => {
+                if (!text) return 0;
+                const lSize = labelStyle._size || Math.max(6, Math.round(fontSize * 0.72));
+                await ensureCanvasFont(labelStyle, text, lSize);
+                const transformed = applyTextTransform(text, labelStyle.textTransform);
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate((Number(field.rotation || 0) * Math.PI) / 180);
+                ctx.translate(-x, -y);
+                ctx.fillStyle = labelStyle._color || field.text_color || '#780000';
+                ctx.textBaseline = 'alphabetic';
+                ctx.textAlign = align;
+                ctx.font = fontDeclaration(labelStyle, lSize);
+                drawLineWithSpacing(ctx, transformed, drawX, yOffset, align, 0);
+                ctx.restore();
+                return lSize * Math.max(1, Number(labelStyle.lineHeight || 1.1));
+            };
+
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate((Number(field.rotation || 0) * Math.PI) / 180);
@@ -718,10 +757,23 @@ const NikahPreview = {
             ctx.rect(contentLeft, -height, contentWidth, height * 3);
             ctx.clip();
 
+            // Draw prefix line above main content
+            if (hasStyledLines && prefix && prefixFontStyle) {
+                const pSize = prefixFontStyle._size || Math.max(6, Math.round(fontSize * 0.72));
+                const pLineH = pSize * Math.max(1, Number(fontStyle.lineHeight || 1.1));
+                await drawLabel(prefix, prefixFontStyle, startY - pLineH);
+            }
+
             lines.forEach((line, index) => {
                 const lineY = startY + (index * fontSize * lineHeight);
                 drawLineWithSpacing(ctx, line, drawX, lineY, align, fontStyle.letterSpacing || 0);
             });
+
+            // Draw postfix line below main content
+            if (hasStyledLines && postfix && postfixFontStyle) {
+                const afterY = startY + (lines.length * fontSize * lineHeight) + (fontSize * 0.2);
+                await drawLabel(postfix, postfixFontStyle, afterY);
+            }
 
             ctx.restore();
         }
