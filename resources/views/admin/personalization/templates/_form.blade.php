@@ -700,18 +700,37 @@
 
             <div class="mt-4 space-y-2.5 max-h-[72vh] overflow-y-auto pr-1">
             <template x-for="(field, index) in fields" :key="field.id">
-                <div :id="`field-accordion-${field.id}`" class="rounded-[20px] border border-[rgba(0,48,73,0.08)] bg-white/90 shadow-[0_10px_24px_rgba(0,48,73,0.05)]">
+                <div :id="`field-accordion-${field.id}`"
+                     class="rounded-[20px] border bg-white/90 shadow-[0_10px_24px_rgba(0,48,73,0.05)] transition-[border-color,box-shadow] duration-150"
+                     :class="activeFieldId === field.id
+                         ? 'border-[var(--color-primary-900)] shadow-[0_0_0_2px_rgba(120,0,0,0.10),0_10px_24px_rgba(0,48,73,0.08)]'
+                         : 'border-[rgba(0,48,73,0.08)]'">
                     <div class="px-3 py-2">
-                        {{-- Row 1: label + actions --}}
+                        {{-- Row 1: label + icon actions --}}
                         <div class="flex items-start justify-between gap-2">
                             <button type="button" class="min-w-0 flex-1 text-left" @click="toggleField(index)">
                                 <p class="text-sm font-semibold leading-tight text-[var(--color-secondary-900)]" x-text="field.label || 'Untitled field'"></p>
                             </button>
-                            <div class="flex flex-shrink-0 items-center gap-1">
-                                <button type="button" class="button-ghost !px-2 !py-1 text-[11px]" @click.stop="toggleField(index)" x-text="openFieldIndex === index ? 'Collapse' : 'Expand'"></button>
-                                <button type="button" class="button-ghost !px-2 !py-1 text-[11px]" @click.stop="focusField(field.id)">Canvas</button>
-                                <button type="button" class="button-ghost !px-2 !py-1 text-[11px]" @click.stop="duplicateField(field.id)">Dup</button>
-                                <button type="button" class="button-ghost !px-2 !py-1 text-[11px]" @click.stop="confirmDeleteField(field.id)">Del</button>
+                            <div class="flex flex-shrink-0 items-center gap-0.5">
+                                <button type="button" class="field-icon-btn" @click.stop="toggleField(index)" :title="openFieldIndex === index ? 'Collapse' : 'Expand'">
+                                    <template x-if="openFieldIndex !== index"><svg class="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 5l4 4 4-4"/></svg></template>
+                                    <template x-if="openFieldIndex === index"><svg class="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l4-4 4 4"/></svg></template>
+                                </button>
+                                <button type="button" class="field-icon-btn" @click.stop="focusField(field.id)" title="Focus on canvas">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="10" height="10" rx="1.5"/><path d="M5 5h4v4H5z"/></svg>
+                                </button>
+                                <button type="button" class="field-icon-btn" @click.stop="moveField(field.id,-1)" title="Move up">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 11V3M4 6l3-3 3 3"/></svg>
+                                </button>
+                                <button type="button" class="field-icon-btn" @click.stop="moveField(field.id,1)" title="Move down">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 3v8M4 8l3 3 3-3"/></svg>
+                                </button>
+                                <button type="button" class="field-icon-btn" @click.stop="duplicateField(field.id)" title="Duplicate">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="1" y="4" width="8" height="9" rx="1.2"/><path d="M5 4V2.2A1.5 1.5 0 016.5 1H11a1.5 1.5 0 011.5 1.5V9"/></svg>
+                                </button>
+                                <button type="button" class="field-icon-btn !text-[rgba(193,18,31,0.55)] hover:!text-[var(--color-primary-900)] hover:!bg-[rgba(193,18,31,0.07)]" @click.stop="confirmDeleteField(field.id)" title="Delete">
+                                    <svg class="h-3.5 w-3.5" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 4h10M5 4V2.5h4V4M5.5 7v3.5M8.5 7v3.5M3.5 4l.5 7.5h6l.5-7.5"/></svg>
+                                </button>
                             </div>
                         </div>
                         {{-- Row 2: all badges on one line --}}
