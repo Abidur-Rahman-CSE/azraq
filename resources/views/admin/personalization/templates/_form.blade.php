@@ -383,7 +383,7 @@
                                             </template>
                                             <label class="field-shell">
                                                 <span class="text-sm font-medium text-[var(--color-secondary-900)]">Asset path / URL</span>
-                                                <input type="text" class="field-input" :name="asset.urlName" :value="asset.value" @focus="selectAsset(asset.key)" @input="syncAssetUrl(asset.stateKey, $event.target.value)">
+                                                <input type="text" class="field-input" :name="asset.urlName" :value="(asset.value && !asset.value.startsWith('blob:')) ? asset.value : ''" @focus="selectAsset(asset.key)" @input="syncAssetUrl(asset.stateKey, $event.target.value)">
                                             </label>
                                             <template x-if="asset.key === 'preview'">
                                                 <div>
