@@ -702,8 +702,9 @@ const NikahPreview = {
                 _size:         field.settings?.postfix_size   ? Number(field.settings.postfix_size) * fontScale : 0,
             } : null;
 
-            const hasStyledLines = prefixFontStyle || postfixFontStyle;
-            const rawText = hasStyledLines ? baseText : [prefix, baseText, postfix].filter(Boolean).join(' ');
+            // Always inline: prefix + main + postfix on same line
+            const hasStyledLines = false; // reserved for future per-word styling
+            const rawText = [prefix, baseText, postfix].filter(Boolean).join(' ');
             const text = applyTextTransform(rawText, fontStyle.textTransform);
 
             if (!text) {
@@ -757,23 +758,10 @@ const NikahPreview = {
             ctx.rect(contentLeft, -height, contentWidth, height * 3);
             ctx.clip();
 
-            // Draw prefix line above main content
-            if (hasStyledLines && prefix && prefixFontStyle) {
-                const pSize = prefixFontStyle._size || Math.max(6, Math.round(fontSize * 0.72));
-                const pLineH = pSize * Math.max(1, Number(fontStyle.lineHeight || 1.1));
-                await drawLabel(prefix, prefixFontStyle, startY - pLineH);
-            }
-
             lines.forEach((line, index) => {
                 const lineY = startY + (index * fontSize * lineHeight);
                 drawLineWithSpacing(ctx, line, drawX, lineY, align, fontStyle.letterSpacing || 0);
             });
-
-            // Draw postfix line below main content
-            if (hasStyledLines && postfix && postfixFontStyle) {
-                const afterY = startY + (lines.length * fontSize * lineHeight) + (fontSize * 0.2);
-                await drawLabel(postfix, postfixFontStyle, afterY);
-            }
 
             ctx.restore();
         }
