@@ -197,6 +197,17 @@
         </div>
     @endif
 
+    @if ($errors->any())
+        <div class="rounded-[20px] border border-[rgba(120,0,0,0.25)] bg-[rgba(120,0,0,0.06)] px-5 py-4">
+            <p class="text-sm font-semibold text-[var(--color-primary-900)] mb-2">Please fix the following before saving:</p>
+            <ul class="list-disc list-inside space-y-1">
+                @foreach ($errors->all() as $error)
+                    <li class="text-sm text-[var(--color-primary-900)]">{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <section class="surface-card p-6 sm:p-8">
         <div class="flex flex-wrap items-start justify-between gap-5">
             <div class="max-w-3xl">
