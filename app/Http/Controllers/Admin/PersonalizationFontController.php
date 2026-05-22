@@ -49,8 +49,47 @@ class PersonalizationFontController extends Controller
             'sort_order' => PersonalizationFont::max('sort_order') + 1,
         ]);
 
+        // Persist to starter presets so it survives accidental deletion from library
+        $this->appendToStarterPresets($data);
+
         return redirect()->route('admin.personalization.fonts.index')
-            ->with('status', 'Font added.');
+            ->with('status', 'Font added and saved to starter presets.');
+    }
+
+    private function appendToStarterPresets(array $data): void
+    {
+        $existing = \DB::table('settings')->where('key', 'personalization_font_starters')->value('value');
+        $list = $existing ? json_decode($existing, true) : [];
+
+        // Deduplicate by internal_name
+        $keys = array_column($list, 'internal_name');
+        if (!in_array($data['internal_name'] ?? '', $keys, true)) {
+            $list[] = [
+                'name'                   => $data['name'] ?? '',
+                'internal_name'          => $data['internal_name'] ?? '',
+                'preview_label'          => $data['name'] ?? '',
+                'css_font_family'        => $data['css_font_family'] ?? '',
+                'font_family'            => $data['font_family'] ?? $data['css_font_family'] ?? '',
+                'font_source_type'       => $data['font_source_type'] ?? 'google',
+                'font_source_value'      => $data['font_source_value'] ?? '',
+                'category'               => $data['category'] ?? '',
+                'preview_sample_text'    => $data['preview_sample_text'] ?? '',
+                'font_weight_default'    => $data['font_weight_default'] ?? '600',
+                'font_style_default'     => $data['font_style_default'] ?? 'normal',
+                'letter_spacing_default' => (float) ($data['letter_spacing_default'] ?? 0),
+                'line_height_default'    => (float) ($data['line_height_default'] ?? 1.2),
+                'text_transform_default' => $data['text_transform_default'] ?? 'none',
+                'recommended_for'        => $data['recommended_for'] ?? 'all',
+                'is_active'              => true,
+                'is_default'             => false,
+                'sort_order'             => count($list),
+            ];
+
+            \DB::table('settings')->updateOrInsert(
+                ['key' => 'personalization_font_starters'],
+                ['group' => 'personalization', 'value' => json_encode($list), 'updated_at' => now(), 'created_at' => now()]
+            );
+        }
     }
 
     public function update(Request $request, PersonalizationFont $font)

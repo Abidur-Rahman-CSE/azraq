@@ -52,7 +52,7 @@ class PersonalizationFont extends Model
 
     public static function starterPresets(): array
     {
-        return [
+        $hardcoded = [
             self::starterPreset('Classic Script', 'classic_script', 'Classic Script', '"Great Vibes", cursive', 'google', 'https://fonts.googleapis.com/css2?family=Great+Vibes&display=swap', 'Classic Script', 'Classic Script', 'all', 'Amena & Hassan', '600', 'normal', 0.2, 1.25, 'none', 'bride_name,groom_name', true, true, 0),
             self::starterPreset('Royal Script', 'royal_script', 'Royal Script', '"Allura", cursive', 'google', 'https://fonts.googleapis.com/css2?family=Allura&display=swap', 'Signature Script', 'Luxury Calligraphy', 'all', 'Amena & Hassan', '600', 'normal', 0.15, 1.25, 'none', 'bride_name,groom_name', true, false, 10),
             self::starterPreset('Elegant Signature', 'elegant_signature', 'Elegant Signature', '"Alex Brush", cursive', 'google', 'https://fonts.googleapis.com/css2?family=Alex+Brush&display=swap', 'Signature Script', 'Luxury Calligraphy', 'all', 'Amena', '600', 'normal', 0.1, 1.2, 'none', 'bride_name', true, false, 20),
@@ -64,6 +64,29 @@ class PersonalizationFont extends Model
             self::starterPreset('Luxury Calligraphy', 'luxury_calligraphy', 'Luxury Calligraphy', '"Parisienne", cursive', 'google', 'https://fonts.googleapis.com/css2?family=Parisienne&display=swap', 'Luxury Calligraphy', 'Luxury Calligraphy', 'all', 'Hassan', '600', 'normal', 0.15, 1.25, 'none', 'groom_name', true, false, 80),
             self::starterPreset('Soft Serif', 'soft_serif', 'Soft Serif', '"Lora", serif', 'google', 'https://fonts.googleapis.com/css2?family=Lora:wght@500;600;700&display=swap', 'Elegant Serif', 'Elegant Serif', 'all', 'Dhaka', '500', 'normal', 0.2, 1.25, 'none', 'venue,all', true, false, 90),
         ];
+
+        // Merge user-added starters persisted in settings table
+        try {
+            $extra = \Illuminate\Support\Facades\DB::table('settings')
+                ->where('key', 'personalization_font_starters')
+                ->value('value');
+
+            if ($extra) {
+                $decoded = json_decode($extra, true);
+                if (is_array($decoded)) {
+                    $hardcoded_keys = array_column($hardcoded, 'internal_name');
+                    foreach ($decoded as $custom) {
+                        if (!in_array($custom['internal_name'] ?? '', $hardcoded_keys, true)) {
+                            $hardcoded[] = $custom;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Table may not exist during migrations — skip gracefully
+        }
+
+        return $hardcoded;
     }
 
     protected static function starterPreset(
