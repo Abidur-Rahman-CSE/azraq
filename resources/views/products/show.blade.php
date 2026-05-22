@@ -61,6 +61,9 @@
                 'font_size_min'      => (int) $field->font_size_min,
                 'font_size_max'      => (int) $field->font_size_max,
                 'z_index'            => (int) ($field->z_index ?? 1),
+                'field_type'         => data_get($field->settings, 'field_type', 'text'),
+                'prefix'             => data_get($field->settings, 'prefix', ''),
+                'postfix'            => data_get($field->settings, 'postfix', ''),
                 'settings'           => $field->settings ?? [],
             ])->values()->all(),
         ]

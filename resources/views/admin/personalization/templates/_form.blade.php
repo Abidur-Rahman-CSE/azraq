@@ -60,7 +60,10 @@
                     'font_family_override' => data_get($field, 'settings.font_family_override', ''),
                     'font_weight' => (string) data_get($field, 'settings.font_weight', '600'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
+                    'field_type' => data_get($field, 'settings.field_type', 'text'),
                     'date_format' => data_get($field, 'settings.date_format', 'long'),
+                    'prefix'  => data_get($field, 'settings.prefix',  ''),
+                    'postfix' => data_get($field, 'settings.postfix', ''),
                 ],
             ];
         })
@@ -697,9 +700,16 @@
                                 <div class="flex flex-wrap items-center gap-1.5">
                                     <p class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="field.label || 'Untitled field'"></p>
                                     <span class="rounded-full bg-[rgba(0,48,73,0.08)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-secondary-900)]" x-text="field.field_key || 'field_key'"></span>
-                                    <span class="rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]" :class="field.is_required ? 'bg-[rgba(193,18,31,0.1)] text-[var(--color-primary-900)]' : 'bg-[rgba(102,155,188,0.16)] text-[var(--color-secondary-900)]'" x-text="field.is_required ? 'Required' : 'Optional'"></span>
-                                    <span class="rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]" :class="fitBadgeClass(field)" x-text="fitBadgeLabel(field)"></span>
-                                    <span class="rounded-full bg-[rgba(253,240,213,0.95)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]" x-text="`Font ${field.font_size_min}-${field.font_size_max}px`"></span>
+                                    {{-- Type badge --}}
+                                    <span class="rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]"
+                                          :class="{
+                                            'bg-[rgba(120,0,0,0.10)] text-[var(--color-primary-900)]': field.field_type === 'date',
+                                            'bg-[rgba(0,48,73,0.10)] text-[var(--color-secondary-900)]': field.field_type === 'static',
+                                            'bg-[rgba(102,155,188,0.16)] text-[var(--color-secondary-900)]': !field.field_type || field.field_type === 'text',
+                                          }"
+                                          x-text="field.field_type || 'text'"></span>
+                                    <span x-show="field.field_type !== 'static'" class="rounded-full px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]" :class="fitBadgeClass(field)" x-text="fitBadgeLabel(field)"></span>
+                                    <span class="rounded-full bg-[rgba(253,240,213,0.95)] px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-primary-900)]" x-text="`${field.font_size_min}–${field.font_size_max}px`"></span>
                                 </div>
                                 <p class="mt-1.5 truncate text-xs leading-5 text-[var(--color-text-soft)]" x-text="fieldPreviewText(field)"></p>
                             </button>
@@ -728,47 +738,84 @@
                         </div>
 
                         <div class="mt-3.5">
-                            <div x-show="currentFieldTab(index) === 'basic'" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                                <label class="field-shell">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Label</span>
-                                    <input class="field-input" x-model="field.label">
-                                </label>
-                                <label class="field-shell">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Field key</span>
-                                    <input class="field-input" x-model="field.field_key">
-                                </label>
-                                <label class="field-shell">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Placeholder</span>
-                                    <input class="field-input" x-model="field.placeholder">
-                                </label>
-                                <label class="field-shell xl:col-span-2">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Preview sample value</span>
-                                    <input class="field-input" x-model="field.preview_sample_value">
-                                </label>
-                                <label class="field-shell">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Default value</span>
-                                    <input class="field-input" x-model="field.default_value">
-                                </label>
-                                <label class="field-shell xl:col-span-3">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Help text</span>
-                                    <input class="field-input" x-model="field.help_text">
-                                </label>
-                                <label class="inline-flex items-center justify-between gap-4 rounded-[22px] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
-                                    <span>Required field</span>
-                                    <div class="flex items-center gap-3">
-                                        <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)] text-[var(--color-primary-900)]" x-model="field.is_required">
+                            <div x-show="currentFieldTab(index) === 'basic'" class="space-y-3">
+                                {{-- Type selector --}}
+                                <div class="field-shell">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Field type</span>
+                                    <div class="flex flex-wrap gap-2">
+                                        <template x-for="t in [{k:'text',lbl:'Text input'},{k:'date',lbl:'Date picker'},{k:'static',lbl:'Static (non-editable)'}]" :key="t.k">
+                                            <label class="cursor-pointer">
+                                                <input type="radio" :value="t.k" x-model="field.field_type" class="sr-only"
+                                                       @change="field.settings.field_type = field.field_type">
+                                                <span class="block rounded-full border px-3 py-1.5 text-[0.72rem] font-semibold transition"
+                                                      :class="field.field_type === t.k ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)]' : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)] hover:border-[var(--color-primary-900)]'"
+                                                      x-text="t.lbl"></span>
+                                            </label>
+                                        </template>
                                     </div>
-                                </label>
-                                <label class="field-shell">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size min</span>
-                                    <input type="number" min="8" class="field-input" x-model.number="field.font_size_min" @input="syncFontBounds(field, 'min')">
-                                </label>
-                                <label class="field-shell">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size max</span>
-                                    <input type="number" min="8" class="field-input" x-model.number="field.font_size_max" @input="syncFontBounds(field, 'max')">
-                                </label>
-                                <div class="rounded-[22px] border border-[rgba(0,48,73,0.08)] bg-[rgba(253,240,213,0.42)] px-4 py-3 text-sm leading-7 text-[var(--color-text-soft)] md:col-span-2 xl:col-span-3">
-                                    Font size will dynamically scale only inside this min-max range. The preview can shrink or grow live, but it will never go outside these limits.
+                                </div>
+
+                                <div class="grid gap-3 md:grid-cols-2">
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Label</span>
+                                        <input class="field-input" x-model="field.label">
+                                    </label>
+                                    <label class="field-shell">
+                                        <span class="text-sm font-medium text-[var(--color-secondary-900)]">Field key</span>
+                                        <input class="field-input" x-model="field.field_key">
+                                    </label>
+
+                                    {{-- Static: content is default_value --}}
+                                    <template x-if="field.field_type === 'static'">
+                                        <label class="field-shell md:col-span-2">
+                                            <span class="text-sm font-medium text-[var(--color-secondary-900)]">Static text content</span>
+                                            <textarea class="field-input" rows="2" x-model="field.default_value"></textarea>
+                                            <span class="text-[11px] text-[var(--color-text-soft)]">This text is shown on the certificate. Not editable by the customer.</span>
+                                        </label>
+                                    </template>
+
+                                    {{-- Text/Date: normal fields --}}
+                                    <template x-if="field.field_type !== 'static'">
+                                        <div class="contents">
+                                            <label class="field-shell">
+                                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Placeholder</span>
+                                                <input class="field-input" x-model="field.placeholder">
+                                            </label>
+                                            <label class="field-shell">
+                                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Default value</span>
+                                                <input class="field-input" x-model="field.default_value">
+                                            </label>
+                                            <label class="field-shell">
+                                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Prefix <span class="font-normal text-[var(--color-text-soft)]">(non-editable before input)</span></span>
+                                                <input class="field-input" x-model="field.settings.prefix" placeholder="e.g. THIS AGREEMENT MADE ON THE">
+                                            </label>
+                                            <label class="field-shell">
+                                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Postfix <span class="font-normal text-[var(--color-text-soft)]">(non-editable after input)</span></span>
+                                                <input class="field-input" x-model="field.settings.postfix" placeholder="e.g. AH">
+                                            </label>
+                                            <label class="field-shell md:col-span-2">
+                                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Help text</span>
+                                                <input class="field-input" x-model="field.help_text">
+                                            </label>
+                                            <label class="inline-flex items-center justify-between gap-4 rounded-[22px] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                                                <span>Required</span>
+                                                <input type="checkbox" class="h-5 w-5 rounded border-[var(--color-border-soft)] text-[var(--color-primary-900)]" x-model="field.is_required">
+                                            </label>
+                                        </div>
+                                    </template>
+                                </div>
+
+                                {{-- Font size: compact dual range --}}
+                                <div class="field-shell">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font size range <span class="font-normal text-[var(--color-text-soft)]">(min → max px)</span></span>
+                                    <div class="flex items-center gap-2">
+                                        <input type="number" min="6" max="200" class="field-input w-20 text-center" x-model.number="field.font_size_min" @input="syncFontBounds(field,'min')">
+                                        <span class="text-[var(--color-text-soft)]">→</span>
+                                        <input type="number" min="6" max="200" class="field-input w-20 text-center" x-model.number="field.font_size_max" @input="syncFontBounds(field,'max')">
+                                        <span class="text-xs text-[var(--color-text-soft)]">px on screen canvas
+                                            <span class="block" x-text="`≈ ${Math.round(field.font_size_min * (2480/980) / (300/72))}–${Math.round(field.font_size_max * (2480/980) / (300/72))} pt on A4`"></span>
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
 
@@ -866,8 +913,8 @@
                                 </div>
                             </div>
 
-                            {{-- ── DATE FORMAT TAB ─────────────────────────────────────────────── --}}
-                            <div x-show="currentFieldTab(index) === 'date'" class="space-y-4">
+                            {{-- ── DATE FORMAT TAB (only for date type) ────────────────────────── --}}
+                            <div x-show="currentFieldTab(index) === 'date' && field.field_type === 'date'" class="space-y-4">
                                 <template x-if="!field.field_key.includes('date')">
                                     <p class="text-sm text-[var(--color-text-soft)]">Date tab applies to fields whose key contains "date".</p>
                                 </template>
@@ -1136,13 +1183,14 @@ document.addEventListener('alpine:init', () => {
         nextFieldId: 1,
         nextFontId: 1,
         fieldPresets: [
-            { key: 'bride_name',             label: 'Bride name',              position_x: 50, position_y: 27, width: 56, height: 14, transform: 'uppercase', multiline: false },
-            { key: 'groom_name',             label: 'Groom name',              position_x: 50, position_y: 43, width: 56, height: 14, transform: 'uppercase', multiline: false },
-            { key: 'ceremony_date',          label: 'Ceremony date',           position_x: 50, position_y: 61, width: 40, height: 12, transform: 'uppercase', multiline: true  },
-            { key: 'ceremony_date_bangla',   label: 'Bangla date (বঙ্গাব্দ)',   position_x: 50, position_y: 67, width: 50, height: 10, transform: 'none',      multiline: false },
-            { key: 'ceremony_date_arabic',   label: 'Arabic date (Hijri)',      position_x: 50, position_y: 74, width: 50, height: 10, transform: 'none',      multiline: false },
-            { key: 'venue',                  label: 'Venue',                   position_x: 50, position_y: 81, width: 50, height: 14, transform: 'uppercase', multiline: true  },
-            { key: 'quotation',              label: 'Quotation',               position_x: 50, position_y: 88, width: 70, height: 14, transform: 'none',      multiline: true  },
+            { key: 'bride_name',             label: 'Bride name',              type: 'text',   position_x: 50, position_y: 27, width: 56, height: 14, transform: 'uppercase', multiline: false },
+            { key: 'groom_name',             label: 'Groom name',              type: 'text',   position_x: 50, position_y: 43, width: 56, height: 14, transform: 'uppercase', multiline: false },
+            { key: 'ceremony_date',          label: 'Ceremony date',           type: 'date',   position_x: 50, position_y: 61, width: 40, height: 12, transform: 'uppercase', multiline: true  },
+            { key: 'ceremony_date_bangla',   label: 'Bangla date (বঙ্গাব্দ)',   type: 'text',   position_x: 50, position_y: 67, width: 50, height: 10, transform: 'none',      multiline: false },
+            { key: 'ceremony_date_arabic',   label: 'Arabic date (Hijri)',      type: 'text',   position_x: 50, position_y: 74, width: 50, height: 10, transform: 'none',      multiline: false },
+            { key: 'venue',                  label: 'Venue',                   type: 'text',   position_x: 50, position_y: 81, width: 50, height: 14, transform: 'uppercase', multiline: true  },
+            { key: 'quotation',              label: 'Quotation',               type: 'text',   position_x: 50, position_y: 88, width: 70, height: 14, transform: 'none',      multiline: true  },
+            { key: 'static_text',            label: 'Static text',             type: 'static', position_x: 50, position_y: 20, width: 80, height: 10, transform: 'uppercase', multiline: true  },
         ],
         init() {
             this.fields = this.initialFields.map((field, index) => this.normalizedField(field, index));
@@ -1157,8 +1205,17 @@ document.addEventListener('alpine:init', () => {
             }
         },
         normalizedField(field, index) {
+            // Auto-detect type from settings or field_key
+            const autoType = (() => {
+                if (field.settings?.field_type) return field.settings.field_type;
+                const k = field.field_key ?? '';
+                if (k.endsWith('_bangla') || k.endsWith('_arabic')) return 'text';
+                if (k.includes('date')) return 'date';
+                return 'text';
+            })();
             return {
                 id: field.id ?? this.nextFieldId + index,
+                field_type: autoType,
                 label: field.label ?? '',
                 field_key: field.field_key ?? '',
                 placeholder: field.placeholder ?? '',
@@ -1190,6 +1247,8 @@ document.addEventListener('alpine:init', () => {
                     font_weight: String(field.settings?.font_weight ?? '600'),
                     text_transform: field.settings?.text_transform ?? 'none',
                     date_format: field.settings?.date_format ?? 'long',
+                    prefix:  field.settings?.prefix  ?? '',
+                    postfix: field.settings?.postfix ?? '',
                 },
             };
         },
@@ -1380,21 +1439,23 @@ document.addEventListener('alpine:init', () => {
 
             return `${fit.message}. Zone ${Number(field.width).toFixed(0)}% × ${Number(field.height).toFixed(0)}% at ${Number(field.position_x).toFixed(0)} / ${Number(field.position_y).toFixed(0)}.`;
         },
-        addField(presetKey = null) {
+        addField(presetKey = null, explicitType = null) {
             const preset = this.fieldPresets.find((item) => item.key === (presetKey || this.selectedPreset));
             const nextIndex = this.fields.length;
+            const resolvedType = explicitType || preset?.type || 'text';
             const field = this.normalizedField({
                 id: this.nextFieldId++,
                 label: preset ? preset.label : `New field ${nextIndex + 1}`,
                 field_key: preset ? preset.key : `new_field_${nextIndex + 1}`,
                 preview_sample_value: preset ? this.sampleValue(preset.key, preset.label) : 'Sample text',
-                is_required: preset ? true : false,
+                is_required: resolvedType !== 'static' && (preset ? true : false),
                 position_x: preset ? preset.position_x : 50,
                 position_y: preset ? preset.position_y : 50,
                 width: preset ? preset.width : 52,
                 height: preset ? preset.height : 14,
                 text_color: '#780000',
                 settings: {
+                    field_type: resolvedType,
                     auto_fit: true,
                     allow_multiline: preset ? preset.multiline : true,
                     max_lines: preset && ! preset.multiline ? 1 : 3,
@@ -1621,7 +1682,10 @@ document.addEventListener('alpine:init', () => {
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: field.settings?.font_weight ?? '600',
                     text_transform: field.settings?.text_transform ?? 'none',
+                    field_type: field.field_type ?? 'text',
                     date_format: field.settings?.date_format ?? 'long',
+                    prefix:  field.settings?.prefix  ?? '',
+                    postfix: field.settings?.postfix ?? '',
                 },
             }));
         },

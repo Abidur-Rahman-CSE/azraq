@@ -63,16 +63,26 @@
             <div class="space-y-4">
                 @foreach ($orderedFields as $field)
                     @php
-                        $fieldName = 'personalization.'.$field->field_key;
-                        $fieldKey = $field->field_key;
+                        $fieldName  = 'personalization.'.$field->field_key;
+                        $fieldKey   = $field->field_key;
+                        $fieldType  = data_get($field->settings, 'field_type', 'text');
                         $isAutoDate = str($fieldKey)->endsWith('_bangla') || str($fieldKey)->endsWith('_arabic');
-                        $isDate = !$isAutoDate && (str($fieldKey)->contains('date') || ($field->type ?? '') === 'date');
-                        $fieldMax = $field->max_length ?: 100;
+                        $isDate     = !$isAutoDate && ($fieldType === 'date' || str($fieldKey)->contains('date'));
+                        $isStatic   = $fieldType === 'static';
+                        $prefix     = data_get($field->settings, 'prefix', '');
+                        $postfix    = data_get($field->settings, 'postfix', '');
+                        $fieldMax   = $field->max_length ?: 100;
                     @endphp
 
-                    {{-- Auto-computed date fields (Bangla/Arabic) — hidden, filled by computeAutoDates --}}
+                    {{-- Auto-computed date fields — hidden, filled by computeAutoDates --}}
                     @if ($isAutoDate)
                         <input type="hidden" name="personalization[{{ $fieldKey }}]" :value="fields['{{ $fieldKey }}'] || ''">
+                        @continue
+                    @endif
+
+                    {{-- Static fields — submit fixed default_value, no visible input --}}
+                    @if ($isStatic)
+                        <input type="hidden" name="personalization[{{ $fieldKey }}]" value="{{ $field->default_value ?? '' }}">
                         @continue
                     @endif
 
@@ -90,32 +100,41 @@
                         </div>
 
                         @if ($isDate)
-                            {{-- Date picker keeps ISO value; formatted string goes into fields[key] for canvas --}}
+                            @if ($prefix)
+                                <p class="mb-1 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] select-none">{{ $prefix }}</p>
+                            @endif
                             <input
                                 id="field-{{ $fieldKey }}"
                                 type="date"
                                 value="{{ old($fieldName, $field->default_value ?? '') }}"
-                                @change="
-                                    fields['{{ $fieldKey }}'] = $event.target.value;
-                                    computeAutoDates('{{ $fieldKey }}', @js($field->settings ?? []));
-                                    renderPreview();
-                                "
+                                @change="fields['{{ $fieldKey }}']=$event.target.value; computeAutoDates('{{ $fieldKey }}',@js($field->settings??[])); renderPreview();"
                                 class="field-input !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
                             >
-                            {{-- Hidden input carries the formatted English date to the server --}}
+                            @if ($postfix)
+                                <p class="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] select-none">{{ $postfix }}</p>
+                            @endif
                             <input type="hidden" name="personalization[{{ $fieldKey }}]" :value="fields['{{ $fieldKey }}'] || ''">
                         @else
-                            <input
-                                id="field-{{ $fieldKey }}"
-                                type="text"
-                                name="personalization[{{ $fieldKey }}]"
-                                value="{{ old($fieldName, $field->default_value ?? $field->preview_sample_value ?? '') }}"
-                                x-model="fields['{{ $fieldKey }}']"
-                                @input.debounce.150ms="renderPreview()"
-                                placeholder="{{ $field->placeholder }}"
-                                maxlength="{{ $fieldMax }}"
-                                class="field-input !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
-                            >
+                            {{-- Text with optional prefix/postfix --}}
+                            <div @if ($prefix || $postfix) class="flex items-center gap-1.5" @endif>
+                                @if ($prefix)
+                                    <span class="flex-shrink-0 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)] select-none">{{ $prefix }}</span>
+                                @endif
+                                <input
+                                    id="field-{{ $fieldKey }}"
+                                    type="text"
+                                    name="personalization[{{ $fieldKey }}]"
+                                    value="{{ old($fieldName, $field->default_value ?? $field->preview_sample_value ?? '') }}"
+                                    x-model="fields['{{ $fieldKey }}']"
+                                    @input.debounce.150ms="renderPreview()"
+                                    placeholder="{{ $field->placeholder }}"
+                                    maxlength="{{ $fieldMax }}"
+                                    class="field-input @if($prefix||$postfix) min-w-0 flex-1 @endif !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
+                                >
+                                @if ($postfix)
+                                    <span class="flex-shrink-0 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)] select-none">{{ $postfix }}</span>
+                                @endif
+                            </div>
                         @endif
 
                         @if ($field->help_text)

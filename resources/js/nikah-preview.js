@@ -675,8 +675,15 @@ const NikahPreview = {
                 fitMode: 'admin_width_wrap',
             };
             const fieldKey = field.name ?? field.field_key;
-            const fieldValue = fields[fieldKey] ?? fields[field.field_key] ?? fields[field.name];
-            const rawText = `${fieldValue || field.default_value || field.preview_sample_value || this.template.preview_data_presets?.[fieldKey] || field.placeholder || ''}`.trim();
+            // Static fields use admin-set default_value; others read from user input
+            const isStaticField = field.field_type === 'static';
+            const fieldValue = isStaticField
+                ? (field.default_value || '')
+                : (fields[fieldKey] ?? fields[field.field_key] ?? fields[field.name]);
+            const prefix  = field.prefix  ?? field.settings?.prefix  ?? '';
+            const postfix = field.postfix ?? field.settings?.postfix ?? '';
+            const baseText = `${fieldValue || (!isStaticField ? (field.default_value || field.preview_sample_value || this.template.preview_data_presets?.[fieldKey] || field.placeholder || '') : '')}`.trim();
+            const rawText = `${prefix}${baseText}${postfix}`.trim();
             const text = applyTextTransform(rawText, fontStyle.textTransform);
 
             if (!text) {
