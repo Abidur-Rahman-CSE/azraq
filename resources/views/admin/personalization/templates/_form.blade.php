@@ -627,16 +627,22 @@
                 </div>
             </div>
 
-            <div class="mt-3 rounded-[20px] border border-[rgba(0,48,73,0.08)] bg-[rgba(253,240,213,0.38)] p-2.5">
-                <div class="flex flex-wrap items-start justify-between gap-3">
-                    <div>
+            <div class="mt-3 rounded-[20px] border border-[rgba(0,48,73,0.08)] bg-[rgba(253,240,213,0.38)] p-2.5"
+                 x-data="{ open: false }">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <button type="button" class="flex items-center gap-1.5 text-left" @click="open = !open">
+                        <svg class="h-3.5 w-3.5 flex-shrink-0 text-[var(--color-text-soft)] transition-transform duration-150"
+                             :class="open ? 'rotate-90' : ''"
+                             viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 2l4 4-4 4"/>
+                        </svg>
                         <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Collective field controls</p>
-                        <p class="mt-0.5 text-[11px] leading-4.5 text-[var(--color-text-soft)]">Apply common styling and fitting rules to every field.</p>
-                    </div>
+                        <span x-show="!open" class="text-[10px] text-[var(--color-text-soft)]">click to expand</span>
+                    </button>
                     <button type="button" class="button-ghost !px-2.5 !py-1.5 text-xs" @click="applyGlobalTypeDefaults()">Use defaults</button>
                 </div>
 
-                <div class="mt-2 grid gap-2 xl:grid-cols-2">
+                <div class="mt-2 grid gap-2 xl:grid-cols-2" x-show="open" x-transition.duration.150ms>
                     <div class="rounded-[16px] border border-[var(--color-border-soft)] bg-white/90 p-2.5">
                         <p class="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)]">Layout and color</p>
                         <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
