@@ -89,6 +89,7 @@ class PersonalizationTemplateRequest extends FormRequest
             'fields.*.settings.overflow_behavior' => ['nullable', 'in:shrink_only,shrink_then_wrap,clip'],
             'fields.*.settings.font_family_override' => ['nullable', 'string', 'max:255'],
             'fields.*.settings.font_weight' => ['nullable', 'in:400,500,600,700,800'],
+            'fields.*.settings.font_style'  => ['nullable', 'in:normal,italic'],
             'fields.*.settings.text_transform' => ['nullable', 'in:none,uppercase,lowercase,capitalize'],
             'fields.*.settings.field_type'   => ['nullable', 'in:text,date,static'],
             'fields.*.settings.date_format'  => ['nullable', 'in:long,us,numeric,ordinal'],
