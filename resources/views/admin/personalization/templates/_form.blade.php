@@ -490,6 +490,12 @@
                         <input type="text" name="preview_rules[estimated_longest_safe_field]" class="field-input" x-model="previewRules.estimated_longest_safe_field">
                     </label>
                 </div>
+
+                {{-- Preview data presets (submitted as hidden inputs, edited reactively via previewData) --}}
+                <input type="hidden" name="preview_data_presets[bride_name]"    :value="previewData.bride_name">
+                <input type="hidden" name="preview_data_presets[groom_name]"    :value="previewData.groom_name">
+                <input type="hidden" name="preview_data_presets[ceremony_date]" :value="previewData.ceremony_date">
+                <input type="hidden" name="preview_data_presets[venue]"         :value="previewData.venue">
             </div>
 
         </aside>
