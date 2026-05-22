@@ -1790,6 +1790,7 @@ document.addEventListener('alpine:init', () => {
                     overflow_behavior: field.settings?.overflow_behavior ?? 'shrink_then_wrap',
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: field.settings?.font_weight ?? '600',
+                    font_style:  field.settings?.font_style ?? 'normal',
                     text_transform: field.settings?.text_transform ?? 'none',
                     field_type: field.field_type ?? 'text',
                     date_format: field.settings?.date_format ?? 'long',
