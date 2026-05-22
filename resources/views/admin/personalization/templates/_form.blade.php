@@ -442,6 +442,11 @@
                         <input type="checkbox" name="preview_rules[safe_editing]" value="1" class="h-5 w-5 rounded border-[var(--color-border-soft)] text-[var(--color-primary-900)]" x-model="previewRules.safe_editing">
                     </label>
                     <label class="inline-flex items-center justify-between gap-4 rounded-[24px] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
+                        <span>Safe scaling</span>
+                        <input type="hidden" name="preview_rules[safe_scale]" value="0">
+                        <input type="checkbox" name="preview_rules[safe_scale]" value="1" class="h-5 w-5 rounded border-[var(--color-border-soft)] text-[var(--color-primary-900)]" x-model="previewRules.safe_scale">
+                    </label>
+                    <label class="inline-flex items-center justify-between gap-4 rounded-[24px] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
                         <span>Allow multiline</span>
                         <input type="hidden" name="preview_rules[allow_multiline]" value="0">
                         <input type="checkbox" name="preview_rules[allow_multiline]" value="1" class="h-5 w-5 rounded border-[var(--color-border-soft)] text-[var(--color-primary-900)]" x-model="previewRules.allow_multiline">
@@ -547,7 +552,7 @@
                         >
                             <div class="absolute inset-0 transition-transform duration-200 ease-out" :style="`transform: scale(${canvasZoom}); transform-origin: center top;`">
                                 <template x-if="canvasArtworkUrl">
-                                    <img :src="canvasArtworkUrl" alt="Template artwork" class="absolute inset-0 h-full w-full object-cover">
+                                    <img :src="canvasArtworkUrl" alt="Template artwork" class="absolute inset-0 h-full w-full object-contain">
                                 </template>
                                 <template x-if="!canvasArtworkUrl">
                                     <div class="flex h-full items-center justify-center bg-[linear-gradient(135deg,rgba(253,240,213,0.78),rgba(255,255,255,0.96))] px-10 text-center text-sm leading-7 text-[var(--color-text-soft)]">
@@ -575,7 +580,17 @@
                                             :class="canvasFieldClass(field)"
                                             :style="canvasFieldInnerStyle(field)"
                                         >
-                                            <p class="max-w-full break-words leading-tight" :style="canvasFieldTextStyle(field)" x-text="fieldPreviewText(field)"></p>
+                                            {{-- Per-segment: prefix / main / postfix each get their own inline style --}}
+                                            <p class="max-w-full break-words leading-tight" :style="canvasFieldTextStyle(field)">
+                                                <template x-if="(field.settings && field.settings.prefix) || (field.settings && field.settings.postfix)">
+                                                    <span>
+                                                        <span x-show="field.settings && field.settings.prefix" :style="canvasPrefixStyle(field)" x-text="(field.settings && field.settings.prefix) || ''"></span><span x-show="field.settings && field.settings.prefix"> </span><span x-text="fieldMainText(field)"></span><span x-show="field.settings && field.settings.postfix"> </span><span x-show="field.settings && field.settings.postfix" :style="canvasPostfixStyle(field)" x-text="(field.settings && field.settings.postfix) || ''"></span>
+                                                    </span>
+                                                </template>
+                                                <template x-if="!(field.settings && field.settings.prefix) && !(field.settings && field.settings.postfix)">
+                                                    <span x-text="fieldPreviewText(field)"></span>
+                                                </template>
+                                            </p>
                                         </div>
 
 
@@ -1356,8 +1371,10 @@ document.addEventListener('alpine:init', () => {
         stageStyle() {
             const width = Math.max(1, Number(this.exportRatioWidth) || 9);
             const height = Math.max(1, Number(this.exportRatioHeight) || 13);
+            const viewportHeight = Math.max(480, window.innerHeight || 900);
+            const canvasWidth = Math.min(980, Math.round(viewportHeight * 0.72 * (width / height)));
 
-            return `aspect-ratio:${width}/${height}; max-width: 980px;`;
+            return `aspect-ratio:${width}/${height}; width:min(100%, ${canvasWidth}px); min-width:min(100%, 320px);`;
         },
         get canvasArtworkUrl() {
             return this.assetValue('baseTemplateUrl') || this.assetValue('previewImageUrl') || '';
@@ -1431,9 +1448,25 @@ document.addEventListener('alpine:init', () => {
 
             this.assetPreviewUrls[key] = '';
             this[key] = '';
-            if (key === 'baseTemplateUrl') this.removeBaseTemplate = true;
-            if (key === 'previewImageUrl') this.removePreviewImage = true;
-            if (key === 'maskImageUrl') this.removeMaskImage = true;
+            if (key === 'baseTemplateUrl') {
+                this.removeBaseTemplate = true;
+                this.clearFileInput('base_template_upload');
+            }
+            if (key === 'previewImageUrl') {
+                this.removePreviewImage = true;
+                this.clearFileInput('preview_image_upload');
+            }
+            if (key === 'maskImageUrl') {
+                this.removeMaskImage = true;
+                this.clearFileInput('mask_image_upload');
+            }
+        },
+        clearFileInput(name) {
+            const input = this.$el.querySelector(`input[type="file"][name="${name}"]`);
+
+            if (input) {
+                input.value = '';
+            }
         },
         currentFieldTab(index) {
             return this.activeTabs[index] ?? 'basic';
@@ -1949,6 +1982,45 @@ document.addEventListener('alpine:init', () => {
             const previewFontSize = Math.max(8, Number((fit.fontSize * this.previewTextScale).toFixed(2)));
 
             return `color:${field.text_color||'#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing||0)}px; line-height:${Number(field.line_height||1.2)}; font-weight:${field.settings.font_weight||'600'}; font-style:${field.settings.font_style||'normal'}; font-family:${field.settings.font_family_override||'"Poppins", sans-serif'}; text-transform:${field.settings.text_transform||'none'};`;
+        },
+        canvasPrefixStyle(field) {
+            const fit = this.fieldFit(field);
+            const base = Math.max(8, Number((fit.fontSize * this.previewTextScale).toFixed(2)));
+            const weights = [400,500,600,700,800];
+            const bw = Number(field.settings.font_weight||600);
+            const bi = weights.indexOf(bw); const di = Number(field.settings.prefix_weight_delta||0);
+            const fw = weights[Math.max(0,Math.min(weights.length-1,(bi>=0?bi:2)+di))];
+            const mode = (field.settings && field.settings.prefix_italic_mode)||'auto';
+            const fi = mode==='italic'?'italic':mode==='normal'?'normal':(field.settings.font_style||'normal');
+            const sz = Math.max(6, base + Number((field.settings && field.settings.prefix_size)||0));
+            const col = (field.settings && field.settings.prefix_color)||field.text_color||'#780000';
+            const tx = (field.settings && field.settings.prefix_transform)||'none';
+            return `font-size:${sz}px;font-weight:${fw};font-style:${fi};color:${col};text-transform:${tx};`;
+        },
+        canvasPostfixStyle(field) {
+            const fit = this.fieldFit(field);
+            const base = Math.max(8, Number((fit.fontSize * this.previewTextScale).toFixed(2)));
+            const weights = [400,500,600,700,800];
+            const bw = Number(field.settings.font_weight||600);
+            const bi = weights.indexOf(bw); const di = Number(field.settings.postfix_weight_delta||0);
+            const fw = weights[Math.max(0,Math.min(weights.length-1,(bi>=0?bi:2)+di))];
+            const mode = (field.settings && field.settings.postfix_italic_mode)||'auto';
+            const fi = mode==='italic'?'italic':mode==='normal'?'normal':(field.settings.font_style||'normal');
+            const sz = Math.max(6, base + Number((field.settings && field.settings.postfix_size)||0));
+            const col = (field.settings && field.settings.postfix_color)||field.text_color||'#780000';
+            const tx = (field.settings && field.settings.postfix_transform)||'none';
+            return `font-size:${sz}px;font-weight:${fw};font-style:${fi};color:${col};text-transform:${tx};`;
+        },
+        fieldMainText(field) {
+            // Main text only (no prefix/postfix) — used in per-segment canvas span
+            if ((field.settings?.field_type || 'text') === 'static') return field.default_value || '';
+            const dateKey = field.field_key;
+            if ((field.settings?.field_type || 'text') === 'date' && !dateKey.endsWith('_bangla') && !dateKey.endsWith('_arabic')) {
+                return this.formatDateSample(this.previewData?.ceremony_date ?? '12 December 2026', field.settings?.date_format ?? 'long');
+            }
+            if (dateKey.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
+            if (dateKey.endsWith('_arabic')) return '19th Jumada al-Awwal 1447 AH';
+            return field.preview_sample_value || field.default_value || field.placeholder || 'Sample text';
         },
         fieldPreviewText(field) {
             // Explicit access (no optional chaining) so Alpine tracks prefix/postfix as reactive deps

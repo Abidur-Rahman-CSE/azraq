@@ -718,7 +718,7 @@ const NikahPreview = {
             } : null;
 
             // Always inline: prefix + main + postfix on same line
-            const hasStyledLines = false; // reserved for future per-word styling
+            const hasStyledSegments = !!(prefix || postfix); // per-segment canvas draw when prefix/postfix present
             const rawText = [prefix, baseText, postfix].filter(Boolean).join(' ');
             const text = applyTextTransform(rawText, fontStyle.textTransform);
 
@@ -773,10 +773,69 @@ const NikahPreview = {
             ctx.rect(contentLeft, -height, contentWidth, height * 3);
             ctx.clip();
 
-            lines.forEach((line, index) => {
-                const lineY = startY + (index * fontSize * lineHeight);
-                drawLineWithSpacing(ctx, line, drawX, lineY, align, fontStyle.letterSpacing || 0);
-            });
+            if (hasStyledSegments && lines.length === 1) {
+                // ── Per-segment single-line draw ──────────────────────────────
+                // Draw prefix / main / postfix individually so each can have its
+                // own size, weight, and italic offset.
+                const prefSize = prefixFontStyle  ? Math.max(6, fontSize + prefixFontStyle._sizeOffset)  : 0;
+                const pofSize  = postfixFontStyle ? Math.max(6, fontSize + postfixFontStyle._sizeOffset) : 0;
+
+                const prefTx = prefix  ? applyTextTransform(prefix,  prefixFontStyle?.textTransform  || 'none') : '';
+                const mainTx = applyTextTransform(baseText, fontStyle.textTransform);
+                const pofTx  = postfix ? applyTextTransform(postfix, postfixFontStyle?.textTransform || 'none') : '';
+
+                // Measure each segment (with inter-segment spaces baked in)
+                let prefW = 0, mainW = 0, pofW = 0;
+                if (prefTx && prefixFontStyle) {
+                    await ensureCanvasFont(prefixFontStyle, prefTx, prefSize);
+                    ctx.font = fontDeclaration(prefixFontStyle, prefSize);
+                    prefW = ctx.measureText(prefTx + (mainTx || pofTx ? ' ' : '')).width;
+                }
+                if (mainTx) {
+                    await ensureCanvasFont(fontStyle, mainTx, fontSize);
+                    ctx.font = fontDeclaration(fontStyle, fontSize);
+                    mainW = ctx.measureText(mainTx).width;
+                }
+                if (pofTx && postfixFontStyle) {
+                    await ensureCanvasFont(postfixFontStyle, pofTx, pofSize);
+                    ctx.font = fontDeclaration(postfixFontStyle, pofSize);
+                    pofW = ctx.measureText((mainTx || prefTx ? ' ' : '') + pofTx).width;
+                }
+
+                const totalW = prefW + mainW + pofW;
+                let curX = align === 'center' ? x - totalW / 2
+                         : align === 'right'  ? contentLeft + contentWidth - totalW
+                         :                      contentLeft;
+
+                ctx.textAlign = 'left';
+
+                if (prefTx && prefixFontStyle) {
+                    await ensureCanvasFont(prefixFontStyle, prefTx, prefSize);
+                    ctx.fillStyle = prefixFontStyle._color || field.text_color || '#780000';
+                    ctx.font = fontDeclaration(prefixFontStyle, prefSize);
+                    ctx.fillText(prefTx + (mainTx || pofTx ? ' ' : ''), curX, startY);
+                    curX += prefW;
+                }
+                if (mainTx) {
+                    await ensureCanvasFont(fontStyle, mainTx, fontSize);
+                    ctx.fillStyle = field.text_color || '#780000';
+                    ctx.font = fontDeclaration(fontStyle, fontSize);
+                    ctx.fillText(mainTx, curX, startY);
+                    curX += mainW;
+                }
+                if (pofTx && postfixFontStyle) {
+                    await ensureCanvasFont(postfixFontStyle, pofTx, pofSize);
+                    ctx.fillStyle = postfixFontStyle._color || field.text_color || '#780000';
+                    ctx.font = fontDeclaration(postfixFontStyle, pofSize);
+                    ctx.fillText((mainTx || prefTx ? ' ' : '') + pofTx, curX, startY);
+                }
+            } else {
+                // ── Standard multi-line / no-segment draw ─────────────────────
+                lines.forEach((line, index) => {
+                    const lineY = startY + (index * fontSize * lineHeight);
+                    drawLineWithSpacing(ctx, line, drawX, lineY, align, fontStyle.letterSpacing || 0);
+                });
+            }
 
             ctx.restore();
         }
