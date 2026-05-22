@@ -1077,17 +1077,19 @@
                                                    @input="part.key==='prefix'?field.settings.prefix_color=$event.target.value:field.settings.postfix_color=$event.target.value">
                                         </div>
 
-                                        {{-- Live preview --}}
-                                        <p class="rounded-xl border border-[var(--color-border-soft)] bg-[rgba(253,240,213,0.42)] px-4 py-2 text-sm"
-                                           :style="`
-                                               font-weight: ${(part.key==='prefix'?field.settings.prefix_bold:field.settings.postfix_bold) ? '700' : '400'};
-                                               font-style: ${(part.key==='prefix'?field.settings.prefix_italic:field.settings.postfix_italic) ? 'italic' : 'normal'};
-                                               font-size: ${(part.key==='prefix'?field.settings.prefix_size:field.settings.postfix_size) ? (part.key==='prefix'?field.settings.prefix_size:field.settings.postfix_size)+'px' : 'inherit'};
-                                               text-transform: ${part.key==='prefix'?field.settings.prefix_transform:field.settings.postfix_transform};
-                                               color: ${part.key==='prefix'?(field.settings.prefix_color||field.text_color):(field.settings.postfix_color||field.text_color)};
-                                           `"
-                                           x-text="(part.key==='prefix'?field.settings.prefix:field.settings.postfix)||'Preview text'">
-                                        </p>
+                                        {{-- Live preview — use local vars to force Alpine to track each reactive dep --}}
+                                        <div x-data="{
+                                            get bold()      { return part.key==='prefix' ? (field.settings.prefix_bold  || false) : (field.settings.postfix_bold  || false); },
+                                            get italic()    { return part.key==='prefix' ? (field.settings.prefix_italic|| false) : (field.settings.postfix_italic|| false); },
+                                            get size()      { return part.key==='prefix' ? (field.settings.prefix_size  || 0)     : (field.settings.postfix_size  || 0);     },
+                                            get transform() { return part.key==='prefix' ? (field.settings.prefix_transform||'none'): (field.settings.postfix_transform||'none'); },
+                                            get color()     { return part.key==='prefix' ? (field.settings.prefix_color ||field.text_color||'#780000'): (field.settings.postfix_color||field.text_color||'#780000'); },
+                                            get text()      { return part.key==='prefix' ? (field.settings.prefix||'') : (field.settings.postfix||''); }
+                                        }">
+                                            <p class="rounded-xl border border-[var(--color-border-soft)] bg-[rgba(253,240,213,0.42)] px-4 py-2 text-sm"
+                                               :style="`font-weight:${bold?'700':'400'};font-style:${italic?'italic':'normal'};font-size:${size?size+'px':'inherit'};text-transform:${transform};color:${color};`"
+                                               x-text="text||'Preview text'"></p>
+                                        </div>
                                     </div>
                                 </template>
                             </div>

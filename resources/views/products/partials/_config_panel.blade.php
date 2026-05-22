@@ -100,19 +100,22 @@
                         </div>
 
                         @if ($isDate)
-                            @if ($prefix)
-                                <p class="mb-1 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] select-none">{{ $prefix }}</p>
-                            @endif
-                            <input
-                                id="field-{{ $fieldKey }}"
-                                type="date"
-                                value="{{ old($fieldName, $field->default_value ?? '') }}"
-                                @change="fields['{{ $fieldKey }}']=$event.target.value; computeAutoDates('{{ $fieldKey }}',@js($field->settings??[])); renderPreview();"
-                                class="field-input !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
-                            >
-                            @if ($postfix)
-                                <p class="mt-1 text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)] select-none">{{ $postfix }}</p>
-                            @endif
+                            {{-- Date: inline flex like text fields so prefix/postfix stay on same line --}}
+                            <div @if ($prefix || $postfix) class="flex items-center gap-1.5" @endif>
+                                @if ($prefix)
+                                    <span class="flex-shrink-0 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)] select-none">{{ $prefix }}</span>
+                                @endif
+                                <input
+                                    id="field-{{ $fieldKey }}"
+                                    type="date"
+                                    value="{{ old($fieldName, $field->default_value ?? '') }}"
+                                    @change="fields['{{ $fieldKey }}']=$event.target.value; computeAutoDates('{{ $fieldKey }}',@js($field->settings??[])); renderPreview();"
+                                    class="field-input @if($prefix||$postfix) min-w-0 flex-1 @endif !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
+                                >
+                                @if ($postfix)
+                                    <span class="flex-shrink-0 text-[0.65rem] font-semibold uppercase tracking-[0.1em] text-[var(--text-muted)] select-none">{{ $postfix }}</span>
+                                @endif
+                            </div>
                             <input type="hidden" name="personalization[{{ $fieldKey }}]" :value="fields['{{ $fieldKey }}'] || ''">
                         @else
                             {{-- Text with optional prefix/postfix --}}
