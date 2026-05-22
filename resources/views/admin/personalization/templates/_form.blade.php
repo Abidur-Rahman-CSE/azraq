@@ -523,23 +523,19 @@
     </section>
 
     <section class="grid gap-6 xl:grid-cols-[minmax(0,1.38fr)_minmax(22rem,0.92fr)]" @pointermove.window="pointerMove($event)" @pointerup.window="pointerUp()">
-        <div class="surface-card p-6 sm:p-8">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Live certificate canvas</p>
-                    <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Live certificate canvas</h3>
-                    <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Click a field zone to edit it. Drag directly on the canvas to reposition.</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <button type="button" class="button-ghost" @click="canvasZoom = Math.max(0.8, Number((canvasZoom - 0.1).toFixed(2)))">Zoom out</button>
-                    <button type="button" class="button-ghost" @click="canvasZoom = Math.min(1.6, Number((canvasZoom + 0.1).toFixed(2)))">Zoom in</button>
-                    <button type="button" class="button-ghost" @click="resetView()">Reset view</button>
-                    <button type="button" class="button-ghost" @click="showSafeAreas = !showSafeAreas" x-text="showSafeAreas ? 'Hide safe areas' : 'Show safe areas'"></button>
-                    <button type="button" class="button-ghost" @click="showFieldBounds = !showFieldBounds" x-text="showFieldBounds ? 'Hide outlines' : 'Show outlines'"></button>
+        <div class="surface-card p-3 sm:p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Live certificate canvas</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="canvasZoom = Math.max(0.8, Number((canvasZoom - 0.1).toFixed(2)))">Zoom out</button>
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="canvasZoom = Math.min(1.6, Number((canvasZoom + 0.1).toFixed(2)))">Zoom in</button>
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="resetView()">Reset view</button>
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="showSafeAreas = !showSafeAreas" x-text="showSafeAreas ? 'Hide safe areas' : 'Show safe areas'"></button>
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="showFieldBounds = !showFieldBounds" x-text="showFieldBounds ? 'Hide outlines' : 'Show outlines'"></button>
                 </div>
             </div>
 
-            <div class="mt-3" style="display:table; margin:0 auto; max-width:100%;">
+            <div class="mt-0" style="display:table; margin:0 auto; max-width:100%;">
                         <div
                             x-ref="previewStage"
                             tabindex="0"
