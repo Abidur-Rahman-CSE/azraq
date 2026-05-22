@@ -90,6 +90,7 @@ class PersonalizationTemplateRequest extends FormRequest
             'fields.*.settings.font_family_override' => ['nullable', 'string', 'max:255'],
             'fields.*.settings.font_weight' => ['nullable', 'in:400,500,600,700,800'],
             'fields.*.settings.text_transform' => ['nullable', 'in:none,uppercase,lowercase,capitalize'],
+            'fields.*.settings.date_format' => ['nullable', 'in:long,us,numeric,ordinal'],
             'fonts' => ['nullable', 'array'],
             'fonts.*.name' => ['nullable', 'string', 'max:255'],
             'fonts.*.internal_name' => ['nullable', 'string', 'max:255'],

@@ -123,24 +123,71 @@
                 'recommended_for' => $font->recommended_for,
             ])->values()),
             templateImageUrl: @js($template->preview_image_url ?: $template->base_template_url),
-            templateFields: @js($template->fields->map(fn ($field) => [
-                'field_key' => $field->field_key,
-                'label' => $field->label,
-                'placeholder' => $field->placeholder,
-                'position_x' => (float) $field->position_x,
-                'position_y' => (float) $field->position_y,
-                'width' => (float) $field->width,
-                'height' => (float) $field->height,
-                'rotation' => (float) $field->rotation,
-                'text_align' => $field->text_align,
-                'text_color' => $field->text_color,
-                'line_height' => (float) $field->line_height,
-                'letter_spacing' => (float) $field->letter_spacing,
-                'font_size_min' => (int) $field->font_size_min,
-                'font_size_max' => (int) $field->font_size_max,
-                'z_index' => (int) ($field->z_index ?? 1),
-                'settings' => $field->settings ?? [],
-            ])->values()),
+            templateFields: @php
+                $allFields = [];
+                foreach ($template->fields as $field) {
+                    $allFields[] = [
+                        'field_key'    => $field->field_key,
+                        'label'        => $field->label,
+                        'placeholder'  => $field->placeholder,
+                        'position_x'   => (float) $field->position_x,
+                        'position_y'   => (float) $field->position_y,
+                        'width'        => (float) $field->width,
+                        'height'       => (float) $field->height,
+                        'rotation'     => (float) $field->rotation,
+                        'text_align'   => $field->text_align,
+                        'text_color'   => $field->text_color,
+                        'line_height'  => (float) $field->line_height,
+                        'letter_spacing' => (float) $field->letter_spacing,
+                        'font_size_min'  => (int) $field->font_size_min,
+                        'font_size_max'  => (int) $field->font_size_max,
+                        'z_index'      => (int) ($field->z_index ?? 1),
+                        'settings'     => $field->settings ?? [],
+                    ];
+                    // Inject virtual Bangla companion field
+                    if (str_contains($field->field_key, 'date') && data_get($field->settings, 'auto_bangla')) {
+                        $allFields[] = [
+                            'field_key'    => $field->field_key . '_bangla',
+                            'label'        => 'Bangla date',
+                            'placeholder'  => '',
+                            'position_x'   => (float) data_get($field->settings, 'bangla_pos_x', 50),
+                            'position_y'   => (float) data_get($field->settings, 'bangla_pos_y', 0),
+                            'width'        => (float) data_get($field->settings, 'bangla_width', 70),
+                            'height'       => (float) data_get($field->settings, 'bangla_height', 8),
+                            'rotation'     => 0,
+                            'text_align'   => 'center',
+                            'text_color'   => data_get($field->settings, 'bangla_color', '#780000'),
+                            'line_height'  => (float) $field->line_height,
+                            'letter_spacing' => (float) $field->letter_spacing,
+                            'font_size_min'  => (int) data_get($field->settings, 'bangla_font_size_min', 10),
+                            'font_size_max'  => (int) data_get($field->settings, 'bangla_font_size_max', 16),
+                            'z_index'      => (int) ($field->z_index ?? 1) + 1,
+                            'settings'     => ['auto_fit' => true, 'allow_multiline' => false, 'max_lines' => 1, 'overflow_behavior' => 'shrink_only', 'font_weight' => data_get($field->settings, 'font_weight', '600'), 'text_transform' => 'none'],
+                        ];
+                    }
+                    // Inject virtual Arabic/Hijri companion field
+                    if (str_contains($field->field_key, 'date') && data_get($field->settings, 'auto_arabic')) {
+                        $allFields[] = [
+                            'field_key'    => $field->field_key . '_arabic',
+                            'label'        => 'Arabic date',
+                            'placeholder'  => '',
+                            'position_x'   => (float) data_get($field->settings, 'arabic_pos_x', 50),
+                            'position_y'   => (float) data_get($field->settings, 'arabic_pos_y', 0),
+                            'width'        => (float) data_get($field->settings, 'arabic_width', 70),
+                            'height'       => (float) data_get($field->settings, 'arabic_height', 8),
+                            'rotation'     => 0,
+                            'text_align'   => 'center',
+                            'text_color'   => data_get($field->settings, 'arabic_color', '#3D3730'),
+                            'line_height'  => (float) $field->line_height,
+                            'letter_spacing' => (float) $field->letter_spacing,
+                            'font_size_min'  => (int) data_get($field->settings, 'arabic_font_size_min', 10),
+                            'font_size_max'  => (int) data_get($field->settings, 'arabic_font_size_max', 14),
+                            'z_index'      => (int) ($field->z_index ?? 1) + 2,
+                            'settings'     => ['auto_fit' => true, 'allow_multiline' => false, 'max_lines' => 1, 'overflow_behavior' => 'shrink_only', 'font_weight' => data_get($field->settings, 'font_weight', '600'), 'text_transform' => 'none'],
+                        ];
+                    }
+                }
+            @endphp @js($allFields),
         })"
     >
         <section class="space-y-5 lg:sticky lg:top-28 lg:self-start">

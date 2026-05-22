@@ -60,6 +60,7 @@
                     'font_family_override' => data_get($field, 'settings.font_family_override', ''),
                     'font_weight' => (string) data_get($field, 'settings.font_weight', '600'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
+                    'date_format' => data_get($field, 'settings.date_format', 'long'),
                 ],
             ];
         })
@@ -163,6 +164,10 @@
     enctype="multipart/form-data"
     novalidate
     class="space-y-8"
+    @submit="
+        $el.querySelector('[name=fields_payload]').value = JSON.stringify(serializableFields());
+        $el.querySelector('[name=fonts_payload]').value  = JSON.stringify(serializableFonts());
+    "
     x-data="nikahTemplateEditor({
         mode: @js($isEdit ? 'edit' : 'create'),
         templateName: @js(old('name', $template->name)),
@@ -559,6 +564,7 @@
                                             <p class="max-w-full break-words leading-tight" :style="canvasFieldTextStyle(field)" x-text="fieldPreviewText(field)"></p>
                                         </div>
 
+
                                         <template x-if="activeFieldId === field.id">
                                             <div>
                                                 <div class="absolute -top-7 left-1/2 -translate-x-1/2 rounded-full bg-[rgba(255,255,255,0.94)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-primary-900)] shadow-[0_10px_24px_rgba(0,48,73,0.12)]" x-text="field.label || field.field_key || 'Field'"></div>
@@ -860,6 +866,46 @@
                                 </div>
                             </div>
 
+                            {{-- ── DATE FORMAT TAB ─────────────────────────────────────────────── --}}
+                            <div x-show="currentFieldTab(index) === 'date'" class="space-y-4">
+                                <template x-if="!field.field_key.includes('date')">
+                                    <p class="text-sm text-[var(--color-text-soft)]">Date tab applies to fields whose key contains "date".</p>
+                                </template>
+
+                                <template x-if="field.field_key.endsWith('_bangla') || field.field_key.endsWith('_arabic')">
+                                    <div class="rounded-[20px] border border-[var(--color-border-soft)] bg-[rgba(120,0,0,0.03)] p-4 space-y-2">
+                                        <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Auto-computed date field</p>
+                                        <p class="text-[11px] text-[var(--color-text-soft)]" x-text="field.field_key.endsWith('_bangla') ? 'Auto-filled with Bengali calendar (বঙ্গাব্দ) when customer enters a date.' : 'Auto-filled with Hijri calendar date when customer enters a date.'"></p>
+                                        <p class="text-[11px] text-[var(--color-text-soft)]">Position and style using Layout / Typography tabs above. No separate format needed.</p>
+                                    </div>
+                                </template>
+
+                                <template x-if="field.field_key.includes('date') && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')">
+                                    <div class="space-y-3">
+                                        <p class="text-xs text-[var(--color-text-soft)]">Format used when displaying this date on the certificate. Bangla/Arabic companion fields are added separately via presets.</p>
+                                        <div class="grid gap-2">
+                                            <template x-for="fmt in [
+                                                {key:'ordinal', label:'20th December 2026, Sunday', hint:'Day(ordinal) Month Year, Weekday'},
+                                                {key:'long',    label:'20 December 2026',            hint:'Day Month Year'},
+                                                {key:'us',      label:'December 20, 2026',           hint:'Month Day, Year'},
+                                                {key:'numeric', label:'20/12/2026',                  hint:'DD/MM/YYYY'},
+                                            ]" :key="fmt.key">
+                                                <label class="flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2.5 transition"
+                                                       :class="field.settings.date_format === fmt.key
+                                                           ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.04)]'
+                                                           : 'border-[var(--color-border-soft)] hover:border-[var(--color-primary-900)]'">
+                                                    <input type="radio" :value="fmt.key" x-model="field.settings.date_format" class="accent-[var(--color-primary-900)]">
+                                                    <span>
+                                                        <span class="text-sm font-semibold text-[var(--color-secondary-900)]" x-text="fmt.label"></span>
+                                                        <span class="ml-2 text-[11px] text-[var(--color-text-soft)]" x-text="fmt.hint"></span>
+                                                    </span>
+                                                </label>
+                                            </template>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+
                             <div x-show="currentFieldTab(index) === 'tools'" class="flex flex-wrap gap-3">
                                 <button type="button" class="button-ghost" @click="focusField(field.id)">Focus on canvas</button>
                                 <button type="button" class="button-ghost" @click="moveField(field.id, -1)">Move up</button>
@@ -1049,8 +1095,8 @@
         </div>
     </section>
 
-    <input type="hidden" name="fields_payload" :value="JSON.stringify(serializableFields())">
-    <input type="hidden" name="fonts_payload" :value="JSON.stringify(serializableFonts())">
+    <input type="hidden" name="fields_payload" value="">
+    <input type="hidden" name="fonts_payload"  value="">
 
     <div class="flex flex-wrap justify-end gap-3">
         <button type="submit" class="button-ghost" name="save_mode" value="draft">Save draft</button>
@@ -1078,6 +1124,7 @@ document.addEventListener('alpine:init', () => {
             { key: 'layout', label: 'Layout' },
             { key: 'typography', label: 'Typography' },
             { key: 'fitting', label: 'Fitting' },
+            { key: 'date', label: 'Date' },
             { key: 'tools', label: 'Tools' },
         ],
         activeTabs: {},
@@ -1089,10 +1136,13 @@ document.addEventListener('alpine:init', () => {
         nextFieldId: 1,
         nextFontId: 1,
         fieldPresets: [
-            { key: 'bride_name', label: 'Bride name', position_x: 50, position_y: 27, width: 56, height: 14, transform: 'uppercase', multiline: false },
-            { key: 'groom_name', label: 'Groom name', position_x: 50, position_y: 43, width: 56, height: 14, transform: 'uppercase', multiline: false },
-            { key: 'ceremony_date', label: 'Ceremony date', position_x: 50, position_y: 61, width: 40, height: 12, transform: 'uppercase', multiline: true },
-            { key: 'venue', label: 'Venue', position_x: 50, position_y: 75, width: 50, height: 14, transform: 'uppercase', multiline: true },
+            { key: 'bride_name',             label: 'Bride name',              position_x: 50, position_y: 27, width: 56, height: 14, transform: 'uppercase', multiline: false },
+            { key: 'groom_name',             label: 'Groom name',              position_x: 50, position_y: 43, width: 56, height: 14, transform: 'uppercase', multiline: false },
+            { key: 'ceremony_date',          label: 'Ceremony date',           position_x: 50, position_y: 61, width: 40, height: 12, transform: 'uppercase', multiline: true  },
+            { key: 'ceremony_date_bangla',   label: 'Bangla date (বঙ্গাব্দ)',   position_x: 50, position_y: 67, width: 50, height: 10, transform: 'none',      multiline: false },
+            { key: 'ceremony_date_arabic',   label: 'Arabic date (Hijri)',      position_x: 50, position_y: 74, width: 50, height: 10, transform: 'none',      multiline: false },
+            { key: 'venue',                  label: 'Venue',                   position_x: 50, position_y: 81, width: 50, height: 14, transform: 'uppercase', multiline: true  },
+            { key: 'quotation',              label: 'Quotation',               position_x: 50, position_y: 88, width: 70, height: 14, transform: 'none',      multiline: true  },
         ],
         init() {
             this.fields = this.initialFields.map((field, index) => this.normalizedField(field, index));
@@ -1131,6 +1181,7 @@ document.addEventListener('alpine:init', () => {
                 rotation: Number(field.rotation ?? 0),
                 z_index: Number(field.z_index ?? index),
                 settings: {
+                    // Core fitting/typography settings
                     auto_fit: Boolean(field.settings?.auto_fit ?? this.previewRules.auto_fit_enabled ?? true),
                     allow_multiline: Boolean(field.settings?.allow_multiline ?? this.previewRules.allow_multiline ?? true),
                     max_lines: Number(field.settings?.max_lines ?? 3),
@@ -1138,6 +1189,7 @@ document.addEventListener('alpine:init', () => {
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: String(field.settings?.font_weight ?? '600'),
                     text_transform: field.settings?.text_transform ?? 'none',
+                    date_format: field.settings?.date_format ?? 'long',
                 },
             };
         },
@@ -1569,6 +1621,7 @@ document.addEventListener('alpine:init', () => {
                     font_family_override: field.settings?.font_family_override ?? '',
                     font_weight: field.settings?.font_weight ?? '600',
                     text_transform: field.settings?.text_transform ?? 'none',
+                    date_format: field.settings?.date_format ?? 'long',
                 },
             }));
         },
@@ -1714,7 +1767,24 @@ document.addEventListener('alpine:init', () => {
             return `color:${field.text_color || '#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing || 0)}px; line-height:${Number(field.line_height || 1.2)}; font-weight:${field.settings.font_weight || '600'}; font-family:${field.settings.font_family_override || '"Poppins", sans-serif'}; text-transform:${field.settings.text_transform || 'none'};`;
         },
         fieldPreviewText(field) {
+            // Main date field: apply selected format to preview sample
+            if (field.field_key.includes('date') && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')) {
+                return this.formatDateSample(this.previewData?.ceremony_date ?? '12 December 2026', field.settings?.date_format ?? 'long');
+            }
             return this.sampleValue(field.field_key, field.preview_sample_value || field.default_value || field.placeholder || 'Sample text');
+        },
+        formatDateSample(dateStr, fmt) {
+            const EN_M    = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            const EN_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+            const ordinal = n => { const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+            const d = new Date(dateStr);
+            if (isNaN(d.getTime())) return dateStr;
+            const day = d.getDate(), month = d.getMonth(), year = d.getFullYear();
+            const mn = EN_M[month], dayName = EN_DAYS[d.getDay()];
+            if (fmt === 'ordinal') return `${ordinal(day)} ${mn} ${year}, ${dayName}`;
+            if (fmt === 'us')      return `${mn} ${day}, ${year}`;
+            if (fmt === 'numeric') return `${String(day).padStart(2,'0')}/${String(month+1).padStart(2,'0')}/${year}`;
+            return `${day} ${mn} ${year}`;
         },
         sampleValue(fieldKey, fallback = '') {
             const map = {
@@ -1723,6 +1793,10 @@ document.addEventListener('alpine:init', () => {
                 ceremony_date: this.previewData.ceremony_date,
                 venue: this.previewData.venue,
             };
+
+            // Auto-date companion fields
+            if (fieldKey.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
+            if (fieldKey.endsWith('_arabic')) return '19th Jumada al-Awwal 1447 AH';
 
             return map[fieldKey] || fallback || 'Sample text';
         },

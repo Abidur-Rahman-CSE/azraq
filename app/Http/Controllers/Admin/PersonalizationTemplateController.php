@@ -272,6 +272,7 @@ class PersonalizationTemplateController extends Controller
                     'font_family_override' => data_get($field, 'settings.font_family_override'),
                     'font_weight' => data_get($field, 'settings.font_weight', '600'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
+                    'date_format' => data_get($field, 'settings.date_format', 'long'),
                 ],
                 'position' => $index,
             ]));

@@ -1136,6 +1136,89 @@ export function registerNikahPreview(Alpine) {
             this.activeFont = this.primaryFontId();
             this.renderPreview();
         },
+        // Auto-convert an English (Gregorian) date field to Bangla (Bengali calendar)
+        // and Hijri (Arabic/Islamic calendar), then push into this.fields so the canvas renders them.
+        computeAutoDates(key, fieldSettings) {
+            const raw = this.fields[key];         // ISO date string "YYYY-MM-DD" from <input type="date">
+            if (!raw) return;
+
+            // Only process ISO format from the date input
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return;
+            const date = new Date(raw + 'T00:00:00');
+            if (isNaN(date)) return;
+
+            const y = date.getFullYear(), m = date.getMonth() + 1, d = date.getDate();
+
+            // ── Helpers ───────────────────────────────────────────────────────
+            const EN_M    = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+            const EN_DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+            const ordinal = n => { const s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); };
+            const mn      = EN_M[m - 1];
+            const dayName = EN_DAYS[date.getDay()];
+
+            // ── Format English date ───────────────────────────────────────────
+            const fmt = fieldSettings?.date_format ?? 'long';
+            let enFormatted;
+            if (fmt === 'us')           enFormatted = `${mn} ${d}, ${y}`;
+            else if (fmt === 'numeric') enFormatted = `${String(d).padStart(2,'0')}/${String(m).padStart(2,'0')}/${y}`;
+            else if (fmt === 'ordinal') enFormatted = `${ordinal(d)} ${mn} ${y}, ${dayName}`;
+            else                        enFormatted = `${d} ${mn} ${y}`;   // 'long' default
+            this.fields[key] = enFormatted;
+
+            // Auto-detect companion fields from template config (key_bangla / key_arabic)
+            const templateFields = window.__TEMPLATE__?.fields ?? [];
+            const hasBangla = templateFields.some(f => f.field_key === key + '_bangla');
+            const hasArabic = templateFields.some(f => f.field_key === key + '_arabic');
+
+            // ── Bengali calendar (বঙ্গাব্দ) ────────────────────────────────────
+            if (hasBangla) {
+                const BN_MONTHS = ['বৈশাখ','জ্যৈষ্ঠ','আষাঢ়','শ্রাবণ','ভাদ্র','আশ্বিন','কার্তিক','অগ্রহায়ণ','পৌষ','মাঘ','ফাল্গুন','চৈত্র'];
+                // Gregorian month start days for Bengali months (approx, non-leap year)
+                const BN_START = [[4,14],[5,15],[6,15],[7,16],[8,17],[9,17],[10,18],[11,17],[12,16],[1,14],[2,13],[3,14]];
+                // Determine Bengali month and day
+                let bnMonth = -1, bnDay = 0, bnYear = y - 593;
+                const dt = new Date(y, m - 1, d);
+                for (let i = 0; i < 12; i++) {
+                    const [sm, sd] = BN_START[i];
+                    const [nm, nd] = BN_START[(i + 1) % 12];
+                    // If Bengali month starts in a month LATER than the input month,
+                    // it started in the PREVIOUS Gregorian year (e.g. পৌষ starts Dec,
+                    // so a Jan input date falls in পৌষ that started last December)
+                    const curYear = sm > m ? y - 1 : y;
+                    const cur = new Date(curYear, sm - 1, sd);
+                    // Next month boundary: cross year when next month number < current start month number
+                    const nxtYear = nm < sm ? curYear + 1 : curYear;
+                    const nxt = new Date(nxtYear, nm - 1, nd);
+                    if (dt >= cur && dt < nxt) { bnMonth = i; bnDay = Math.floor((dt - cur) / 86400000) + 1; break; }
+                }
+                // If January-March, Bengali year is y - 594 before Bangla New Year
+                if (m < 4 || (m === 4 && d < 14)) bnYear = y - 594;
+                if (bnMonth >= 0) {
+                    const toBn = n => String(n).replace(/\d/g, x => '০১২৩৪৫৬৭৮৯'[x]);
+                    this.fields[key + '_bangla'] = `${toBn(bnDay)} ${BN_MONTHS[bnMonth]} ${toBn(bnYear)}`;
+                }
+            }
+
+            // ── Hijri calendar (Islamic, in English) ─────────────────────────
+            if (hasArabic) {
+                const HJ_MONTHS = ['Muharram','Safar','Rabi al-Awwal','Rabi al-Thani','Jumada al-Awwal','Jumada al-Thani','Rajab',"Sha'ban",'Ramadan','Shawwal','Dhul Qadah','Dhul Hijjah'];
+                // Kuwaiti algorithm for approximate Hijri date
+                const jd = Math.floor((1461 * (y + 4800 + Math.floor((m - 14) / 12))) / 4)
+                         + Math.floor((367 * (m - 2 - 12 * Math.floor((m - 14) / 12))) / 12)
+                         - Math.floor((3 * Math.floor((y + 4900 + Math.floor((m - 14) / 12)) / 100)) / 4)
+                         + d - 32075;
+                let l = jd - 1948440 + 10632;
+                const n = Math.floor((l - 1) / 10631);
+                l = l - 10631 * n + 354;
+                const j = Math.floor((10985 - l) / 5316) * Math.floor((50 * l) / 17719) + Math.floor(l / 5670) * Math.floor((43 * l) / 15238);
+                l = l - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) - Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29;
+                const hMonth = Math.floor((24 * l) / 709);
+                const hDay   = l - Math.floor((709 * hMonth) / 24);
+                const hYear  = 30 * n + j - 30;
+                this.fields[key + '_arabic'] = `${ordinal(hDay)} ${HJ_MONTHS[hMonth - 1]} ${hYear} AH`;
+            }
+        },
+
         async renderPreview() {
             if (!this.isCustomizable) {
                 return;
