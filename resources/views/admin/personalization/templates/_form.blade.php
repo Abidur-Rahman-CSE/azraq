@@ -988,7 +988,29 @@
 
                                 <template x-if="field.field_key.includes('date') && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')">
                                     <div class="space-y-3">
-                                        <p class="text-xs text-[var(--color-text-soft)]">Format used when displaying this date on the certificate. Bangla/Arabic companion fields are added separately via presets.</p>
+                                        <p class="text-xs text-[var(--color-text-soft)]">Format used when displaying this date on the certificate.</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs"
+                                                    x-show="!fields.find(f => f.field_key === 'ceremony_date_bangla')"
+                                                    @click="addField('ceremony_date_bangla')">
+                                                + বাংলা তারিখ যোগ করুন
+                                            </button>
+                                            <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs"
+                                                    x-show="fields.find(f => f.field_key === 'ceremony_date_bangla')"
+                                                    disabled class="opacity-40 cursor-default">
+                                                ✓ বাংলা তারিখ আছে
+                                            </button>
+                                            <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs"
+                                                    x-show="!fields.find(f => f.field_key === 'ceremony_date_arabic')"
+                                                    @click="addField('ceremony_date_arabic')">
+                                                + Arabic date (Hijri) add করুন
+                                            </button>
+                                            <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs"
+                                                    x-show="fields.find(f => f.field_key === 'ceremony_date_arabic')"
+                                                    disabled class="opacity-40 cursor-default">
+                                                ✓ Arabic date আছে
+                                            </button>
+                                        </div>
                                         <div class="grid gap-2">
                                             <template x-for="fmt in [
                                                 {key:'ordinal', label:'20th December 2026, Sunday', hint:'Day(ordinal) Month Year, Weekday'},
