@@ -1777,11 +1777,36 @@ document.addEventListener('alpine:init', () => {
             return `color:${field.text_color||'#780000'}; font-size:${previewFontSize}px; letter-spacing:${Number(field.letter_spacing||0)}px; line-height:${Number(field.line_height||1.2)}; font-weight:${field.settings.font_weight||'600'}; font-style:${field.settings.font_style||'normal'}; font-family:${field.settings.font_family_override||'"Poppins", sans-serif'}; text-transform:${field.settings.text_transform||'none'};`;
         },
         fieldPreviewText(field) {
-            // Main date field: apply selected format to preview sample
-            if (field.field_key.includes('date') && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')) {
+            const pre  = field.settings?.prefix  ?? '';
+            const post = field.settings?.postfix ?? '';
+            const wrap = s => `${pre}${s}${post}`.trim() || 'Sample text';
+
+            // Date type: show formatted date sample
+            if ((field.field_type === 'date' || field.field_key.includes('date')) && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')) {
                 return this.formatDateSample(this.previewData?.ceremony_date ?? '12 December 2026', field.settings?.date_format ?? 'long');
             }
-            return this.sampleValue(field.field_key, field.preview_sample_value || field.default_value || field.placeholder || 'Sample text');
+
+            // Static type: show default_value (reactive to typing)
+            if (field.field_type === 'static') {
+                return wrap(field.default_value || 'Static text...');
+            }
+
+            // Auto-date companions
+            if (field.field_key.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
+            if (field.field_key.endsWith('_arabic')) return '19th Jumada al-Awwal 1447 AH';
+
+            // Known previewData keys
+            const mapped = {
+                bride_name:    this.previewData.bride_name,
+                groom_name:    this.previewData.groom_name,
+                ceremony_date: this.previewData.ceremony_date,
+                venue:         this.previewData.venue,
+            }[field.field_key];
+            if (mapped) return wrap(mapped);
+
+            // Custom/new fields: show default_value when typed, else preview_sample_value / placeholder
+            const content = field.default_value || field.preview_sample_value || field.placeholder || 'Sample text';
+            return wrap(content);
         },
         formatDateSample(dateStr, fmt) {
             const EN_M    = ['January','February','March','April','May','June','July','August','September','October','November','December'];
