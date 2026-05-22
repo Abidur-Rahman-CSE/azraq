@@ -1784,7 +1784,7 @@ document.addEventListener('alpine:init', () => {
 
             // Date type: show formatted date sample
             if ((field.field_type === 'date' || field.field_key.includes('date')) && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')) {
-                return this.formatDateSample(this.previewData?.ceremony_date ?? '12 December 2026', field.settings?.date_format ?? 'long');
+                return wrap(this.formatDateSample(this.previewData?.ceremony_date ?? '12 December 2026', field.settings?.date_format ?? 'long'));
             }
 
             // Static type: show default_value (reactive to typing)
