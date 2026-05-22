@@ -684,22 +684,37 @@ const NikahPreview = {
             const postfix = ((field.postfix ?? field.settings?.postfix ?? '') + '').trim();
             const baseText = `${fieldValue || (!isStaticField ? (field.default_value || field.preview_sample_value || this.template.preview_data_presets?.[fieldKey] || field.placeholder || '') : '')}`.trim();
 
-            // Build prefix/postfix fontStyle specs
+            // Resolve relative weight given a base weight + delta step
+            const resolveWeight = (baseWeight, delta) => {
+                const weights = [400, 500, 600, 700, 800];
+                const base = Number(baseWeight || 600);
+                const idx = weights.indexOf(base);
+                const baseIdx = idx >= 0 ? idx : weights.findIndex((w) => w >= base) ?? 2;
+                return String(weights[Math.max(0, Math.min(weights.length - 1, baseIdx + Number(delta || 0)))]);
+            };
+            // Resolve italic given mode: 'auto' inherits, 'italic' forces, 'normal' forces
+            const resolveItalic = (mode, inherited) => {
+                if (mode === 'italic') return 'italic';
+                if (mode === 'normal') return 'normal';
+                return inherited || 'normal'; // auto
+            };
+
+            // Build prefix/postfix fontStyle specs (relative to field's rendered style)
             const prefixFontStyle = prefix ? {
                 ...fontStyle,
-                fontWeight:    field.settings?.prefix_bold   ? '700' : (fontStyle.fontWeight || '600'),
-                fontStyle:     field.settings?.prefix_italic ? 'italic' : 'normal',
+                fontWeight:    resolveWeight(fontStyle.fontWeight, field.settings?.prefix_weight_delta ?? 0),
+                fontStyle:     resolveItalic(field.settings?.prefix_italic_mode ?? 'auto', fontStyle.fontStyle),
                 textTransform: field.settings?.prefix_transform || 'none',
                 _color:        field.settings?.prefix_color  || field.text_color || '#780000',
-                _size:         field.settings?.prefix_size   ? Number(field.settings.prefix_size) * fontScale : 0,
+                _sizeOffset:   Number(field.settings?.prefix_size ?? 0),
             } : null;
             const postfixFontStyle = postfix ? {
                 ...fontStyle,
-                fontWeight:    field.settings?.postfix_bold   ? '700' : (fontStyle.fontWeight || '600'),
-                fontStyle:     field.settings?.postfix_italic ? 'italic' : 'normal',
+                fontWeight:    resolveWeight(fontStyle.fontWeight, field.settings?.postfix_weight_delta ?? 0),
+                fontStyle:     resolveItalic(field.settings?.postfix_italic_mode ?? 'auto', fontStyle.fontStyle),
                 textTransform: field.settings?.postfix_transform || 'none',
                 _color:        field.settings?.postfix_color  || field.text_color || '#780000',
-                _size:         field.settings?.postfix_size   ? Number(field.settings.postfix_size) * fontScale : 0,
+                _sizeOffset:   Number(field.settings?.postfix_size ?? 0),
             } : null;
 
             // Always inline: prefix + main + postfix on same line
@@ -730,7 +745,7 @@ const NikahPreview = {
             // Helper to draw a single-line label (prefix or postfix) at given Y offset from box center
             const drawLabel = async (text, labelStyle, yOffset) => {
                 if (!text) return 0;
-                const lSize = labelStyle._size || Math.max(6, Math.round(fontSize * 0.72));
+                const lSize = Math.max(6, fontSize + (labelStyle._sizeOffset || 0));
                 await ensureCanvasFont(labelStyle, text, lSize);
                 const transformed = applyTextTransform(text, labelStyle.textTransform);
                 ctx.save();
