@@ -831,6 +831,10 @@
                                                 <input class="field-input" x-model="field.default_value">
                                             </label>
                                             <label class="field-shell">
+                                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Preview sample <span class="font-normal text-[var(--color-text-soft)]">(shown on canvas)</span></span>
+                                                <input class="field-input" x-model="field.preview_sample_value" :placeholder="field.field_key || 'e.g. Amena'">
+                                            </label>
+                                            <label class="field-shell">
                                                 <span class="text-sm font-medium text-[var(--color-secondary-900)]">Prefix <span class="font-normal text-[var(--color-text-soft)]">(non-editable before input)</span></span>
                                                 <input class="field-input" x-model="field.settings.prefix" placeholder="e.g. THIS AGREEMENT MADE ON THE">
                                             </label>
