@@ -182,6 +182,10 @@ it('renders the safe scaling control on the personalization template form', func
         ->assertOk()
         ->assertSee('name="preview_rules[safe_scale]"', false)
         ->assertSee('Safe scaling')
+        ->assertSee('name="name" class="field-input" x-model="templateName" required', false)
+        ->assertSee('data-base-template-control', false)
+        ->assertSee('validateBeforeSubmit', false)
+        ->assertDontSee('novalidate', false)
         ->assertSee('object-contain')
         ->assertSee('const canvasWidth = Math.min', false)
         ->assertDontSee('calc(72vh *', false);
