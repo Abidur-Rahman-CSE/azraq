@@ -10,7 +10,10 @@
 
     $fontStylesheetUrls = $activeFonts
         ->where('font_source_type', 'google')
-        ->pluck('font_source_value')
+        ->map(fn ($font) => \App\Models\PersonalizationFont::stylesheetUrl(
+            $font->font_source_type,
+            $font->font_source_value ?: $font->name
+        ))
         ->filter()
         ->unique()
         ->values();

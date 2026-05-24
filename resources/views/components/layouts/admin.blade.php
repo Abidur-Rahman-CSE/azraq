@@ -81,6 +81,7 @@
         <title>{{ $title ?? 'Admin | '.config('brand.name') }}</title>
         <meta name="robots" content="noindex,nofollow">
         <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo/Azraq.svg') }}">
+        @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="admin-shell min-h-screen font-sans text-[var(--color-text-main)] antialiased" x-data="{ sidebarOpen: false, profileOpen: false }">

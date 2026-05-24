@@ -79,38 +79,11 @@
             ];
         })
         ->whenEmpty(fn ($collection) => $collection->push(
-            [
-                'id' => 1,
-                'label' => 'Bride name',
-                'field_key' => 'bride_name',
-                'placeholder' => 'Bride name',
-                'help_text' => 'Primary bride name line.',
-                'default_value' => '',
-                'preview_sample_value' => 'Amena',
-                'is_required' => true,
-                'max_length' => 100,
-                'min_length' => 0,
-                'font_size_min' => (int) $previewRules['default_min_font_size'],
-                'font_size_max' => (int) $previewRules['default_max_font_size'],
-                'line_height' => (float) $previewRules['default_line_height'],
-                'letter_spacing' => (float) $previewRules['default_letter_spacing'],
-                'text_align' => 'center',
-                'text_color' => '#780000',
-                'position_x' => 50,
-                'position_y' => 28,
-                'width' => 58,
-                'height' => 14,
-                'rotation' => 0,
-                'z_index' => 0,
-                'settings' => [
-                    'auto_fit' => true,
-                    'allow_multiline' => false,
-                    'max_lines' => 1,
-                    'overflow_behavior' => 'shrink_only',
-                    'font_family_override' => '',
-                    'font_weight' => '700',
-                    'text_transform' => 'uppercase',
-                ],
+            ...[
+                ['id'=>1,'label'=>'Bride name','field_key'=>'bride_name','placeholder'=>'Enter bride name','help_text'=>'','default_value'=>'Amena','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>35,'width'=>58,'height'=>12,'rotation'=>0,'z_index'=>0,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'700','font_style'=>'normal','text_transform'=>'uppercase']],
+                ['id'=>2,'label'=>'Groom name','field_key'=>'groom_name','placeholder'=>'Enter groom name','help_text'=>'','default_value'=>'Hassan','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>45,'width'=>58,'height'=>12,'rotation'=>0,'z_index'=>1,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'700','font_style'=>'normal','text_transform'=>'uppercase']],
+                ['id'=>3,'label'=>'Ceremony date','field_key'=>'ceremony_date','placeholder'=>'Enter ceremony date','help_text'=>'','default_value'=>'12 December 2026','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>57,'width'=>52,'height'=>12,'rotation'=>0,'z_index'=>2,'settings'=>['field_type'=>'date','date_format'=>'long','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'600','font_style'=>'normal','text_transform'=>'none']],
+                ['id'=>4,'label'=>'Venue','field_key'=>'venue','placeholder'=>'Enter venue','help_text'=>'','default_value'=>'Dhaka, Bangladesh','preview_sample_value'=>'','is_required'=>false,'max_length'=>150,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>65,'width'=>60,'height'=>12,'rotation'=>0,'z_index'=>3,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>true,'max_lines'=>2,'overflow_behavior'=>'shrink_then_wrap','font_family_override'=>'','font_weight'=>'600','font_style'=>'normal','text_transform'=>'none']],
             ]
         ))
         ->all();
@@ -161,8 +134,11 @@
         ->all();
 
     $fontStylesheetUrls = collect($initialFonts)
-        ->filter(fn ($font) => ($font['font_source_type'] ?? 'local') === 'google' && filled($font['font_source_value'] ?? null))
-        ->pluck('font_source_value')
+        ->map(fn ($font) => \App\Models\PersonalizationFont::stylesheetUrl(
+            $font['font_source_type'] ?? null,
+            $font['font_source_value'] ?? ($font['name'] ?? null)
+        ))
+        ->filter()
         ->unique()
         ->values();
 @endphp
@@ -176,9 +152,9 @@
     method="POST"
     action="{{ $isEdit ? route('admin.personalization.templates.update', $template) : route('admin.personalization.templates.store') }}"
     enctype="multipart/form-data"
-    novalidate
     class="space-y-8"
     @submit="
+        if (! validateBeforeSubmit($event)) return;
         $el.querySelector('[name=fields_payload]').value = JSON.stringify(serializableFields());
         $el.querySelector('[name=fonts_payload]').value  = JSON.stringify(serializableFonts());
     "
@@ -224,11 +200,22 @@
         </div>
     @endif
 
+    @if ($errors->any())
+        <div class="rounded-[20px] border border-[rgba(120,0,0,0.25)] bg-[rgba(120,0,0,0.06)] px-5 py-4">
+            <p class="text-sm font-semibold text-[var(--color-primary-900)] mb-2">Please fix the following before saving:</p>
+            <ul class="list-disc list-inside space-y-1">
+                @foreach ($errors->all() as $error)
+                    <li class="text-sm text-[var(--color-primary-900)]">{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <section class="surface-card p-6 sm:p-8">
         <div class="flex flex-wrap items-start justify-between gap-5">
             <div class="max-w-3xl">
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--color-primary-900)]">Flat Certificate Editor</p>
-                <h2 class="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--color-secondary-900)]">Edit Nikah Nama template</h2>
+                <h2 class="mt-3 text-3xl font-semibold tracking-[-0.03em] text-[var(--color-secondary-900)]">{{ $isEdit ? 'Edit Nikah Nama template' : 'Create Nikah Nama template' }}</h2>
                 <p class="mt-3 max-w-2xl text-sm leading-7 text-[var(--color-text-soft)]">
                     Define certificate artwork, safe areas, text zones, and fitting behavior.
                 </p>
@@ -280,7 +267,7 @@
 
                     <label class="field-shell">
                         <span class="text-sm font-medium text-[var(--color-secondary-900)]">Template name</span>
-                        <input type="text" name="name" class="field-input" x-model="templateName">
+                        <input type="text" name="name" class="field-input" x-model="templateName" required maxlength="255">
                     </label>
 
                     <label class="field-shell">
@@ -334,7 +321,7 @@
                         <div class="mt-4 grid gap-3">
                             <label class="field-shell">
                                 <span class="text-sm font-medium text-[var(--color-secondary-900)]">Upload base artwork</span>
-                                <input type="file" name="base_template_upload" accept="image/*" class="field-input" @change="selectAsset('base'); swapAssetPreview('baseTemplateUrl', $event)">
+                                <input type="file" name="base_template_upload" accept="image/*" class="field-input" @change="selectAsset('base'); swapAssetPreview('baseTemplateUrl', $event); clearBaseAssetValidity()">
                             </label>
                             @error('base_template_upload')
                                 <p class="text-sm font-medium text-[var(--color-primary-900)]">{{ $message }}</p>
@@ -342,7 +329,7 @@
 
                             <label class="field-shell">
                                 <span class="text-sm font-medium text-[var(--color-secondary-900)]">Or set asset path / URL</span>
-                                <input type="text" name="base_template_url" class="field-input" x-model="baseTemplateUrl" @focus="selectAsset('base')" @input="syncAssetUrl('baseTemplateUrl', $event.target.value)">
+                                <input type="text" name="base_template_url" class="field-input" x-model="baseTemplateUrl" data-base-template-control @focus="selectAsset('base')" @input="syncAssetUrl('baseTemplateUrl', $event.target.value); clearBaseAssetValidity()">
                             </label>
                             @error('base_template_url')
                                 <p class="text-sm font-medium text-[var(--color-primary-900)]">{{ $message }}</p>
@@ -399,7 +386,7 @@
                                             </template>
                                             <label class="field-shell">
                                                 <span class="text-sm font-medium text-[var(--color-secondary-900)]">Asset path / URL</span>
-                                                <input type="text" class="field-input" :name="asset.urlName" :value="asset.value" @focus="selectAsset(asset.key)" @input="syncAssetUrl(asset.stateKey, $event.target.value)">
+                                                <input type="text" class="field-input" :name="asset.urlName" :value="(asset.value && !asset.value.startsWith('blob:')) ? asset.value : ''" @focus="selectAsset(asset.key)" @input="syncAssetUrl(asset.stateKey, $event.target.value)">
                                             </label>
                                             <template x-if="asset.key === 'preview'">
                                                 <div>
@@ -469,11 +456,11 @@
                     <div class="grid gap-3 sm:grid-cols-2">
                         <label class="field-shell">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Export ratio width</span>
-                            <input type="number" min="1" max="100" name="export_ratio_width" class="field-input" x-model.number="exportRatioWidth">
+                            <input type="number" min="1" max="100" name="export_ratio_width" class="field-input" x-model.number="exportRatioWidth" required>
                         </label>
                         <label class="field-shell">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Export ratio height</span>
-                            <input type="number" min="1" max="100" name="export_ratio_height" class="field-input" x-model.number="exportRatioHeight">
+                            <input type="number" min="1" max="100" name="export_ratio_height" class="field-input" x-model.number="exportRatioHeight" required>
                         </label>
                     </div>
 
@@ -517,42 +504,44 @@
                         <input type="text" name="preview_rules[estimated_longest_safe_field]" class="field-input" x-model="previewRules.estimated_longest_safe_field">
                     </label>
                 </div>
+
+                {{-- Preview data presets (submitted as hidden inputs, edited reactively via previewData) --}}
+                <input type="hidden" name="preview_data_presets[bride_name]"    :value="previewData.bride_name">
+                <input type="hidden" name="preview_data_presets[groom_name]"    :value="previewData.groom_name">
+                <input type="hidden" name="preview_data_presets[ceremony_date]" :value="previewData.ceremony_date">
+                <input type="hidden" name="preview_data_presets[venue]"         :value="previewData.venue">
             </div>
 
         </aside>
     </section>
 
     <section class="grid gap-6 xl:grid-cols-[minmax(0,1.38fr)_minmax(22rem,0.92fr)]" @pointermove.window="pointerMove($event)" @pointerup.window="pointerUp()">
-        <div class="surface-card p-6 sm:p-8">
-            <div class="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Live certificate canvas</p>
-                    <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Live certificate canvas</h3>
-                    <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Click a field zone to edit it. Drag directly on the canvas to reposition.</p>
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <button type="button" class="button-ghost" @click="canvasZoom = Math.max(0.8, Number((canvasZoom - 0.1).toFixed(2)))">Zoom out</button>
-                    <button type="button" class="button-ghost" @click="canvasZoom = Math.min(1.6, Number((canvasZoom + 0.1).toFixed(2)))">Zoom in</button>
-                    <button type="button" class="button-ghost" @click="resetView()">Reset view</button>
-                    <button type="button" class="button-ghost" @click="showSafeAreas = !showSafeAreas" x-text="showSafeAreas ? 'Hide safe areas' : 'Show safe areas'"></button>
-                    <button type="button" class="button-ghost" @click="showFieldBounds = !showFieldBounds" x-text="showFieldBounds ? 'Hide outlines' : 'Show outlines'"></button>
+        <div class="surface-card p-3 sm:p-4">
+            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Live certificate canvas</p>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="canvasZoom = Math.max(0.8, Number((canvasZoom - 0.1).toFixed(2)))">Zoom out</button>
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="canvasZoom = Math.min(1.6, Number((canvasZoom + 0.1).toFixed(2)))">Zoom in</button>
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="resetView()">Reset view</button>
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="showSafeAreas = !showSafeAreas" x-text="showSafeAreas ? 'Hide safe areas' : 'Show safe areas'"></button>
+                    <button type="button" class="button-ghost !px-2.5 !py-1.5 !text-xs" @click="showFieldBounds = !showFieldBounds" x-text="showFieldBounds ? 'Hide outlines' : 'Show outlines'"></button>
                 </div>
             </div>
 
-            <div class="mt-6 rounded-[32px] border border-[rgba(120,0,0,0.1)] bg-[linear-gradient(180deg,rgba(253,240,213,0.78),rgba(255,255,255,0.96))] p-4 sm:p-6">
-                <div class="mx-auto max-w-4xl">
-                    <div class="overflow-auto rounded-[28px] border border-[rgba(0,48,73,0.08)] bg-white/60 p-4 sm:p-6">
+            <div class="mt-0" style="display:table; margin:0 auto; max-width:100%;">
                         <div
                             x-ref="previewStage"
                             tabindex="0"
-                            class="relative mx-auto overflow-hidden rounded-[28px] border border-[rgba(120,0,0,0.12)] bg-white shadow-[0_32px_80px_rgba(0,48,73,0.12)] outline-none"
+                            class="relative overflow-hidden rounded-[24px] border border-[rgba(120,0,0,0.12)] bg-white shadow-[0_32px_80px_rgba(0,48,73,0.12)] outline-none"
                             :style="stageStyle()"
                             @click.self="clearSelection()"
                             @keydown.stop.prevent="handleCanvasKeydown($event)"
                         >
                             <div class="absolute inset-0 transition-transform duration-200 ease-out" :style="`transform: scale(${canvasZoom}); transform-origin: center top;`">
                                 <template x-if="canvasArtworkUrl">
-                                    <img :src="canvasArtworkUrl" alt="Template artwork" class="absolute inset-0 h-full w-full object-contain">
+                                    <img :src="canvasArtworkUrl" alt="Template artwork"
+                                         class="absolute inset-0 h-full w-full object-contain"
+                                         @load="detectedImageRatio = $el.naturalWidth / $el.naturalHeight">
                                 </template>
                                 <template x-if="!canvasArtworkUrl">
                                     <div class="flex h-full items-center justify-center bg-[linear-gradient(135deg,rgba(253,240,213,0.78),rgba(255,255,255,0.96))] px-10 text-center text-sm leading-7 text-[var(--color-text-soft)]">
@@ -607,8 +596,6 @@
                                 </template>
                             </div>
                         </div>
-                    </div>
-                </div>
             </div>
 
             <div class="mt-5 rounded-[26px] border border-[rgba(0,48,73,0.08)] bg-[rgba(255,255,255,0.9)] px-4 py-4">
@@ -837,6 +824,10 @@
                                                 <input class="field-input" x-model="field.default_value">
                                             </label>
                                             <label class="field-shell">
+                                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Preview sample <span class="font-normal text-[var(--color-text-soft)]">(shown on canvas)</span></span>
+                                                <input class="field-input" x-model="field.preview_sample_value" :placeholder="field.field_key || 'e.g. Amena'">
+                                            </label>
+                                            <label class="field-shell">
                                                 <span class="text-sm font-medium text-[var(--color-secondary-900)]">Prefix <span class="font-normal text-[var(--color-text-soft)]">(non-editable before input)</span></span>
                                                 <input class="field-input" x-model="field.settings.prefix" placeholder="e.g. THIS AGREEMENT MADE ON THE">
                                             </label>
@@ -1017,7 +1008,29 @@
 
                                 <template x-if="field.field_key.includes('date') && !field.field_key.endsWith('_bangla') && !field.field_key.endsWith('_arabic')">
                                     <div class="space-y-3">
-                                        <p class="text-xs text-[var(--color-text-soft)]">Format used when displaying this date on the certificate. Bangla/Arabic companion fields are added separately via presets.</p>
+                                        <p class="text-xs text-[var(--color-text-soft)]">Format used when displaying this date on the certificate.</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs"
+                                                    x-show="!fields.find(f => f.field_key === 'ceremony_date_bangla')"
+                                                    @click="addField('ceremony_date_bangla')">
+                                                + বাংলা তারিখ যোগ করুন
+                                            </button>
+                                            <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs"
+                                                    x-show="fields.find(f => f.field_key === 'ceremony_date_bangla')"
+                                                    disabled class="opacity-40 cursor-default">
+                                                ✓ বাংলা তারিখ আছে
+                                            </button>
+                                            <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs"
+                                                    x-show="!fields.find(f => f.field_key === 'ceremony_date_arabic')"
+                                                    @click="addField('ceremony_date_arabic')">
+                                                + Arabic date (Hijri) add করুন
+                                            </button>
+                                            <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs"
+                                                    x-show="fields.find(f => f.field_key === 'ceremony_date_arabic')"
+                                                    disabled class="opacity-40 cursor-default">
+                                                ✓ Arabic date আছে
+                                            </button>
+                                        </div>
                                         <div class="grid gap-2">
                                             <template x-for="fmt in [
                                                 {key:'ordinal', label:'20th December 2026, Sunday', hint:'Day(ordinal) Month Year, Weekday'},
@@ -1054,7 +1067,7 @@
                                              get italicMode(){ return part.key==='prefix' ? (field.settings.prefix_italic_mode||'auto')  : (field.settings.postfix_italic_mode||'auto'); },
                                              get transform() { return part.key==='prefix' ? (field.settings.prefix_transform||'none') : (field.settings.postfix_transform||'none'); },
                                              get color()     { return part.key==='prefix' ? (field.settings.prefix_color||field.text_color||'#780000') : (field.settings.postfix_color||field.text_color||'#780000'); },
-                                             resolvedSize()  { const base = this.fieldFit ? this.fieldFit(field).fontSize : (field.font_size_min||12); return Math.max(6, base + this.offset); },
+                                             resolvedSize()  { const base = Number(field.font_size_max||field.font_size_min||24); return Math.max(6, base + this.offset); },
                                              resolvedWeight(){ const weights=[400,500,600,700,800]; const base=Number(field.settings.font_weight||600); const idx=weights.indexOf(base); return weights[Math.max(0,Math.min(weights.length-1,idx+this.wDelta))]; },
                                              resolvedItalic(){ if(this.italicMode==='italic') return true; if(this.italicMode==='normal') return false; return (field.settings.font_style||'normal')==='italic'; },
                                          }">
@@ -1232,6 +1245,7 @@ document.addEventListener('alpine:init', () => {
     Alpine.data('nikahTemplateEditor', (config) => ({
         ...config,
         canvasZoom: 1,
+        detectedImageRatio: null,
         showSafeAreas: true,
         showFieldBounds: true,
         showAdvancedAssets: false,
@@ -1369,15 +1383,20 @@ document.addEventListener('alpine:init', () => {
             return [...this.fonts].sort((a, b) => Number(a.sort_order) - Number(b.sort_order));
         },
         stageStyle() {
-            const width = Math.max(1, Number(this.exportRatioWidth) || 9);
-            const height = Math.max(1, Number(this.exportRatioHeight) || 13);
+            const ratio = this.detectedImageRatio
+                ? this.detectedImageRatio
+                : (Math.max(1, Number(this.exportRatioWidth) || 9) / Math.max(1, Number(this.exportRatioHeight) || 13));
             const viewportHeight = Math.max(480, window.innerHeight || 900);
-            const canvasWidth = Math.min(980, Math.round(viewportHeight * 0.72 * (width / height)));
+            // Fixed px width — lets display:table parent shrink-wrap it exactly
+            const canvasWidth = Math.max(320, Math.min(1400, Math.round(viewportHeight * 0.88 * ratio)));
 
-            return `aspect-ratio:${width}/${height}; width:min(100%, ${canvasWidth}px); min-width:min(100%, 320px);`;
+            return `aspect-ratio:${ratio}; width:${canvasWidth}px; max-width:100%;`;
         },
         get canvasArtworkUrl() {
-            return this.assetValue('baseTemplateUrl') || this.assetValue('previewImageUrl') || '';
+            const url = this.assetValue('baseTemplateUrl') || this.assetValue('previewImageUrl') || '';
+            // Reset detected ratio whenever the source URL changes
+            if (url !== this._lastArtworkUrl) { this._lastArtworkUrl = url; this.detectedImageRatio = null; }
+            return url;
         },
         assetValue(key) {
             return this.assetPreviewUrls[key] || this[key] || '';
@@ -1467,6 +1486,30 @@ document.addEventListener('alpine:init', () => {
             if (input) {
                 input.value = '';
             }
+        },
+        clearBaseAssetValidity() {
+            this.$el.querySelector('[data-base-template-control]')?.setCustomValidity('');
+        },
+        validateBeforeSubmit(event) {
+            const baseControl = this.$el.querySelector('[data-base-template-control]');
+
+            if (baseControl) {
+                baseControl.setCustomValidity('');
+
+                if (! this.assetValue('baseTemplateUrl')) {
+                    baseControl.setCustomValidity('A base template image is required before the template can be saved.');
+                }
+            }
+
+            if (! this.$el.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.$el.reportValidity();
+
+                return false;
+            }
+
+            return true;
         },
         currentFieldTab(index) {
             return this.activeTabs[index] ?? 'basic';
@@ -2020,7 +2063,7 @@ document.addEventListener('alpine:init', () => {
             }
             if (dateKey.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
             if (dateKey.endsWith('_arabic')) return '19th Jumada al-Awwal 1447 AH';
-            return field.preview_sample_value || field.default_value || field.placeholder || 'Sample text';
+            return field.default_value || field.preview_sample_value || field.placeholder || 'Sample text';
         },
         fieldPreviewText(field) {
             // Explicit access (no optional chaining) so Alpine tracks prefix/postfix as reactive deps
@@ -2048,17 +2091,17 @@ document.addEventListener('alpine:init', () => {
             if (field.field_key.endsWith('_bangla')) return '৫ পৌষ ১৪৩৩';
             if (field.field_key.endsWith('_arabic')) return '19th Jumada al-Awwal 1447 AH';
 
-            // Known previewData keys
-            const mapped = {
+            // field.default_value beats everything (admin explicitly set it)
+            if (field.default_value) return wrap(field.default_value);
+
+            // Fall back to preview_sample_value, then previewData, then placeholder
+            const previewFallback = {
                 bride_name:    this.previewData.bride_name,
                 groom_name:    this.previewData.groom_name,
                 ceremony_date: this.previewData.ceremony_date,
                 venue:         this.previewData.venue,
             }[field.field_key];
-            if (mapped) return wrap(mapped);
-
-            // Custom/new fields: show default_value when typed, else preview_sample_value / placeholder
-            const content = field.default_value || field.preview_sample_value || field.placeholder || 'Sample text';
+            const content = field.preview_sample_value || previewFallback || field.placeholder || 'Sample text';
             return wrap(content);
         },
         formatDateSample(dateStr, fmt) {

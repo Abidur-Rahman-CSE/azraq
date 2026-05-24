@@ -359,7 +359,21 @@ export function registerMockupPreview(Alpine) {
             const sortedLayers = [...this.templateFields].sort((left, right) => Number(left.z_index || 1) - Number(right.z_index || 1));
             const font = this.fontConfig(this.sceneFont);
 
-            sortedLayers.forEach((field) => {
+            // Helpers for relative prefix/postfix styling
+            const resolveSegmentWeight = (baseWeight, delta) => {
+                const wts = [400, 500, 600, 700, 800];
+                const base = Number(baseWeight || 600);
+                const idx = wts.indexOf(base);
+                const bi = idx >= 0 ? idx : wts.findIndex(w => w >= base) ?? 2;
+                return String(wts[Math.max(0, Math.min(wts.length - 1, bi + Number(delta || 0)))]);
+            };
+            const resolveSegmentItalic = (mode, inherited) => {
+                if (mode === 'italic') return 'italic';
+                if (mode === 'normal') return 'normal';
+                return inherited || 'normal';
+            };
+
+            for (const field of sortedLayers) {
                 const layer = buildFieldLayer(field, width, height);
                 const typography = {
                     fontFamily: field.settings?.font_family_override || font.font_family || 'Poppins, sans-serif',
@@ -372,11 +386,36 @@ export function registerMockupPreview(Alpine) {
                     maxLines: Number(field.settings?.max_lines || 3),
                     overflowBehavior: field.settings?.overflow_behavior || 'shrink_then_wrap',
                 };
-                const text = applyTextTransform(`${this.sceneFields[field.field_key] || field.placeholder || ''}`.trim(), typography.textTransform);
+
+                const prefix  = ((field.settings?.prefix  ?? '') + '').trim();
+                const postfix = ((field.settings?.postfix ?? '') + '').trim();
+                const baseText = `${this.sceneFields[field.field_key] || field.placeholder || ''}`.trim();
+                const rawText  = [prefix, baseText, postfix].filter(Boolean).join(' ');
+                const text = applyTextTransform(rawText, typography.textTransform);
 
                 if (!text) {
-                    return;
+                    continue;
                 }
+
+                // Build per-segment styles
+                const prefStyle = prefix ? {
+                    ...typography,
+                    fontWeight: resolveSegmentWeight(typography.fontWeight, field.settings?.prefix_weight_delta ?? 0),
+                    fontStyle:  resolveSegmentItalic(field.settings?.prefix_italic_mode ?? 'auto', typography.fontStyle),
+                    _color:     field.settings?.prefix_color || field.text_color || '#780000',
+                    _sizeOff:   Number(field.settings?.prefix_size ?? 0),
+                    textTransform: field.settings?.prefix_transform || 'none',
+                } : null;
+                const pofStyle = postfix ? {
+                    ...typography,
+                    fontWeight: resolveSegmentWeight(typography.fontWeight, field.settings?.postfix_weight_delta ?? 0),
+                    fontStyle:  resolveSegmentItalic(field.settings?.postfix_italic_mode ?? 'auto', typography.fontStyle),
+                    _color:     field.settings?.postfix_color || field.text_color || '#780000',
+                    _sizeOff:   Number(field.settings?.postfix_size ?? 0),
+                    textTransform: field.settings?.postfix_transform || 'none',
+                } : null;
+
+                const fontDecl = (style, sz) => `${style.fontStyle || 'normal'} ${style.fontWeight || '600'} ${sz}px ${style.fontFamily}`;
 
                 const x = (width * Number(field.position_x || 50)) / 100;
                 const y = (height * Number(field.position_y || 50)) / 100;
@@ -394,16 +433,41 @@ export function registerMockupPreview(Alpine) {
                 ctx.translate(-x, -y);
                 ctx.fillStyle = field.text_color || '#780000';
                 ctx.textBaseline = 'alphabetic';
-                ctx.textAlign = align;
-                ctx.font = `${typography.fontStyle || 'normal'} ${typography.fontWeight || '600'} ${fontSize}px ${typography.fontFamily}`;
 
-                lines.forEach((line, index) => {
-                    const lineY = startY + (index * fontSize * lineHeight);
-                    drawLineWithSpacing(ctx, line, drawX, lineY, align, typography.letterSpacing || 0);
-                });
+                if ((prefix || postfix) && lines.length === 1) {
+                    // ── Per-segment single-line draw ─────────────────────────────
+                    const prefSz = prefStyle ? Math.max(6, fontSize + prefStyle._sizeOff) : 0;
+                    const pofSz  = pofStyle  ? Math.max(6, fontSize + pofStyle._sizeOff)  : 0;
+                    const prefTx = prefix  ? applyTextTransform(prefix,  prefStyle?.textTransform  || 'none') : '';
+                    const mainTx = applyTextTransform(baseText, typography.textTransform);
+                    const pofTx  = postfix ? applyTextTransform(postfix, pofStyle?.textTransform || 'none') : '';
+
+                    let prefW = 0, mainW = 0, pofW = 0;
+                    if (prefTx && prefStyle) { ctx.font = fontDecl(prefStyle, prefSz); prefW = ctx.measureText(prefTx + (mainTx || pofTx ? ' ' : '')).width; }
+                    if (mainTx)             { ctx.font = fontDecl(typography, fontSize); mainW = ctx.measureText(mainTx).width; }
+                    if (pofTx && pofStyle)  { ctx.font = fontDecl(pofStyle, pofSz); pofW  = ctx.measureText((mainTx || prefTx ? ' ' : '') + pofTx).width; }
+
+                    const totalW = prefW + mainW + pofW;
+                    let curX = align === 'center' ? x - totalW / 2
+                             : align === 'right'  ? boxLeft + layer.widthPx - totalW
+                             :                      boxLeft;
+                    ctx.textAlign = 'left';
+
+                    if (prefTx && prefStyle) { ctx.fillStyle = prefStyle._color; ctx.font = fontDecl(prefStyle, prefSz); ctx.fillText(prefTx + (mainTx || pofTx ? ' ' : ''), curX, startY); curX += prefW; }
+                    if (mainTx)             { ctx.fillStyle = field.text_color || '#780000'; ctx.font = fontDecl(typography, fontSize); ctx.fillText(mainTx, curX, startY); curX += mainW; }
+                    if (pofTx && pofStyle)  { ctx.fillStyle = pofStyle._color; ctx.font = fontDecl(pofStyle, pofSz); ctx.fillText((mainTx || prefTx ? ' ' : '') + pofTx, curX, startY); }
+                } else {
+                    // ── Standard multi-line draw ─────────────────────────────────
+                    ctx.textAlign = align;
+                    ctx.font = `${typography.fontStyle || 'normal'} ${typography.fontWeight || '600'} ${fontSize}px ${typography.fontFamily}`;
+                    lines.forEach((line, index) => {
+                        const lineY = startY + (index * fontSize * lineHeight);
+                        drawLineWithSpacing(ctx, line, drawX, lineY, align, typography.letterSpacing || 0);
+                    });
+                }
 
                 ctx.restore();
-            });
+            }
 
             return canvas;
         },
