@@ -33,7 +33,7 @@ async function loadImage(url) {
         const image = new Image();
         image.decoding = 'async';
         image.onload = () => resolve(image);
-        image.onerror = reject;
+        image.onerror = () => resolve(null);
         image.src = url;
     });
 
@@ -555,7 +555,7 @@ const NikahPreview = {
             loadImage(scene.base_image_url || scene.image_url),
             loadImage(scene.overlay_image_url || scene.overlay_url),
             loadImage(scene.mask_image_url || scene.mask_url),
-            (scene.map || scene.zone_points) ? loadPerspective() : Promise.resolve(null),
+            (scene.map || scene.zone_points) ? loadPerspective().catch(() => null) : Promise.resolve(null),
         ]);
 
         if (!backgroundImage || !Perspective) {
@@ -1242,9 +1242,13 @@ export function registerNikahPreview(Alpine) {
         applyNameFont(fontId) {
             this.activeFont = `${fontId}`;
             const nextFieldFonts = { ...(this.fieldFonts ?? {}) };
+            const templateFields = config.template?.fields ?? [];
 
             Object.keys(this.fields ?? {}).forEach((fieldKey) => {
-                if (/bride|groom/i.test(fieldKey)) {
+                const templateField = templateFields.find((field) => field.field_key === fieldKey || field.name === fieldKey);
+                const fieldType = templateField?.field_type ?? templateField?.settings?.field_type ?? 'text';
+
+                if (fieldType !== 'static') {
                     nextFieldFonts[fieldKey] = `${fontId}`;
                 }
             });
@@ -1346,9 +1350,13 @@ export function registerNikahPreview(Alpine) {
             }
 
             this.previewReady = false;
-            await window.NikahPreview.render(this.fields, this.activeFont, this.activeMockup, this.mode, this.fieldFonts);
-            this.previewReady = true;
-            this.renderThumbnailRail();
+            try {
+                await window.NikahPreview.render(this.fields, this.activeFont, this.activeMockup, this.mode, this.fieldFonts);
+            } finally {
+                this.previewReady = true;
+            }
+
+            this.renderThumbnailRail().catch(() => {});
         },
         async renderThumbnailRail() {
             if (!this.isCustomizable || !window.NikahPreview) {
@@ -1360,11 +1368,11 @@ export function registerNikahPreview(Alpine) {
             const nextThumbs = {};
 
             if (this.hasFlatPreview) {
-                nextThumbs.flat = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, 0, 'flat', this.fieldFonts, 160);
+                nextThumbs.flat = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, 0, 'flat', this.fieldFonts, 160).catch(() => null);
             }
 
             for (let index = 0; index < (config.mockups?.length ?? 0); index += 1) {
-                nextThumbs[`mockup-${index}`] = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, index, 'mockup', this.fieldFonts, 160);
+                nextThumbs[`mockup-${index}`] = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, index, 'mockup', this.fieldFonts, 160).catch(() => null);
             }
 
             if (this.thumbnailRenderToken === token) {
