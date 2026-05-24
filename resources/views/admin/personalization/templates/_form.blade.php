@@ -134,8 +134,11 @@
         ->all();
 
     $fontStylesheetUrls = collect($initialFonts)
-        ->filter(fn ($font) => ($font['font_source_type'] ?? 'local') === 'google' && filled($font['font_source_value'] ?? null))
-        ->pluck('font_source_value')
+        ->map(fn ($font) => \App\Models\PersonalizationFont::stylesheetUrl(
+            $font['font_source_type'] ?? null,
+            $font['font_source_value'] ?? ($font['name'] ?? null)
+        ))
+        ->filter()
         ->unique()
         ->values();
 @endphp
@@ -149,9 +152,9 @@
     method="POST"
     action="{{ $isEdit ? route('admin.personalization.templates.update', $template) : route('admin.personalization.templates.store') }}"
     enctype="multipart/form-data"
-    novalidate
     class="space-y-8"
     @submit="
+        if (! validateBeforeSubmit($event)) return;
         $el.querySelector('[name=fields_payload]').value = JSON.stringify(serializableFields());
         $el.querySelector('[name=fonts_payload]').value  = JSON.stringify(serializableFonts());
     "
@@ -264,7 +267,7 @@
 
                     <label class="field-shell">
                         <span class="text-sm font-medium text-[var(--color-secondary-900)]">Template name</span>
-                        <input type="text" name="name" class="field-input" x-model="templateName">
+                        <input type="text" name="name" class="field-input" x-model="templateName" required maxlength="255">
                     </label>
 
                     <label class="field-shell">
@@ -318,7 +321,7 @@
                         <div class="mt-4 grid gap-3">
                             <label class="field-shell">
                                 <span class="text-sm font-medium text-[var(--color-secondary-900)]">Upload base artwork</span>
-                                <input type="file" name="base_template_upload" accept="image/*" class="field-input" @change="selectAsset('base'); swapAssetPreview('baseTemplateUrl', $event)">
+                                <input type="file" name="base_template_upload" accept="image/*" class="field-input" @change="selectAsset('base'); swapAssetPreview('baseTemplateUrl', $event); clearBaseAssetValidity()">
                             </label>
                             @error('base_template_upload')
                                 <p class="text-sm font-medium text-[var(--color-primary-900)]">{{ $message }}</p>
@@ -326,7 +329,7 @@
 
                             <label class="field-shell">
                                 <span class="text-sm font-medium text-[var(--color-secondary-900)]">Or set asset path / URL</span>
-                                <input type="text" name="base_template_url" class="field-input" x-model="baseTemplateUrl" @focus="selectAsset('base')" @input="syncAssetUrl('baseTemplateUrl', $event.target.value)">
+                                <input type="text" name="base_template_url" class="field-input" x-model="baseTemplateUrl" data-base-template-control @focus="selectAsset('base')" @input="syncAssetUrl('baseTemplateUrl', $event.target.value); clearBaseAssetValidity()">
                             </label>
                             @error('base_template_url')
                                 <p class="text-sm font-medium text-[var(--color-primary-900)]">{{ $message }}</p>
@@ -453,11 +456,11 @@
                     <div class="grid gap-3 sm:grid-cols-2">
                         <label class="field-shell">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Export ratio width</span>
-                            <input type="number" min="1" max="100" name="export_ratio_width" class="field-input" x-model.number="exportRatioWidth">
+                            <input type="number" min="1" max="100" name="export_ratio_width" class="field-input" x-model.number="exportRatioWidth" required>
                         </label>
                         <label class="field-shell">
                             <span class="text-sm font-medium text-[var(--color-secondary-900)]">Export ratio height</span>
-                            <input type="number" min="1" max="100" name="export_ratio_height" class="field-input" x-model.number="exportRatioHeight">
+                            <input type="number" min="1" max="100" name="export_ratio_height" class="field-input" x-model.number="exportRatioHeight" required>
                         </label>
                     </div>
 
@@ -1483,6 +1486,30 @@ document.addEventListener('alpine:init', () => {
             if (input) {
                 input.value = '';
             }
+        },
+        clearBaseAssetValidity() {
+            this.$el.querySelector('[data-base-template-control]')?.setCustomValidity('');
+        },
+        validateBeforeSubmit(event) {
+            const baseControl = this.$el.querySelector('[data-base-template-control]');
+
+            if (baseControl) {
+                baseControl.setCustomValidity('');
+
+                if (! this.assetValue('baseTemplateUrl')) {
+                    baseControl.setCustomValidity('A base template image is required before the template can be saved.');
+                }
+            }
+
+            if (! this.$el.checkValidity()) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.$el.reportValidity();
+
+                return false;
+            }
+
+            return true;
         },
         currentFieldTab(index) {
             return this.activeTabs[index] ?? 'basic';

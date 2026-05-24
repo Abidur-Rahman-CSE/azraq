@@ -48,16 +48,16 @@ class PersonalizationTemplate extends Model
 
     public function fields(): HasMany
     {
-        return $this->hasMany(PersonalizationField::class)->orderBy('position');
+        return $this->hasMany(PersonalizationField::class)->orderBy('position', 'asc');
     }
 
     public function fonts(): HasMany
     {
-        return $this->hasMany(PersonalizationFont::class)->orderBy('position');
+        return $this->hasMany(PersonalizationFont::class)->orderBy('position', 'asc');
     }
 
     public function mockups(): HasMany
     {
-        return $this->hasMany(PersonalizationMockup::class)->orderBy('sort_order');
+        return $this->hasMany(PersonalizationMockup::class)->orderBy('sort_order', 'asc');
     }
 }

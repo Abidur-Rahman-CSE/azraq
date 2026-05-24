@@ -50,6 +50,30 @@ class PersonalizationFont extends Model
         return $this->font_family ?: $this->css_font_family;
     }
 
+    public function getStylesheetUrlAttribute(): ?string
+    {
+        return self::stylesheetUrl($this->font_source_type, $this->font_source_value ?: $this->name);
+    }
+
+    public static function stylesheetUrl(?string $sourceType, ?string $sourceValue): ?string
+    {
+        if ($sourceType !== 'google' || ! filled($sourceValue)) {
+            return null;
+        }
+
+        $sourceValue = trim($sourceValue);
+
+        if (filter_var($sourceValue, FILTER_VALIDATE_URL)) {
+            return $sourceValue;
+        }
+
+        if (str_contains($sourceValue, '/') || str_contains($sourceValue, '\\')) {
+            return null;
+        }
+
+        return 'https://fonts.googleapis.com/css2?family='.str_replace('%20', '+', rawurlencode($sourceValue)).'&display=swap';
+    }
+
     public static function starterPresets(): array
     {
         $hardcoded = [
