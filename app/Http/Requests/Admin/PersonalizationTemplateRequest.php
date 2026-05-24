@@ -89,8 +89,22 @@ class PersonalizationTemplateRequest extends FormRequest
             'fields.*.settings.overflow_behavior' => ['nullable', 'in:shrink_only,shrink_then_wrap,clip'],
             'fields.*.settings.font_family_override' => ['nullable', 'string', 'max:255'],
             'fields.*.settings.font_weight' => ['nullable', 'in:400,500,600,700,800'],
+            'fields.*.settings.font_style'  => ['nullable', 'in:normal,italic'],
             'fields.*.settings.text_transform' => ['nullable', 'in:none,uppercase,lowercase,capitalize'],
-            'fields.*.settings.date_format' => ['nullable', 'in:long,us,numeric,ordinal'],
+            'fields.*.settings.field_type'   => ['nullable', 'in:text,date,static'],
+            'fields.*.settings.date_format'  => ['nullable', 'in:long,us,numeric,ordinal'],
+            'fields.*.settings.prefix'              => ['nullable', 'string', 'max:255'],
+            'fields.*.settings.prefix_size'         => ['nullable', 'numeric', 'min:-100', 'max:100'],
+            'fields.*.settings.prefix_weight_delta' => ['nullable', 'integer', 'min:-4', 'max:4'],
+            'fields.*.settings.prefix_italic_mode'  => ['nullable', 'in:auto,italic,normal'],
+            'fields.*.settings.prefix_color'        => ['nullable', 'string', 'max:20'],
+            'fields.*.settings.prefix_transform'    => ['nullable', 'in:none,uppercase,lowercase,capitalize'],
+            'fields.*.settings.postfix'             => ['nullable', 'string', 'max:255'],
+            'fields.*.settings.postfix_size'        => ['nullable', 'numeric', 'min:-100', 'max:100'],
+            'fields.*.settings.postfix_weight_delta'=> ['nullable', 'integer', 'min:-4', 'max:4'],
+            'fields.*.settings.postfix_italic_mode' => ['nullable', 'in:auto,italic,normal'],
+            'fields.*.settings.postfix_color'       => ['nullable', 'string', 'max:20'],
+            'fields.*.settings.postfix_transform'   => ['nullable', 'in:none,uppercase,lowercase,capitalize'],
             'fonts' => ['nullable', 'array'],
             'fonts.*.name' => ['nullable', 'string', 'max:255'],
             'fonts.*.internal_name' => ['nullable', 'string', 'max:255'],
@@ -143,9 +157,10 @@ class PersonalizationTemplateRequest extends FormRequest
     {
         $validator->after(function (Validator $validator): void {
             $template = $this->route('template');
-            $hasUploadedBase = $this->file('base_template_upload') !== null;
+            $isRemovingBase = $this->boolean('remove_base_template');
+            $hasUploadedBase = $this->file('base_template_upload') !== null && ! $isRemovingBase;
             $hasIncomingBaseUrl = filled($this->input('base_template_url'));
-            $hasExistingBaseUrl = filled($template?->base_template_url) && ! $this->boolean('remove_base_template');
+            $hasExistingBaseUrl = filled($template?->base_template_url) && ! $isRemovingBase;
 
             if (! $hasUploadedBase && ! $hasIncomingBaseUrl && ! $hasExistingBaseUrl) {
                 $validator->errors()->add('base_template_upload', 'A base template image is required before the template can be saved.');

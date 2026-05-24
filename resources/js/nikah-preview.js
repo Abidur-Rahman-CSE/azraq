@@ -675,8 +675,51 @@ const NikahPreview = {
                 fitMode: 'admin_width_wrap',
             };
             const fieldKey = field.name ?? field.field_key;
-            const fieldValue = fields[fieldKey] ?? fields[field.field_key] ?? fields[field.name];
-            const rawText = `${fieldValue || field.default_value || field.preview_sample_value || this.template.preview_data_presets?.[fieldKey] || field.placeholder || ''}`.trim();
+            // Static fields use admin-set default_value; others read from user input
+            const isStaticField = field.field_type === 'static';
+            const fieldValue = isStaticField
+                ? (field.default_value || '')
+                : (fields[fieldKey] ?? fields[field.field_key] ?? fields[field.name]);
+            const prefix  = ((field.prefix  ?? field.settings?.prefix  ?? '') + '').trim();
+            const postfix = ((field.postfix ?? field.settings?.postfix ?? '') + '').trim();
+            const baseText = `${fieldValue || (!isStaticField ? (field.default_value || field.preview_sample_value || this.template.preview_data_presets?.[fieldKey] || field.placeholder || '') : '')}`.trim();
+
+            // Resolve relative weight given a base weight + delta step
+            const resolveWeight = (baseWeight, delta) => {
+                const weights = [400, 500, 600, 700, 800];
+                const base = Number(baseWeight || 600);
+                const idx = weights.indexOf(base);
+                const baseIdx = idx >= 0 ? idx : weights.findIndex((w) => w >= base) ?? 2;
+                return String(weights[Math.max(0, Math.min(weights.length - 1, baseIdx + Number(delta || 0)))]);
+            };
+            // Resolve italic given mode: 'auto' inherits, 'italic' forces, 'normal' forces
+            const resolveItalic = (mode, inherited) => {
+                if (mode === 'italic') return 'italic';
+                if (mode === 'normal') return 'normal';
+                return inherited || 'normal'; // auto
+            };
+
+            // Build prefix/postfix fontStyle specs (relative to field's rendered style)
+            const prefixFontStyle = prefix ? {
+                ...fontStyle,
+                fontWeight:    resolveWeight(fontStyle.fontWeight, field.settings?.prefix_weight_delta ?? 0),
+                fontStyle:     resolveItalic(field.settings?.prefix_italic_mode ?? 'auto', fontStyle.fontStyle),
+                textTransform: field.settings?.prefix_transform || 'none',
+                _color:        field.settings?.prefix_color  || field.text_color || '#780000',
+                _sizeOffset:   Number(field.settings?.prefix_size ?? 0),
+            } : null;
+            const postfixFontStyle = postfix ? {
+                ...fontStyle,
+                fontWeight:    resolveWeight(fontStyle.fontWeight, field.settings?.postfix_weight_delta ?? 0),
+                fontStyle:     resolveItalic(field.settings?.postfix_italic_mode ?? 'auto', fontStyle.fontStyle),
+                textTransform: field.settings?.postfix_transform || 'none',
+                _color:        field.settings?.postfix_color  || field.text_color || '#780000',
+                _sizeOffset:   Number(field.settings?.postfix_size ?? 0),
+            } : null;
+
+            // Always inline: prefix + main + postfix on same line
+            const hasStyledSegments = !!(prefix || postfix); // per-segment canvas draw when prefix/postfix present
+            const rawText = [prefix, baseText, postfix].filter(Boolean).join(' ');
             const text = applyTextTransform(rawText, fontStyle.textTransform);
 
             if (!text) {
@@ -699,6 +742,25 @@ const NikahPreview = {
             const align = field.text_align === 'start' ? 'left' : (field.text_align === 'end' ? 'right' : 'center');
             const drawX = align === 'left' ? contentLeft : (align === 'right' ? contentLeft + contentWidth : x);
 
+            // Helper to draw a single-line label (prefix or postfix) at given Y offset from box center
+            const drawLabel = async (text, labelStyle, yOffset) => {
+                if (!text) return 0;
+                const lSize = Math.max(6, fontSize + (labelStyle._sizeOffset || 0));
+                await ensureCanvasFont(labelStyle, text, lSize);
+                const transformed = applyTextTransform(text, labelStyle.textTransform);
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate((Number(field.rotation || 0) * Math.PI) / 180);
+                ctx.translate(-x, -y);
+                ctx.fillStyle = labelStyle._color || field.text_color || '#780000';
+                ctx.textBaseline = 'alphabetic';
+                ctx.textAlign = align;
+                ctx.font = fontDeclaration(labelStyle, lSize);
+                drawLineWithSpacing(ctx, transformed, drawX, yOffset, align, 0);
+                ctx.restore();
+                return lSize * Math.max(1, Number(labelStyle.lineHeight || 1.1));
+            };
+
             ctx.save();
             ctx.translate(x, y);
             ctx.rotate((Number(field.rotation || 0) * Math.PI) / 180);
@@ -711,10 +773,69 @@ const NikahPreview = {
             ctx.rect(contentLeft, -height, contentWidth, height * 3);
             ctx.clip();
 
-            lines.forEach((line, index) => {
-                const lineY = startY + (index * fontSize * lineHeight);
-                drawLineWithSpacing(ctx, line, drawX, lineY, align, fontStyle.letterSpacing || 0);
-            });
+            if (hasStyledSegments && lines.length === 1) {
+                // ── Per-segment single-line draw ──────────────────────────────
+                // Draw prefix / main / postfix individually so each can have its
+                // own size, weight, and italic offset.
+                const prefSize = prefixFontStyle  ? Math.max(6, fontSize + prefixFontStyle._sizeOffset)  : 0;
+                const pofSize  = postfixFontStyle ? Math.max(6, fontSize + postfixFontStyle._sizeOffset) : 0;
+
+                const prefTx = prefix  ? applyTextTransform(prefix,  prefixFontStyle?.textTransform  || 'none') : '';
+                const mainTx = applyTextTransform(baseText, fontStyle.textTransform);
+                const pofTx  = postfix ? applyTextTransform(postfix, postfixFontStyle?.textTransform || 'none') : '';
+
+                // Measure each segment (with inter-segment spaces baked in)
+                let prefW = 0, mainW = 0, pofW = 0;
+                if (prefTx && prefixFontStyle) {
+                    await ensureCanvasFont(prefixFontStyle, prefTx, prefSize);
+                    ctx.font = fontDeclaration(prefixFontStyle, prefSize);
+                    prefW = ctx.measureText(prefTx + (mainTx || pofTx ? ' ' : '')).width;
+                }
+                if (mainTx) {
+                    await ensureCanvasFont(fontStyle, mainTx, fontSize);
+                    ctx.font = fontDeclaration(fontStyle, fontSize);
+                    mainW = ctx.measureText(mainTx).width;
+                }
+                if (pofTx && postfixFontStyle) {
+                    await ensureCanvasFont(postfixFontStyle, pofTx, pofSize);
+                    ctx.font = fontDeclaration(postfixFontStyle, pofSize);
+                    pofW = ctx.measureText((mainTx || prefTx ? ' ' : '') + pofTx).width;
+                }
+
+                const totalW = prefW + mainW + pofW;
+                let curX = align === 'center' ? x - totalW / 2
+                         : align === 'right'  ? contentLeft + contentWidth - totalW
+                         :                      contentLeft;
+
+                ctx.textAlign = 'left';
+
+                if (prefTx && prefixFontStyle) {
+                    await ensureCanvasFont(prefixFontStyle, prefTx, prefSize);
+                    ctx.fillStyle = prefixFontStyle._color || field.text_color || '#780000';
+                    ctx.font = fontDeclaration(prefixFontStyle, prefSize);
+                    ctx.fillText(prefTx + (mainTx || pofTx ? ' ' : ''), curX, startY);
+                    curX += prefW;
+                }
+                if (mainTx) {
+                    await ensureCanvasFont(fontStyle, mainTx, fontSize);
+                    ctx.fillStyle = field.text_color || '#780000';
+                    ctx.font = fontDeclaration(fontStyle, fontSize);
+                    ctx.fillText(mainTx, curX, startY);
+                    curX += mainW;
+                }
+                if (pofTx && postfixFontStyle) {
+                    await ensureCanvasFont(postfixFontStyle, pofTx, pofSize);
+                    ctx.fillStyle = postfixFontStyle._color || field.text_color || '#780000';
+                    ctx.font = fontDeclaration(postfixFontStyle, pofSize);
+                    ctx.fillText((mainTx || prefTx ? ' ' : '') + pofTx, curX, startY);
+                }
+            } else {
+                // ── Standard multi-line / no-segment draw ─────────────────────
+                lines.forEach((line, index) => {
+                    const lineY = startY + (index * fontSize * lineHeight);
+                    drawLineWithSpacing(ctx, line, drawX, lineY, align, fontStyle.letterSpacing || 0);
+                });
+            }
 
             ctx.restore();
         }

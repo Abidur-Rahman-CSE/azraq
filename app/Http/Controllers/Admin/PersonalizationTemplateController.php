@@ -222,7 +222,13 @@ class PersonalizationTemplateController extends Controller
     public function update(PersonalizationTemplateRequest $request, PersonalizationTemplate $template)
     {
         DB::transaction(function () use ($request, $template): void {
-            $template->update($this->templatePayload($request, $template));
+            $payload = $this->templatePayload($request, $template);
+
+            if ($request->input('save_mode') === 'draft') {
+                $payload['is_active'] = (bool) $template->getOriginal('is_active');
+            }
+
+            $template->update($payload);
 
             $this->syncTemplateChildren($template, $request->validated());
         });
@@ -271,8 +277,22 @@ class PersonalizationTemplateController extends Controller
                     'overflow_behavior' => data_get($field, 'settings.overflow_behavior', 'shrink_then_wrap'),
                     'font_family_override' => data_get($field, 'settings.font_family_override'),
                     'font_weight' => data_get($field, 'settings.font_weight', '600'),
+                    'font_style'  => data_get($field, 'settings.font_style', 'normal'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
+                    'field_type' => data_get($field, 'settings.field_type', 'text'),
                     'date_format' => data_get($field, 'settings.date_format', 'long'),
+                    'prefix'              => data_get($field, 'settings.prefix', ''),
+                    'prefix_size'         => (float) data_get($field, 'settings.prefix_size', 0),
+                    'prefix_weight_delta' => (int)   data_get($field, 'settings.prefix_weight_delta', 0),
+                    'prefix_italic_mode'  =>          data_get($field, 'settings.prefix_italic_mode', 'auto'),
+                    'prefix_color'        =>          data_get($field, 'settings.prefix_color', ''),
+                    'prefix_transform'    =>          data_get($field, 'settings.prefix_transform', 'none'),
+                    'postfix'             => data_get($field, 'settings.postfix', ''),
+                    'postfix_size'        => (float) data_get($field, 'settings.postfix_size', 0),
+                    'postfix_weight_delta'=> (int)   data_get($field, 'settings.postfix_weight_delta', 0),
+                    'postfix_italic_mode' =>          data_get($field, 'settings.postfix_italic_mode', 'auto'),
+                    'postfix_color'       =>          data_get($field, 'settings.postfix_color', ''),
+                    'postfix_transform'   =>          data_get($field, 'settings.postfix_transform', 'none'),
                 ],
                 'position' => $index,
             ]));
@@ -320,6 +340,8 @@ class PersonalizationTemplateController extends Controller
 
     private function templatePayload(PersonalizationTemplateRequest $request, ?PersonalizationTemplate $template = null): array
     {
+        $isDraftUpdate = $template !== null && $request->input('save_mode') === 'draft';
+
         return [
             'product_id' => filled($request->input('product_id')) ? $request->integer('product_id') : null,
             'name' => $request->string('name')->toString(),
@@ -354,7 +376,7 @@ class PersonalizationTemplateController extends Controller
             'instructions' => $request->input('instructions'),
             'safe_zone_notes' => $request->input('safe_zone_notes'),
             'proof_note_label' => $request->input('proof_note_label'),
-            'is_active' => $request->boolean('is_active', true),
+            'is_active' => $isDraftUpdate ? $template->is_active : $request->boolean('is_active', true),
         ];
     }
 
