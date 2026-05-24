@@ -76,7 +76,7 @@
 <x-layouts.product-detail
     :title="$product->name.' | '.config('brand.name')"
     :description="$product->meta_description ?: ($product->excerpt ?: $storyDescription)"
-    :social-image="$template->preview_image_url"
+    :social-image="$template->previewArtworkUrl()"
     :schema-data="[
         [
             '@context' => 'https://schema.org',
@@ -125,7 +125,7 @@
                 'text_transform_default' => $font->text_transform_default,
                 'recommended_for' => $font->recommended_for,
             ])->values()),
-            templateImageUrl: @js($template->preview_image_url ?: $template->base_template_url),
+            templateImageUrl: @js($template->previewArtworkUrl() ?: $template->baseArtworkUrl()),
             templateFields: @php
                 $allFields = [];
                 foreach ($template->fields as $field) {

@@ -60,4 +60,67 @@ class PersonalizationTemplate extends Model
     {
         return $this->hasMany(PersonalizationMockup::class)->orderBy('sort_order', 'asc');
     }
+
+    public static function imageUrlExists(?string $url): bool
+    {
+        $url = trim((string) $url);
+
+        if ($url === '' || str_starts_with($url, 'blob:')) {
+            return false;
+        }
+
+        if (str_starts_with($url, 'data:')) {
+            return true;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH) ?: $url;
+
+        if (! str_starts_with($path, '/')) {
+            $path = '/'.$path;
+        }
+
+        if (! preg_match('/\.(avif|gif|jpe?g|png|svg|webp)$/i', $path)) {
+            return true;
+        }
+
+        return file_exists(public_path(ltrim($path, '/')));
+    }
+
+    public function firstExistingImageUrl(?string ...$urls): ?string
+    {
+        foreach ($urls as $url) {
+            if (self::imageUrlExists($url)) {
+                return $url;
+            }
+        }
+
+        return null;
+    }
+
+    public function baseArtworkUrl(): ?string
+    {
+        return $this->firstExistingImageUrl(
+            $this->base_template_url,
+            $this->preview_image_url,
+            $this->thumbnail_image_url,
+        );
+    }
+
+    public function previewArtworkUrl(): ?string
+    {
+        return $this->firstExistingImageUrl(
+            $this->preview_image_url,
+            $this->base_template_url,
+            $this->thumbnail_image_url,
+        );
+    }
+
+    public function thumbnailArtworkUrl(): ?string
+    {
+        return $this->firstExistingImageUrl(
+            $this->thumbnail_image_url,
+            $this->preview_image_url,
+            $this->base_template_url,
+        );
+    }
 }

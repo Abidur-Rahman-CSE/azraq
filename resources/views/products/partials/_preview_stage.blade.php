@@ -1,7 +1,7 @@
 @php
     $mockupItems = $mockups instanceof \Illuminate\Support\Collection ? $mockups->values() : collect($mockups ?? [])->values();
     $generalImages = $generalImages instanceof \Illuminate\Support\Collection ? $generalImages->values() : collect($generalImages ?? [])->values();
-    $flatThumb = $template?->preview_image_url ?: $template?->base_template_url ?: $product->featured_image_url;
+    $flatThumb = $template?->previewArtworkUrl() ?: $template?->baseArtworkUrl() ?: $product->featured_image_url;
     $showFlatPreview = $product->is_customizable;
 @endphp
 

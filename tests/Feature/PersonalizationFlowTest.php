@@ -26,6 +26,24 @@ it('shows the advanced personalized product detail page', function () {
         ->assertSee('Add personalized order');
 });
 
+it('falls back to an existing template image on the customer product page', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')->firstOrFail();
+    $template = PersonalizationTemplate::whereBelongsTo($product)->firstOrFail();
+
+    $template->update([
+        'base_template_url' => '/images/nikahnama/Template-Base.png',
+        'preview_image_url' => '/storage/personalization/templates/missing-preview.png',
+        'thumbnail_image_url' => null,
+    ]);
+
+    $this->get(route('products.show', $product))
+        ->assertOk()
+        ->assertDontSee('/storage/personalization/templates/missing-preview.png', false)
+        ->assertSee('/images/nikahnama/Template-Base.png', false);
+});
+
 it('adds an advanced personalized product to the cart with structured payload data', function () {
     $this->seed(CatalogSeeder::class);
 
@@ -184,10 +202,13 @@ it('renders the safe scaling control on the personalization template form', func
         ->assertSee('Safe scaling')
         ->assertSee('name="name" class="field-input" x-model="templateName" required', false)
         ->assertSee('data-base-template-control', false)
+        ->assertSee('@submit="prepareTemplateSubmit($event)"', false)
         ->assertSee('validateBeforeSubmit', false)
-        ->assertDontSee('novalidate', false)
+        ->assertSee('disableUnpostedControlsForValidation', false)
+        ->assertSee('boundedNumber(field.position_x, 50, 0, 100)', false)
+        ->assertSee('novalidate', false)
         ->assertSee('object-contain')
-        ->assertSee('const canvasWidth = Math.min', false)
+        ->assertSee('const canvasWidth = Math.max(320, Math.min(1400', false)
         ->assertDontSee('calc(72vh *', false);
 });
 
@@ -817,10 +838,10 @@ it('persists field text and typography updates without needing canvas movement',
                 'letter_spacing' => 0,
                 'text_align' => 'center',
                 'text_color' => '#780000',
-                'position_x' => $field->position_x,
-                'position_y' => $field->position_y,
-                'width' => $field->width,
-                'height' => $field->height,
+                'position_x' => 61.25,
+                'position_y' => 42.75,
+                'width' => 48.5,
+                'height' => 11.25,
                 'rotation' => $field->rotation,
                 'z_index' => $field->z_index,
                 'settings' => [
@@ -851,6 +872,10 @@ it('persists field text and typography updates without needing canvas movement',
         ->and($updatedField->preview_sample_value)->toBe('Nusrat Jahan')
         ->and($updatedField->font_size_min)->toBe(14)
         ->and($updatedField->font_size_max)->toBe(20)
+        ->and($updatedField->position_x)->toBe('61.25')
+        ->and($updatedField->position_y)->toBe('42.75')
+        ->and($updatedField->width)->toBe('48.50')
+        ->and($updatedField->height)->toBe('11.25')
         ->and($updatedField->settings['overflow_behavior'])->toBe('shrink_only')
         ->and($updatedField->settings['text_transform'])->toBe('uppercase');
 });

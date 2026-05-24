@@ -153,11 +153,8 @@
     action="{{ $isEdit ? route('admin.personalization.templates.update', $template) : route('admin.personalization.templates.store') }}"
     enctype="multipart/form-data"
     class="space-y-8"
-    @submit="
-        if (! validateBeforeSubmit($event)) return;
-        $el.querySelector('[name=fields_payload]').value = JSON.stringify(serializableFields());
-        $el.querySelector('[name=fonts_payload]').value  = JSON.stringify(serializableFonts());
-    "
+    novalidate
+    @submit="prepareTemplateSubmit($event)"
     x-data="nikahTemplateEditor({
         mode: @js($isEdit ? 'edit' : 'create'),
         templateName: @js(old('name', $template->name)),
@@ -1490,8 +1487,34 @@ document.addEventListener('alpine:init', () => {
         clearBaseAssetValidity() {
             this.$el.querySelector('[data-base-template-control]')?.setCustomValidity('');
         },
+        disableUnpostedControlsForValidation() {
+            const controls = [...this.$el.querySelectorAll('input:not([name]), select:not([name]), textarea:not([name])')]
+                .map((control) => [control, control.disabled]);
+
+            controls.forEach(([control]) => {
+                control.disabled = true;
+            });
+
+            return controls;
+        },
+        restoreValidationSkippedControls(controls) {
+            controls.forEach(([control, wasDisabled]) => {
+                control.disabled = wasDisabled;
+            });
+        },
+        prepareTemplateSubmit(event) {
+            if (! this.validateBeforeSubmit(event)) {
+                return false;
+            }
+
+            this.$el.querySelector('[name=fields_payload]').value = JSON.stringify(this.serializableFields());
+            this.$el.querySelector('[name=fonts_payload]').value = JSON.stringify(this.serializableFonts());
+
+            return true;
+        },
         validateBeforeSubmit(event) {
             const baseControl = this.$el.querySelector('[data-base-template-control]');
+            const skippedControls = this.disableUnpostedControlsForValidation();
 
             if (baseControl) {
                 baseControl.setCustomValidity('');
@@ -1505,11 +1528,25 @@ document.addEventListener('alpine:init', () => {
                 event.preventDefault();
                 event.stopPropagation();
                 this.$el.reportValidity();
+                this.restoreValidationSkippedControls(skippedControls);
 
                 return false;
             }
 
+            this.restoreValidationSkippedControls(skippedControls);
+
             return true;
+        },
+        finiteNumber(value, fallback = 0) {
+            const number = Number(value);
+
+            return Number.isFinite(number) ? number : fallback;
+        },
+        boundedNumber(value, fallback, min, max) {
+            return Math.min(max, Math.max(min, this.finiteNumber(value, fallback)));
+        },
+        decimalNumber(value, fallback = 0) {
+            return Number(this.finiteNumber(value, fallback).toFixed(2));
         },
         currentFieldTab(index) {
             return this.activeTabs[index] ?? 'basic';
@@ -1853,12 +1890,12 @@ document.addEventListener('alpine:init', () => {
                 letter_spacing: Number(field.letter_spacing ?? this.previewRules.default_letter_spacing ?? 0),
                 text_align: field.text_align ?? 'center',
                 text_color: field.text_color ?? '#780000',
-                position_x: Number(field.position_x ?? 50),
-                position_y: Number(field.position_y ?? 50),
-                width: Number(field.width ?? 56),
-                height: Number(field.height ?? 14),
-                rotation: Number(field.rotation ?? 0),
-                z_index: Number(field.z_index ?? index),
+                position_x: this.decimalNumber(this.boundedNumber(field.position_x, 50, 0, 100), 50),
+                position_y: this.decimalNumber(this.boundedNumber(field.position_y, 50, 0, 100), 50),
+                width: this.decimalNumber(this.boundedNumber(field.width, 56, 1, 100), 56),
+                height: this.decimalNumber(this.boundedNumber(field.height, 14, 1, 100), 14),
+                rotation: this.decimalNumber(this.boundedNumber(field.rotation, 0, -180, 180), 0),
+                z_index: Math.round(this.boundedNumber(field.z_index, index, 0, 1000)),
                 settings: {
                     auto_fit: field.settings?.auto_fit ? 1 : 0,
                     allow_multiline: field.settings?.allow_multiline ? 1 : 0,

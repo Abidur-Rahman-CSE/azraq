@@ -32,14 +32,18 @@
         ->values();
 
     $previewPresets = collect($template?->preview_data_presets ?? []);
+    $templateBaseArtworkUrl = $template?->baseArtworkUrl();
+    $templatePreviewArtworkUrl = $template?->previewArtworkUrl();
+    $templateThumbnailArtworkUrl = $template?->thumbnailArtworkUrl();
+    $templateRenderedPreviewUrl = $templateThumbnailArtworkUrl
+        ? $templateThumbnailArtworkUrl.'?v='.urlencode((string) optional($template?->updated_at)->timestamp)
+        : null;
 
     $templatePayload = $product->is_customizable && $template
         ? [
-            'base_template_url' => $template->base_template_url,
-            'preview_image_url' => $template->preview_image_url ?: $template->base_template_url,
-            'rendered_preview_url' => $template->thumbnail_image_url
-                ? $template->thumbnail_image_url.'?v='.urlencode((string) optional($template->updated_at)->timestamp)
-                : ($template->preview_image_url ?: $template->base_template_url),
+            'base_template_url' => $templateBaseArtworkUrl,
+            'preview_image_url' => $templatePreviewArtworkUrl,
+            'rendered_preview_url' => $templateRenderedPreviewUrl ?: $templatePreviewArtworkUrl ?: $templateBaseArtworkUrl,
             'export_ratio_width' => (int) ($template->export_ratio_width ?: 9),
             'export_ratio_height' => (int) ($template->export_ratio_height ?: 13),
             'editor_canvas_width' => 980,
@@ -123,7 +127,7 @@
     $storyVisual = data_get($product, 'story_image')
         ?: $product->storefront_preview_image_url
         ?: $product->featured_image_url
-        ?: ($product->is_customizable ? ($template?->preview_image_url ?: $template?->base_template_url) : ($primaryImage?->image_url));
+        ?: ($product->is_customizable ? ($templatePreviewArtworkUrl ?: $templateBaseArtworkUrl) : ($primaryImage?->image_url));
 
     $deliveryRows = [
         ['label' => 'Production time', 'value' => ($product->lead_time_days ?: 4).' to '.(($product->lead_time_days ?: 4) + 2).' business days'],
