@@ -173,6 +173,20 @@ it('updates a duplicated personalization template without requiring an assigned 
         ->and($duplicate->name)->toBe('Signature Nikah Template Copy Revised');
 });
 
+it('renders the safe scaling control on the personalization template form', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $template = PersonalizationTemplate::firstOrFail();
+
+    $this->get(route('admin.personalization.templates.edit', $template))
+        ->assertOk()
+        ->assertSee('name="preview_rules[safe_scale]"', false)
+        ->assertSee('Safe scaling')
+        ->assertSee('object-contain')
+        ->assertSee('const canvasWidth = Math.min', false)
+        ->assertDontSee('calc(72vh *', false);
+});
+
 it('loads the admin mockup manager with seeded Nikah mockups', function () {
     $this->seed(CatalogSeeder::class);
 
@@ -432,6 +446,47 @@ it('requires a base template image before saving a personalization template', fu
 
     $response->assertRedirect(route('admin.personalization.templates.edit', $template))
         ->assertSessionHasErrors('base_template_upload');
+});
+
+it('does not allow a pending upload to bypass base template removal validation', function () {
+    $this->seed(CatalogSeeder::class);
+    Storage::fake('public');
+
+    $template = PersonalizationTemplate::firstOrFail();
+
+    $response = $this->from(route('admin.personalization.templates.edit', $template))
+        ->put(route('admin.personalization.templates.update', $template), [
+            'product_id' => $template->product_id,
+            'name' => $template->name,
+            'remove_base_template' => 1,
+            'base_template_upload' => UploadedFile::fake()->image('stale-base.jpg', 1400, 2000),
+            'base_template_url' => '',
+            'preview_data_presets' => [
+                'bride_name' => 'Amena',
+                'groom_name' => 'Hassan',
+                'ceremony_date' => '12 December 2026',
+                'venue' => 'Dhaka',
+            ],
+            'fields' => [
+                [
+                    'label' => 'Bride Name',
+                    'field_key' => 'bride_name',
+                ],
+            ],
+            'fonts' => [
+                [
+                    'name' => 'Classic Serif',
+                    'css_font_family' => 'Cormorant Garamond, serif',
+                    'preview_label' => 'Classic Serif',
+                    'is_default' => 1,
+                ],
+            ],
+        ]);
+
+    $response->assertRedirect(route('admin.personalization.templates.edit', $template))
+        ->assertSessionHasErrors('base_template_upload');
+
+    expect($template->refresh()->base_template_url)->not->toBeNull();
 });
 
 it('updates an existing personalization template with a newly uploaded base image', function () {
@@ -983,7 +1038,7 @@ it('saves a draft without unpublishing an active personalization template', func
         'product_id' => $template->product_id,
         'name' => $template->name.' Draft Check',
         'save_mode' => 'draft',
-        'is_active' => 1,
+        'is_active' => 0,
         'base_template_url' => $template->base_template_url,
         'preview_image_url' => $template->preview_image_url,
         'mask_image_url' => $template->mask_image_url,
