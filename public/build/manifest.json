@@ -1,0 +1,55 @@
+{
+  "_chunk-DzMEjpoC.js": {
+    "file": "assets/chunk-DzMEjpoC.js",
+    "name": "chunk"
+  },
+  "_preload-helper-DeY0NW3A.js": {
+    "file": "assets/preload-helper-DeY0NW3A.js",
+    "name": "preload-helper"
+  },
+  "node_modules/perspectivejs/src/perspective.js": {
+    "file": "assets/perspective-De-HAvD4.js",
+    "name": "perspective",
+    "src": "node_modules/perspectivejs/src/perspective.js",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-DzMEjpoC.js"
+    ]
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-Co9KsUY1.css",
+    "name": "app",
+    "names": [
+      "app.css"
+    ],
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/admin/nikah-product-form.jsx": {
+    "file": "assets/nikah-product-form-B3OU9eUU.js",
+    "name": "nikah-product-form",
+    "src": "resources/js/admin/nikah-product-form.jsx",
+    "isDynamicEntry": true,
+    "imports": [
+      "_chunk-DzMEjpoC.js",
+      "_preload-helper-DeY0NW3A.js"
+    ],
+    "dynamicImports": [
+      "node_modules/perspectivejs/src/perspective.js"
+    ]
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-Cy9SDr5c.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "imports": [
+      "_chunk-DzMEjpoC.js",
+      "_preload-helper-DeY0NW3A.js"
+    ],
+    "dynamicImports": [
+      "node_modules/perspectivejs/src/perspective.js",
+      "resources/js/admin/nikah-product-form.jsx"
+    ]
+  }
+}
