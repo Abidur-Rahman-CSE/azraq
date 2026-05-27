@@ -171,6 +171,10 @@
 
                         <div class="flex flex-wrap items-center justify-start gap-3 xl:justify-end">
                             <a href="{{ route('admin.catalog.products.edit', $product) }}" class="button-ghost">Edit</a>
+                            <form method="POST" action="{{ route('admin.catalog.products.duplicate', $product) }}" onsubmit="return confirm('Duplicate this product as a draft?');">
+                                @csrf
+                                <button type="submit" class="button-ghost">Duplicate</button>
+                            </form>
                             <form method="POST" action="{{ route('admin.catalog.products.destroy', $product) }}" onsubmit="return confirm('Delete this product?');">
                                 @csrf
                                 @method('DELETE')

@@ -103,7 +103,7 @@ it('persists light customizable dynamic fields with preset values', function () 
                 'field_key' => 'manual_key_should_be_replaced',
                 'type' => 'textarea',
                 'is_required' => true,
-                'preset_values' => ['Bismillah', 'Alhamdulillah', 'Dua for barakah'],
+                'preset_values' => ['Bismillah, with love', 'Alhamdulillah', 'Dua for barakah'],
                 'help_text' => 'Printed on the front.',
             ],
         ]),
@@ -117,7 +117,7 @@ it('persists light customizable dynamic fields with preset values', function () 
         ->and($product->personalization_help_text)->toBe('Choose a quotation or write your own.')
         ->and($product->personalization_fields_blueprint)->toHaveCount(1)
         ->and($product->personalization_fields_blueprint[0]['field_key'])->toBe('quotation')
-        ->and($product->personalization_fields_blueprint[0]['preset_values'])->toBe(['Bismillah', 'Alhamdulillah', 'Dua for barakah']);
+        ->and($product->personalization_fields_blueprint[0]['preset_values'])->toBe(['Bismillah, with love', 'Alhamdulillah', 'Dua for barakah']);
 });
 
 it('filters the upgraded products index by product type', function () {
@@ -172,6 +172,48 @@ it('creates an advanced personalized product with template and mockup assignment
         ->and($product->personalizationTemplate?->id)->toBe($template->id)
         ->and($product->personalizationMockups()->count())->toBe(2)
         ->and($product->relatedCategories()->count())->toBe(1);
+});
+
+it('duplicates a product from the catalog index as a draft copy', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::with([
+        'images',
+        'variants',
+        'collections',
+        'tags',
+        'relatedProducts',
+        'relatedCategories',
+        'personalizationTemplate.fields',
+        'personalizationTemplate.fonts',
+        'personalizationMockups',
+    ])
+        ->where('type', ProductType::AdvancedPersonalized)
+        ->whereHas('personalizationTemplate')
+        ->firstOrFail();
+
+    $this->get(route('admin.catalog.products.index'))
+        ->assertOk()
+        ->assertSee('Duplicate');
+
+    $response = $this->post(route('admin.catalog.products.duplicate', $product));
+
+    $copy = Product::with(['images', 'variants', 'personalizationTemplate.fields', 'personalizationTemplate.fonts', 'personalizationMockups'])
+        ->where('slug', $product->slug.'-copy')
+        ->firstOrFail();
+
+    $response->assertRedirect(route('admin.catalog.products.edit', $copy));
+
+    expect($copy->name)->toBe($product->name.' Copy')
+        ->and($copy->status)->toBe('draft')
+        ->and($copy->sku)->toBe($product->sku ? $product->sku.'-COPY' : null)
+        ->and($copy->images)->toHaveCount($product->images->count())
+        ->and($copy->variants)->toHaveCount($product->variants->count())
+        ->and($copy->personalizationMockups)->toHaveCount($product->personalizationMockups->count())
+        ->and($copy->personalizationTemplate)->not->toBeNull()
+        ->and($copy->personalizationTemplate->id)->not->toBe($product->personalizationTemplate->id)
+        ->and($copy->personalizationTemplate->fields)->toHaveCount($product->personalizationTemplate->fields->count())
+        ->and($copy->personalizationTemplate->fonts)->toHaveCount($product->personalizationTemplate->fonts->count());
 });
 
 it('allows reusable mockups to be assigned from the product form without template matching', function () {

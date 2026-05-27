@@ -91,6 +91,8 @@ class PersonalizationTemplateRequest extends FormRequest
             'fields.*.settings.font_weight' => ['nullable', 'in:400,500,600,700,800'],
             'fields.*.settings.font_style'  => ['nullable', 'in:normal,italic'],
             'fields.*.settings.text_transform' => ['nullable', 'in:none,uppercase,lowercase,capitalize'],
+            'fields.*.settings.preset_values' => ['nullable', 'array'],
+            'fields.*.settings.preset_values.*' => ['nullable', 'string', 'max:255'],
             'fields.*.settings.field_type'   => ['nullable', 'in:text,date,static'],
             'fields.*.settings.date_format'  => ['nullable', 'in:long,us,numeric,ordinal'],
             'fields.*.settings.prefix'              => ['nullable', 'string', 'max:255'],

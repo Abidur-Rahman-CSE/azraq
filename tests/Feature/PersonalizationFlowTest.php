@@ -205,6 +205,8 @@ it('renders the safe scaling control on the personalization template form', func
         ->assertSee('@submit="prepareTemplateSubmit($event)"', false)
         ->assertSee('validateBeforeSubmit', false)
         ->assertSee('disableUnpostedControlsForValidation', false)
+        ->assertSee('Preset values')
+        ->assertSee('preset_values', false)
         ->assertSee('boundedNumber(field.position_x, 50, 0, 100)', false)
         ->assertSee('novalidate', false)
         ->assertSee('object-contain')
@@ -411,6 +413,9 @@ it('creates an upgraded personalization template with uploaded assets and fields
                 'width' => 70,
                 'height' => 10,
                 'rotation' => 0,
+                'settings' => [
+                    'preset_values' => ['Amena, daughter of Rahman', 'Fatima', 'Zainab'],
+                ],
             ],
         ],
         'fonts' => [
@@ -434,7 +439,15 @@ it('creates an upgraded personalization template with uploaded assets and fields
         ->and($template->mask_image_url)->not->toBeNull()
         ->and($template->preview_data_presets['bride_name'])->toBe('Sara')
         ->and($template->fields)->toHaveCount(1)
+        ->and($template->fields->first()->settings['preset_values'])->toBe(['Amena, daughter of Rahman', 'Fatima', 'Zainab'])
         ->and($template->fonts)->toHaveCount(1);
+
+    $this->get(route('admin.personalization.templates.edit', $template))
+        ->assertOk()
+        ->assertSee('Amena', false)
+        ->assertSee('daughter of Rahman', false)
+        ->assertSee('Fatima', false)
+        ->assertSee('Zainab', false);
 });
 
 it('requires a base template image before saving a personalization template', function () {

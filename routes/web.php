@@ -247,6 +247,7 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
         Route::resource('categories', CategoryController::class)->except('show');
         Route::resource('collections', CollectionController::class)->except('show');
         Route::resource('tags', TagController::class)->except('show');
+        Route::post('products/{product}/duplicate', [ProductController::class, 'duplicate'])->name('products.duplicate');
         Route::resource('products', ProductController::class)->except('show');
     });
 

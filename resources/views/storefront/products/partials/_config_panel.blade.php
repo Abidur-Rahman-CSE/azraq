@@ -37,6 +37,7 @@
                     @php
                         $fieldName = 'personalization.'.$field->field_key;
                         $isDate = str($field->field_key)->contains('date');
+                        $presetValues = collect(data_get($field->settings, 'preset_values', []))->filter(fn ($value) => filled($value))->values();
                     @endphp
                     <div class="space-y-2">
                         <div class="flex items-center justify-between gap-3">
@@ -45,6 +46,20 @@
                                 <span class="text-xs text-[#8C7F74]">Max {{ $field->max_length }}</span>
                             @endif
                         </div>
+
+                        @if ($presetValues->isNotEmpty())
+                            <div class="flex flex-wrap gap-2">
+                                @foreach ($presetValues as $presetValue)
+                                    <button
+                                        type="button"
+                                        class="rounded-full border border-[#E8E3DC] bg-[#FAF8F5] px-3 py-1.5 text-xs font-semibold text-[#8B2635] transition hover:border-[#8B2635]"
+                                        @click.prevent="fields['{{ $field->field_key }}'] = @js($presetValue); renderPreview()"
+                                    >
+                                        {{ $presetValue }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
 
                         @if ($isDate)
                             <input

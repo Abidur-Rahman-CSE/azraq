@@ -366,6 +366,7 @@
                             @php
                                 $fieldError = $errors->first('personalization.'.$field->field_key);
                                 $isMultiline = data_get($field->settings, 'allow_multiline', true) && (int) data_get($field->settings, 'max_lines', 1) > 1;
+                                $presetValues = collect(data_get($field->settings, 'preset_values', []))->filter(fn ($value) => filled($value))->values();
                             @endphp
                             <label class="field-shell rounded-[var(--radius-2xl)] border {{ $fieldError ? 'border-[rgba(180,35,24,0.35)] bg-[rgba(180,35,24,0.04)]' : 'border-[rgba(0,48,73,0.08)] bg-white/85' }} px-4 py-4">
                                 <div class="flex items-center justify-between gap-3">
@@ -377,6 +378,20 @@
                                         @endif
                                     </span>
                                 </div>
+
+                                @if ($presetValues->isNotEmpty())
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach ($presetValues as $presetValue)
+                                            <button
+                                                type="button"
+                                                class="button-pill !px-3 !py-1.5 !text-xs"
+                                                @click.prevent="fields['{{ $field->field_key }}'] = @js($presetValue); scheduleSceneRefresh()"
+                                            >
+                                                {{ $presetValue }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
 
                                 @if ($isMultiline)
                                     <textarea

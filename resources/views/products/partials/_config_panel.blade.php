@@ -72,6 +72,7 @@
                         $prefix     = data_get($field->settings, 'prefix', '');
                         $postfix    = data_get($field->settings, 'postfix', '');
                         $fieldMax   = $field->max_length ?: 100;
+                        $presetValues = collect(data_get($field->settings, 'preset_values', []))->filter(fn ($value) => filled($value))->values();
                     @endphp
 
                     {{-- Auto-computed date fields — hidden, filled by computeAutoDates --}}
@@ -98,6 +99,20 @@
                                 <span class="text-[10px] text-[var(--text-muted)]" x-text="`${(fields['{{ $fieldKey }}'] || '').length}/{{ $field->max_length }}`">{{ strlen((string) old($fieldName, '')) }}/{{ $field->max_length }}</span>
                             @endif
                         </div>
+
+                        @if ($presetValues->isNotEmpty())
+                            <div class="mb-2 flex flex-wrap gap-2">
+                                @foreach ($presetValues as $presetValue)
+                                    <button
+                                        type="button"
+                                        class="button-pill !px-3 !py-1.5 !text-xs"
+                                        @click.prevent="fields['{{ $fieldKey }}'] = @js($presetValue); renderPreview()"
+                                    >
+                                        {{ $presetValue }}
+                                    </button>
+                                @endforeach
+                            </div>
+                        @endif
 
                         @if ($isDate)
                             {{-- Date: inline flex like text fields so prefix/postfix stay on same line --}}

@@ -13,6 +13,7 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ServiceProductMeta;
 use App\Models\Tag;
+use App\Support\PersonalizationTemplateSnapshot;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -126,6 +127,84 @@ class ProductController extends Controller
         return redirect()->route('admin.catalog.products.index')->with('status', 'Product deleted.');
     }
 
+    public function duplicate(Product $product)
+    {
+        $product->load([
+            'collections',
+            'tags',
+            'relatedProducts',
+            'relatedCategories',
+            'variants',
+            'bundleItems',
+            'serviceMeta',
+            'images',
+            'personalizationTemplate.fields',
+            'personalizationTemplate.fonts',
+            'personalizationMockups',
+        ]);
+
+        $duplicate = DB::transaction(function () use ($product): Product {
+            $copy = $product->replicate();
+            $copy->name = $product->name.' Copy';
+            $copy->slug = $this->uniqueProductSlug($product->slug.'-copy');
+            $copy->sku = $this->uniqueProductSku($product->sku);
+            $copy->status = 'draft';
+            $copy->is_featured = false;
+            $copy->push();
+
+            $copy->collections()->sync($product->collections->pluck('id')->all());
+            $copy->tags()->sync($product->tags->pluck('id')->all());
+            $copy->relatedProducts()->sync($product->relatedProducts->pluck('id')->all());
+            $copy->relatedCategories()->sync($product->relatedCategories->pluck('id')->all());
+
+            foreach ($product->variants as $variant) {
+                $variantCopy = $variant->replicate();
+                $variantCopy->product_id = $copy->id;
+                $variantCopy->save();
+            }
+
+            foreach ($product->images as $image) {
+                $imageCopy = $image->replicate();
+                $imageCopy->product_id = $copy->id;
+                $imageCopy->save();
+            }
+
+            foreach ($product->bundleItems as $bundleItem) {
+                $bundleItemCopy = $bundleItem->replicate();
+                $bundleItemCopy->bundle_product_id = $copy->id;
+                $bundleItemCopy->save();
+            }
+
+            if ($product->serviceMeta) {
+                $serviceMetaCopy = $product->serviceMeta->replicate();
+                $serviceMetaCopy->product_id = $copy->id;
+                $serviceMetaCopy->save();
+            }
+
+            $copy->personalizationMockups()->sync(
+                $product->personalizationMockups
+                    ->mapWithKeys(fn (PersonalizationMockup $mockup) => [
+                        $mockup->id => [
+                            'sort_order' => (int) ($mockup->pivot?->sort_order ?? 0),
+                            'is_default' => (bool) ($mockup->pivot?->is_default ?? false),
+                        ],
+                    ])
+                    ->all()
+            );
+
+            if ($product->personalizationTemplate) {
+                $templateCopy = $this->duplicateTemplateForProduct($product->personalizationTemplate, $copy);
+                PersonalizationTemplateSnapshot::regenerate($templateCopy);
+            }
+
+            return $copy;
+        });
+
+        return redirect()
+            ->route('admin.catalog.products.edit', $duplicate)
+            ->with('status', 'Product duplicated as a draft.');
+    }
+
     private function formData(Product $product): array
     {
         $activeTemplateQuery = PersonalizationTemplate::with([
@@ -231,6 +310,121 @@ class ProductController extends Controller
             })
             ->values()
             ->all();
+    }
+
+    private function uniqueProductSlug(string $baseSlug): string
+    {
+        $baseSlug = Str::slug($baseSlug) ?: 'product-copy';
+        $candidate = $baseSlug;
+        $suffix = 2;
+
+        while (Product::where('slug', $candidate)->exists()) {
+            $candidate = $baseSlug.'-'.$suffix;
+            $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    private function uniqueProductSku(?string $sku): ?string
+    {
+        if (! filled($sku)) {
+            return null;
+        }
+
+        $baseSku = Str::limit($sku.'-COPY', 240, '');
+        $candidate = $baseSku;
+        $suffix = 2;
+
+        while (Product::where('sku', $candidate)->exists()) {
+            $candidate = Str::limit($baseSku.'-'.$suffix, 255, '');
+            $suffix++;
+        }
+
+        return $candidate;
+    }
+
+    private function duplicateTemplateForProduct(PersonalizationTemplate $template, Product $product): PersonalizationTemplate
+    {
+        $copy = PersonalizationTemplate::create([
+            ...collect($template->only([
+                'base_template_url',
+                'preview_image_url',
+                'mask_image_url',
+                'export_ratio_width',
+                'export_ratio_height',
+                'preview_rules',
+                'render_rules',
+                'preview_data_presets',
+                'instructions',
+                'safe_zone_notes',
+                'proof_note_label',
+            ]))->all(),
+            'product_id' => $product->id,
+            'name' => $template->name.' Copy',
+            'thumbnail_image_url' => null,
+            'is_active' => false,
+        ]);
+
+        foreach ($template->fields as $index => $field) {
+            $copy->fields()->create([
+                ...collect($field->only([
+                    'label',
+                    'field_key',
+                    'placeholder',
+                    'help_text',
+                    'default_value',
+                    'is_required',
+                    'max_length',
+                    'min_length',
+                    'font_size_min',
+                    'font_size_max',
+                    'line_height',
+                    'letter_spacing',
+                    'text_align',
+                    'text_color',
+                    'position_x',
+                    'position_y',
+                    'width',
+                    'height',
+                    'rotation',
+                    'z_index',
+                    'preview_sample_value',
+                    'settings',
+                ]))->all(),
+                'position' => $index,
+            ]);
+        }
+
+        foreach ($template->fonts as $index => $font) {
+            $copy->fonts()->create([
+                ...collect($font->only([
+                    'name',
+                    'internal_name',
+                    'css_font_family',
+                    'preview_label',
+                    'font_family',
+                    'font_source_type',
+                    'font_source_value',
+                    'category',
+                    'style_type',
+                    'supported_use',
+                    'preview_sample_text',
+                    'font_weight_default',
+                    'font_style_default',
+                    'letter_spacing_default',
+                    'line_height_default',
+                    'text_transform_default',
+                    'recommended_for',
+                    'sort_order',
+                    'is_default',
+                    'is_active',
+                ]))->all(),
+                'position' => $index,
+            ]);
+        }
+
+        return $copy;
     }
 
     private function syncProductRelations(Product $product, array $data): void

@@ -279,6 +279,11 @@ class PersonalizationTemplateController extends Controller
                     'font_weight' => data_get($field, 'settings.font_weight', '600'),
                     'font_style'  => data_get($field, 'settings.font_style', 'normal'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
+                    'preset_values' => collect(data_get($field, 'settings.preset_values', []))
+                        ->map(fn ($value) => trim((string) $value))
+                        ->filter()
+                        ->values()
+                        ->all(),
                     'field_type' => data_get($field, 'settings.field_type', 'text'),
                     'date_format' => data_get($field, 'settings.date_format', 'long'),
                     'prefix'              => data_get($field, 'settings.prefix', ''),

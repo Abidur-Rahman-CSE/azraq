@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\Product;
+use App\Models\PersonalizationTemplate;
 use App\Support\ComboPricing;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -127,9 +128,23 @@ it('adds and removes products from the wishlist', function () {
 it('shows the dedicated advanced personalized pdp instead of the standard flow', function () {
     $this->seed(CatalogSeeder::class);
 
+    $template = PersonalizationTemplate::whereHas('product', fn ($query) => $query->where('slug', 'signature-nikah-nama'))
+        ->with('fields')
+        ->firstOrFail();
+    $field = $template->fields->firstOrFail();
+    $field->update([
+        'settings' => [
+            ...($field->settings ?? []),
+            'preset_values' => ['Bismillah', 'Alhamdulillah'],
+        ],
+    ]);
+
     $this->get('/products/signature-nikah-nama')
         ->assertOk()
-        ->assertSee('Add personalized order');
+        ->assertSee('Add personalized order')
+        ->assertSee('Bismillah')
+        ->assertSee('Alhamdulillah')
+        ->assertDontSee('Choose preset');
 });
 
 it('shows the dedicated light customizable pdp instead of the standard flow', function () {
@@ -153,7 +168,8 @@ it('shows the dedicated light customizable pdp instead of the standard flow', fu
         ->assertSee('Personalize this detail')
         ->assertSee('Quotation')
         ->assertSee('Bismillah')
-        ->assertSee('Add personalized item');
+        ->assertSee('Add personalized item')
+        ->assertDontSee('Choose preset');
 });
 
 it('adds a light customizable product using a dynamic field value', function () {

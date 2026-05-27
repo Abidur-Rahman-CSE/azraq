@@ -61,6 +61,11 @@
                     'font_weight' => (string) data_get($field, 'settings.font_weight', '600'),
                     'font_style'  => data_get($field, 'settings.font_style', 'normal'),
                     'text_transform' => data_get($field, 'settings.text_transform', 'none'),
+                    'preset_values' => collect(data_get($field, 'settings.preset_values', []))
+                        ->map(fn ($value) => is_array($value) ? ($value['value'] ?? $value['label'] ?? '') : $value)
+                        ->filter(fn ($value) => filled($value))
+                        ->values()
+                        ->all(),
                     'field_type' => data_get($field, 'settings.field_type', 'text'),
                     'date_format' => data_get($field, 'settings.date_format', 'long'),
                     'prefix'               => data_get($field, 'settings.prefix', ''),
@@ -80,10 +85,10 @@
         })
         ->whenEmpty(fn ($collection) => $collection->push(
             ...[
-                ['id'=>1,'label'=>'Bride name','field_key'=>'bride_name','placeholder'=>'Enter bride name','help_text'=>'','default_value'=>'Amena','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>35,'width'=>58,'height'=>12,'rotation'=>0,'z_index'=>0,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'700','font_style'=>'normal','text_transform'=>'uppercase']],
-                ['id'=>2,'label'=>'Groom name','field_key'=>'groom_name','placeholder'=>'Enter groom name','help_text'=>'','default_value'=>'Hassan','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>45,'width'=>58,'height'=>12,'rotation'=>0,'z_index'=>1,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'700','font_style'=>'normal','text_transform'=>'uppercase']],
-                ['id'=>3,'label'=>'Ceremony date','field_key'=>'ceremony_date','placeholder'=>'Enter ceremony date','help_text'=>'','default_value'=>'12 December 2026','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>57,'width'=>52,'height'=>12,'rotation'=>0,'z_index'=>2,'settings'=>['field_type'=>'date','date_format'=>'long','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'600','font_style'=>'normal','text_transform'=>'none']],
-                ['id'=>4,'label'=>'Venue','field_key'=>'venue','placeholder'=>'Enter venue','help_text'=>'','default_value'=>'Dhaka, Bangladesh','preview_sample_value'=>'','is_required'=>false,'max_length'=>150,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>65,'width'=>60,'height'=>12,'rotation'=>0,'z_index'=>3,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>true,'max_lines'=>2,'overflow_behavior'=>'shrink_then_wrap','font_family_override'=>'','font_weight'=>'600','font_style'=>'normal','text_transform'=>'none']],
+                ['id'=>1,'label'=>'Bride name','field_key'=>'bride_name','placeholder'=>'Enter bride name','help_text'=>'','default_value'=>'Amena','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>35,'width'=>58,'height'=>12,'rotation'=>0,'z_index'=>0,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'700','font_style'=>'normal','text_transform'=>'uppercase','preset_values'=>[]]],
+                ['id'=>2,'label'=>'Groom name','field_key'=>'groom_name','placeholder'=>'Enter groom name','help_text'=>'','default_value'=>'Hassan','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>45,'width'=>58,'height'=>12,'rotation'=>0,'z_index'=>1,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'700','font_style'=>'normal','text_transform'=>'uppercase','preset_values'=>[]]],
+                ['id'=>3,'label'=>'Ceremony date','field_key'=>'ceremony_date','placeholder'=>'Enter ceremony date','help_text'=>'','default_value'=>'12 December 2026','preview_sample_value'=>'','is_required'=>true,'max_length'=>100,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>57,'width'=>52,'height'=>12,'rotation'=>0,'z_index'=>2,'settings'=>['field_type'=>'date','date_format'=>'long','auto_fit'=>true,'allow_multiline'=>false,'max_lines'=>1,'overflow_behavior'=>'shrink_only','font_family_override'=>'','font_weight'=>'600','font_style'=>'normal','text_transform'=>'none','preset_values'=>[]]],
+                ['id'=>4,'label'=>'Venue','field_key'=>'venue','placeholder'=>'Enter venue','help_text'=>'','default_value'=>'Dhaka, Bangladesh','preview_sample_value'=>'','is_required'=>false,'max_length'=>150,'min_length'=>0,'font_size_min'=>(int)$previewRules['default_min_font_size'],'font_size_max'=>(int)$previewRules['default_max_font_size'],'line_height'=>(float)$previewRules['default_line_height'],'letter_spacing'=>(float)$previewRules['default_letter_spacing'],'text_align'=>'center','text_color'=>'#780000','position_x'=>50,'position_y'=>65,'width'=>60,'height'=>12,'rotation'=>0,'z_index'=>3,'settings'=>['field_type'=>'text','auto_fit'=>true,'allow_multiline'=>true,'max_lines'=>2,'overflow_behavior'=>'shrink_then_wrap','font_family_override'=>'','font_weight'=>'600','font_style'=>'normal','text_transform'=>'none','preset_values'=>[]]],
             ]
         ))
         ->all();
@@ -875,6 +880,30 @@
                                 <label class="field-shell"><span class="text-sm font-medium text-[var(--color-secondary-900)]">Z-index</span><input type="number" min="0" class="field-input" x-model.number="field.z_index"></label>
                             </div>
 
+                            <div x-show="currentFieldTab(index) === 'presets'" class="space-y-3">
+                                <div class="rounded-[20px] border border-[rgba(120,0,0,0.10)] bg-[rgba(253,240,213,0.42)] p-4">
+                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Preset values</p>
+                                    <p class="mt-1 text-xs leading-5 text-[var(--color-text-soft)]">Add one suggestion per line. Customers can click a suggestion or type their own value.</p>
+                                </div>
+
+                                <label class="field-shell">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Suggestions</span>
+                                    <textarea
+                                        class="field-input"
+                                        rows="5"
+                                        x-model="field.settings.preset_values_text"
+                                        @input="field.settings.preset_values = normalizePresetValues(field.settings.preset_values_text)"
+                                        placeholder="Bismillah&#10;Alhamdulillah&#10;Dua for barakah"
+                                    ></textarea>
+                                </label>
+
+                                <div x-show="field.settings.preset_values.length" class="flex flex-wrap gap-2">
+                                    <template x-for="presetValue in field.settings.preset_values" :key="presetValue">
+                                        <button type="button" class="button-ghost !px-3 !py-1.5 !text-xs" @click="field.preview_sample_value = presetValue" x-text="presetValue"></button>
+                                    </template>
+                                </div>
+                            </div>
+
                             <div x-show="currentFieldTab(index) === 'typography'" class="template-field-typography grid gap-3">
                                 <label class="field-shell"><span class="text-sm font-medium text-[var(--color-secondary-900)]">Color</span><input class="field-input" x-model="field.text_color"></label>
                                 <div class="field-shell template-font-family-control">
@@ -1266,6 +1295,7 @@ document.addEventListener('alpine:init', () => {
         activeFieldId: null,
         fieldTabs: [
             { key: 'basic', label: 'Basic' },
+            { key: 'presets', label: 'Presets' },
             { key: 'prefix_postfix', label: 'Pre / Post' },
             { key: 'layout', label: 'Layout' },
             { key: 'typography', label: 'Typography' },
@@ -1346,6 +1376,8 @@ document.addEventListener('alpine:init', () => {
                     font_weight: String(field.settings?.font_weight ?? '600'),
                     font_style:  field.settings?.font_style ?? 'normal',
                     text_transform: field.settings?.text_transform ?? 'none',
+                    preset_values: this.normalizePresetValues(field.settings?.preset_values ?? field.preset_values ?? []),
+                    preset_values_text: this.normalizePresetValues(field.settings?.preset_values ?? field.preset_values ?? []).join('\n'),
                     date_format: field.settings?.date_format ?? 'long',
                     prefix:              field.settings?.prefix ?? '',
                     prefix_size:         Number(field.settings?.prefix_size ?? 0),
@@ -1686,6 +1718,8 @@ document.addEventListener('alpine:init', () => {
                     font_weight: inheritedSettings.settings_font_weight || '600',
                     font_style:  inheritedSettings.settings_font_style  || 'normal',
                     text_transform: inheritedSettings.settings_text_transform ?? (preset?.transform ?? 'none'),
+                    preset_values: [],
+                    preset_values_text: '',
                 },
                 z_index: nextIndex,
             }, nextIndex);
@@ -1884,6 +1918,23 @@ document.addEventListener('alpine:init', () => {
                 this.syncFontBounds(field, 'max');
             });
         },
+        normalizePresetValues(value) {
+            if (Array.isArray(value)) {
+                return value
+                    .map((item) => typeof item === 'string' ? item : (item?.value ?? item?.label ?? ''))
+                    .map((item) => `${item}`.trim())
+                    .filter(Boolean);
+            }
+
+            if (typeof value === 'string') {
+                return value
+                    .split(/\r?\n/)
+                    .map((item) => item.trim())
+                    .filter(Boolean);
+            }
+
+            return [];
+        },
         serializableFields() {
             return this.fields.map((field, index) => ({
                 label: field.label ?? '',
@@ -1916,6 +1967,7 @@ document.addEventListener('alpine:init', () => {
                     font_weight: field.settings?.font_weight ?? '600',
                     font_style:  field.settings?.font_style ?? 'normal',
                     text_transform: field.settings?.text_transform ?? 'none',
+                    preset_values: this.normalizePresetValues(field.settings?.preset_values_text ?? field.settings?.preset_values ?? []),
                     field_type: field.field_type ?? 'text',
                     date_format: field.settings?.date_format ?? 'long',
                     prefix:              field.settings?.prefix ?? '',
