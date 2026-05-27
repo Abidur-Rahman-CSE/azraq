@@ -47,6 +47,13 @@
                 'field_key' => $field['field_key'] ?? $field['key'] ?? null,
                 'type' => $field['type'] ?? data_get($field, 'settings.input_type'),
                 'is_required' => (bool) ($field['is_required'] ?? $field['required'] ?? false),
+                'help_text' => $field['help_text'] ?? $field['help'] ?? '',
+                'preset_values' => collect($field['preset_values'] ?? $field['options'] ?? $field['values'] ?? $field['choices'] ?? [])
+                    ->map(fn ($value) => is_array($value) ? ($value['value'] ?? $value['label'] ?? '') : $value)
+                    ->filter(fn ($value) => filled($value))
+                    ->values()
+                    ->all(),
+                'allow_custom_value' => (bool) ($field['allow_custom_value'] ?? $field['allow_custom'] ?? true),
             ];
         })
         ->values()

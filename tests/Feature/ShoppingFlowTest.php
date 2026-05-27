@@ -135,10 +135,55 @@ it('shows the dedicated advanced personalized pdp instead of the standard flow',
 it('shows the dedicated light customizable pdp instead of the standard flow', function () {
     $this->seed(CatalogSeeder::class);
 
+    Product::where('slug', 'customized-pen')->firstOrFail()->update([
+        'personalization_help_text' => 'Pick a sample or write your own detail.',
+        'personalization_fields_blueprint' => [
+            [
+                'label' => 'Quotation',
+                'field_key' => 'quotation',
+                'type' => 'textarea',
+                'is_required' => true,
+                'preset_values' => ['Bismillah', 'Alhamdulillah'],
+            ],
+        ],
+    ]);
+
     $this->get('/products/customized-pen')
         ->assertOk()
         ->assertSee('Personalize this detail')
+        ->assertSee('Quotation')
+        ->assertSee('Bismillah')
         ->assertSee('Add personalized item');
+});
+
+it('adds a light customizable product using a dynamic field value', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'customized-pen')->firstOrFail();
+    $product->update([
+        'personalization_fields_blueprint' => [
+            [
+                'label' => 'Quotation',
+                'field_key' => 'quotation',
+                'type' => 'textarea',
+                'is_required' => true,
+                'preset_values' => ['Bismillah', 'Alhamdulillah'],
+            ],
+        ],
+    ]);
+
+    $this->from(route('products.show', $product))
+        ->post(route('cart.store', $product), [
+            'quantity' => 1,
+            'personalization' => [
+                'quotation' => 'My own dua',
+            ],
+        ])
+        ->assertRedirect(route('cart.index'));
+
+    $this->get(route('cart.index'))
+        ->assertOk()
+        ->assertSee('Quotation: My own dua');
 });
 
 it('shows the dedicated bundle pdp instead of redirecting back to the shop page', function () {

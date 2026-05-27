@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 
 const ADVANCED_TYPE = 'advanced_personalized';
+const LIGHT_TYPE = 'light_customizable';
 const GENERAL_DEFAULT_TYPE = 'standard';
 const META_TITLE_SUFFIX = ' | Azraq Bridal';
 const STATUS_OPTIONS = [
@@ -16,6 +17,14 @@ const DEFAULT_FIELDS = [
     { label: 'Bride name', field_key: 'bride_name', type: 'text', is_required: true },
     { label: 'Groom name', field_key: 'groom_name', type: 'text', is_required: true },
     { label: 'Nikah date', field_key: 'nikah_date', type: 'date', is_required: true },
+];
+const LIGHT_FIELD_TYPES = [
+    { value: 'text', label: 'Short text' },
+    { value: 'textarea', label: 'Long text' },
+    { value: 'date', label: 'Date' },
+    { value: 'number', label: 'Number' },
+    { value: 'email', label: 'Email' },
+    { value: 'tel', label: 'Phone' },
 ];
 
 function createCanvas(width, height) {
@@ -263,6 +272,14 @@ function uid(prefix) {
     return `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function snakeCaseFieldKey(value) {
+    return `${value || ''}`
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
 function inferFieldType(field) {
     const explicitType = field.type || field.field_type || field.input_type || field.settings?.input_type;
 
@@ -281,15 +298,61 @@ function inferFieldType(field) {
 
 function normalizeField(field, index = 0) {
     const label = field.label || field.name || `Field ${index + 1}`;
-    const keyBase = field.field_key || field.key || label.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    const presetValues = normalizePresetValues(field.preset_values ?? field.options ?? field.values ?? field.choices ?? []);
+    const keyBase = snakeCaseFieldKey(field.field_key || field.key || label) || `field_${index + 1}`;
 
     return {
         id: field.id || uid('field'),
         label,
-        field_key: keyBase || `field_${index + 1}`,
+        field_key: keyBase,
         type: inferFieldType(field),
         is_required: Boolean(field.is_required ?? field.required ?? false),
+        help_text: field.help_text || field.help || '',
+        preset_values: presetValues,
+        preset_values_text: typeof field.preset_values_text === 'string' ? field.preset_values_text : presetValues.join('\n'),
+        allow_custom_value: field.allow_custom_value ?? field.allow_custom ?? true,
     };
+}
+
+function normalizePresetValues(value) {
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => (typeof item === 'string' ? item : (item?.value ?? item?.label ?? '')))
+            .map((item) => `${item}`.trim())
+            .filter(Boolean);
+    }
+
+    if (typeof value === 'string') {
+        return value
+            .split(/\r?\n|,/)
+            .map((item) => item.trim())
+            .filter(Boolean);
+    }
+
+    return [];
+}
+
+function presetValuesText(field) {
+    return typeof field.preset_values_text === 'string'
+        ? field.preset_values_text
+        : normalizePresetValues(field.preset_values).join('\n');
+}
+
+function serializePersonalizationFields(fields) {
+    return fields.map((field, index) => {
+        const label = field.label || `Custom field ${index + 1}`;
+
+        return {
+            id: field.id,
+            label,
+            field_key: snakeCaseFieldKey(label) || `custom_field_${index + 1}`,
+            type: field.type || 'text',
+            is_required: Boolean(field.is_required),
+            help_text: field.help_text || '',
+            preset_values: normalizePresetValues(field.preset_values_text ?? field.preset_values ?? []),
+            allow_custom_value: field.allow_custom_value ?? true,
+        };
+    });
 }
 
 function fieldsFromDesign(design) {
@@ -1563,6 +1626,98 @@ function ServiceMetaEditor({ meta, onUpdate }) {
     );
 }
 
+function LightCustomizationEditor({ fields, helpText, onHelpTextChange, onAddField, onRemoveField, onUpdateField }) {
+    return (
+        <section className="nikah-step-card">
+            <div className="nikah-step-card__heading">
+                <span className="nikah-step-card__step">5</span>
+                <div>
+                    <h3>Light custom fields</h3>
+                    <p>Create simple customer inputs for this product. Preset values act as quick suggestions; customers can still write their own.</p>
+                </div>
+            </div>
+
+            <label className="nikah-field">
+                <span>Customer help text</span>
+                <textarea
+                    name="personalization_help_text"
+                    rows="3"
+                    value={helpText}
+                    onChange={(event) => onHelpTextChange(event.target.value)}
+                    placeholder="Explain what the customer can customize."
+                />
+            </label>
+
+            <div className="light-field-editor">
+                {fields.length ? fields.map((field, index) => (
+                    <article key={field.id} className="light-field-card">
+                        <div className="light-field-card__header">
+                            <div>
+                                <strong>{field.label || `Custom field ${index + 1}`}</strong>
+                                <span>{field.field_key || `field_${index + 1}`}</span>
+                            </div>
+                            <button type="button" className="variant-icon-button variant-icon-button--danger" onClick={() => onRemoveField(field.id)} aria-label={`Remove ${field.label || 'field'}`}>
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="nikah-form__grid nikah-form__grid--two">
+                            <label className="nikah-field">
+                                <span>Field label</span>
+                                <input value={field.label} onChange={(event) => onUpdateField(field.id, 'label', event.target.value)} placeholder="Quotation" />
+                            </label>
+
+                            <label className="nikah-field">
+                                <span>Field key</span>
+                                <input value={snakeCaseFieldKey(field.label) || field.field_key || `custom_field_${index + 1}`} readOnly aria-readonly="true" />
+                                <small>Generated automatically from the field label.</small>
+                            </label>
+
+                            <label className="nikah-field">
+                                <span>Field type</span>
+                                <select value={field.type || 'text'} onChange={(event) => onUpdateField(field.id, 'type', event.target.value)}>
+                                    {LIGHT_FIELD_TYPES.map((type) => (
+                                        <option key={type.value} value={type.value}>{type.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label className="general-checkbox">
+                                <input
+                                    type="checkbox"
+                                    checked={Boolean(field.is_required)}
+                                    onChange={(event) => onUpdateField(field.id, 'is_required', event.target.checked)}
+                                />
+                                Required field
+                            </label>
+
+                            <label className="nikah-field nikah-form__span-two">
+                                <span>Preset values</span>
+                                <textarea
+                                    rows="3"
+                                    value={presetValuesText(field)}
+                                    onChange={(event) => onUpdateField(field.id, 'preset_values_text', event.target.value)}
+                                    placeholder={'One value per line, for example:\nBismillah quote\nAmeen note\nCustom dua'}
+                                />
+                                <small>Customers can choose one of these suggestions or type their own answer.</small>
+                            </label>
+
+                            <label className="nikah-field nikah-form__span-two">
+                                <span>Help text</span>
+                                <input value={field.help_text || ''} onChange={(event) => onUpdateField(field.id, 'help_text', event.target.value)} placeholder="Optional hint shown under this field" />
+                            </label>
+                        </div>
+                    </article>
+                )) : (
+                    <div className="nikah-empty-note">No custom fields yet. Add a field for names, quotations, dates, or any short order detail.</div>
+                )}
+            </div>
+
+            <button type="button" className="nikah-add-field" onClick={onAddField}>Add custom field</button>
+        </section>
+    );
+}
+
 function SharedSeoCard({ metaTitle, onMetaTitleChange, metaDescription, onMetaDescriptionChange, errors, step }) {
     return (
         <section className="nikah-step-card">
@@ -1691,6 +1846,7 @@ function NikahProductForm({ payload }) {
     const metaDescriptionManualRef = useRef(Boolean(product.metaDescription) && product.metaDescription !== initialGeneratedMetaDescription);
 
     const isAdvancedMode = currentType === ADVANCED_TYPE;
+    const isLightMode = currentType === LIGHT_TYPE;
     const editorHeading = isAdvancedMode
         ? page.advancedHeading
         : page.generalHeading;
@@ -1741,6 +1897,7 @@ function NikahProductForm({ payload }) {
         { id: 'variants', label: 'Variants' },
         ...(currentType === 'bundle' ? [{ id: 'combo', label: 'Combo' }] : []),
         ...(currentType === 'service' ? [{ id: 'service', label: 'Service' }] : []),
+        ...(isLightMode ? [{ id: 'custom_fields', label: 'Custom fields' }] : []),
         { id: 'media', label: 'Media' },
         { id: 'seo', label: 'SEO' },
     ];
@@ -1907,9 +2064,29 @@ function NikahProductForm({ payload }) {
     }
 
     function updateField(fieldId, key, value) {
-        setPersonalizationFields((currentFields) => currentFields.map((field) => (
-            field.id === fieldId ? { ...field, [key]: value } : field
-        )));
+        setPersonalizationFields((currentFields) => currentFields.map((field) => {
+            if (field.id !== fieldId) {
+                return field;
+            }
+
+            if (key === 'label') {
+                return {
+                    ...field,
+                    label: value,
+                    field_key: snakeCaseFieldKey(value),
+                };
+            }
+
+            if (key === 'preset_values_text') {
+                return {
+                    ...field,
+                    preset_values_text: value,
+                    preset_values: normalizePresetValues(value),
+                };
+            }
+
+            return { ...field, [key]: value };
+        }));
     }
 
     function addVariant(presetOptionNames = []) {
@@ -2062,6 +2239,10 @@ function NikahProductForm({ payload }) {
                 field_key: `custom_field_${currentFields.length + 1}`,
                 type: 'text',
                 is_required: false,
+                help_text: '',
+                preset_values: [],
+                preset_values_text: '',
+                allow_custom_value: true,
             },
         ]);
     }
@@ -2105,7 +2286,7 @@ function NikahProductForm({ payload }) {
             <input type="hidden" name="gallery_default_source" value={isAdvancedMode ? 'selected_mockup' : 'manual_featured_image'} />
             <input type="hidden" name="assigned_template_id" value={isAdvancedMode ? selectedDesignId || '' : ''} />
             <input type="hidden" name="default_mockup_id" value={isAdvancedMode ? defaultMockupId || '' : ''} />
-            <input type="hidden" name="personalization_fields_blueprint" value={isAdvancedMode ? JSON.stringify(personalizationFields) : ''} />
+            <input type="hidden" name="personalization_fields_blueprint" value={(isAdvancedMode || isLightMode) ? JSON.stringify(serializePersonalizationFields(personalizationFields)) : ''} />
 
             {selectedCollections.map((collectionId) => (
                 <input key={`collection-${collectionId}`} type="hidden" name="collection_ids[]" value={collectionId} />
@@ -2868,6 +3049,19 @@ function NikahProductForm({ payload }) {
 
                                 <ServiceMetaEditor meta={serviceMeta} onUpdate={updateServiceMeta} />
                             </section>
+                        ) : null}
+
+                        {isLightMode ? (
+                            <div hidden={generalTab !== 'custom_fields'}>
+                                <LightCustomizationEditor
+                                    fields={personalizationFields}
+                                    helpText={personalizationHelpText}
+                                    onHelpTextChange={setPersonalizationHelpText}
+                                    onAddField={addField}
+                                    onRemoveField={removeField}
+                                    onUpdateField={updateField}
+                                />
+                            </div>
                         ) : null}
 
                         <section className="nikah-step-card" hidden={generalTab !== 'media'}>

@@ -81,6 +81,45 @@ it('creates a product with a subtype-aware payload', function () {
         ->and($product->images)->toHaveCount(2);
 });
 
+it('persists light customizable dynamic fields with preset values', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $category = Category::firstOrFail();
+
+    $response = $this->post('/admin/catalog/products', [
+        'category_id' => $category->id,
+        'name' => 'Custom Quote Card',
+        'slug' => 'custom-quote-card',
+        'type' => ProductType::LightCustomizable->value,
+        'status' => 'active',
+        'price' => 750,
+        'manage_stock' => true,
+        'stock_quantity' => 8,
+        'low_stock_threshold' => 1,
+        'personalization_help_text' => 'Choose a quotation or write your own.',
+        'personalization_fields_blueprint' => json_encode([
+            [
+                'label' => 'Quotation',
+                'field_key' => 'manual_key_should_be_replaced',
+                'type' => 'textarea',
+                'is_required' => true,
+                'preset_values' => ['Bismillah', 'Alhamdulillah', 'Dua for barakah'],
+                'help_text' => 'Printed on the front.',
+            ],
+        ]),
+    ]);
+
+    $response->assertRedirect();
+
+    $product = Product::where('slug', 'custom-quote-card')->firstOrFail();
+
+    expect($product->type)->toBe(ProductType::LightCustomizable)
+        ->and($product->personalization_help_text)->toBe('Choose a quotation or write your own.')
+        ->and($product->personalization_fields_blueprint)->toHaveCount(1)
+        ->and($product->personalization_fields_blueprint[0]['field_key'])->toBe('quotation')
+        ->and($product->personalization_fields_blueprint[0]['preset_values'])->toBe(['Bismillah', 'Alhamdulillah', 'Dua for barakah']);
+});
+
 it('filters the upgraded products index by product type', function () {
     $this->seed(CatalogSeeder::class);
 

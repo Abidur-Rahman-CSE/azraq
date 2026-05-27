@@ -1,5 +1,26 @@
-@php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
-@php($galleryImages = $product->images->take(4))
+@php
+    $primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first();
+    $galleryImages = $product->images->take(4);
+    $customFields = collect($product->personalization_fields_blueprint ?? [])
+        ->map(function ($field, $index) {
+            $label = $field['label'] ?? $field['name'] ?? 'Custom field';
+            $key = $field['field_key'] ?? $field['key'] ?? str($label)->slug('_')->toString();
+
+            return [
+                'label' => $label,
+                'key' => $key ?: 'custom_field_'.$index,
+                'type' => $field['type'] ?? 'text',
+                'is_required' => (bool) ($field['is_required'] ?? $field['required'] ?? false),
+                'help_text' => $field['help_text'] ?? $field['help'] ?? '',
+                'preset_values' => collect($field['preset_values'] ?? $field['options'] ?? $field['values'] ?? $field['choices'] ?? [])
+                    ->map(fn ($value) => is_array($value) ? ($value['value'] ?? $value['label'] ?? '') : $value)
+                    ->filter(fn ($value) => filled($value))
+                    ->values(),
+            ];
+        })
+        ->filter(fn ($field) => filled($field['key']))
+        ->values();
+@endphp
 
 <x-layouts.product-detail
     :title="$product->name.' | '.config('brand.name')"
@@ -91,11 +112,68 @@
                         <span class="text-xs uppercase tracking-[0.18em] text-[var(--color-text-soft)]">Simple add-on flow</span>
                     </div>
 
-                    <label class="mt-5 block space-y-2">
-                        <span class="text-sm font-semibold text-[var(--color-secondary-900)]">Engraving or short text</span>
-                        <input type="text" name="custom_text" value="{{ old('custom_text') }}" maxlength="120" placeholder="Enter a short name or message" class="field-input">
-                        <span class="text-xs text-[var(--color-text-soft)]">Keep this concise for compact items like pens and gifting add-ons. Maximum 120 characters.</span>
-                    </label>
+                    @if ($product->personalization_help_text)
+                        <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">{{ $product->personalization_help_text }}</p>
+                    @endif
+
+                    <div class="mt-5 space-y-4">
+                        @forelse ($customFields as $field)
+                            @php($fieldId = 'personalization_'.$field['key'])
+                            <div class="space-y-2" x-data="{ value: @js(old('personalization.'.$field['key'], '')) }">
+                                <label for="{{ $fieldId }}" class="block text-sm font-semibold text-[var(--color-secondary-900)]">
+                                    {{ $field['label'] }}
+                                    @if ($field['is_required'])
+                                        <span class="text-[var(--accent-primary)]">*</span>
+                                    @endif
+                                </label>
+
+                                @if ($field['preset_values']->isNotEmpty())
+                                    <div class="flex flex-wrap gap-2">
+                                        @foreach ($field['preset_values'] as $presetValue)
+                                            <button type="button" class="button-pill !px-3 !py-1.5 !text-xs" @click="value = @js($presetValue)">
+                                                {{ $presetValue }}
+                                            </button>
+                                        @endforeach
+                                    </div>
+                                @endif
+
+                                @if ($field['type'] === 'textarea')
+                                    <textarea
+                                        id="{{ $fieldId }}"
+                                        name="personalization[{{ $field['key'] }}]"
+                                        rows="3"
+                                        class="field-textarea"
+                                        x-model="value"
+                                        @required($field['is_required'])
+                                    ></textarea>
+                                @else
+                                    <input
+                                        id="{{ $fieldId }}"
+                                        type="{{ in_array($field['type'], ['date', 'number', 'email', 'tel'], true) ? $field['type'] : 'text' }}"
+                                        name="personalization[{{ $field['key'] }}]"
+                                        value="{{ old('personalization.'.$field['key']) }}"
+                                        class="field-input"
+                                        x-model="value"
+                                        @required($field['is_required'])
+                                    >
+                                @endif
+
+                                @if ($field['help_text'])
+                                    <p class="text-xs text-[var(--color-text-soft)]">{{ $field['help_text'] }}</p>
+                                @endif
+
+                                @error('personalization.'.$field['key'])
+                                    <p class="text-xs font-medium text-[var(--color-danger)]">{{ $message }}</p>
+                                @enderror
+                            </div>
+                        @empty
+                            <label class="block space-y-2">
+                                <span class="text-sm font-semibold text-[var(--color-secondary-900)]">Engraving or short text</span>
+                                <input type="text" name="custom_text" value="{{ old('custom_text') }}" maxlength="120" placeholder="Enter a short name or message" class="field-input">
+                                <span class="text-xs text-[var(--color-text-soft)]">Keep this concise for compact items like pens and gifting add-ons. Maximum 120 characters.</span>
+                            </label>
+                        @endforelse
+                    </div>
                 </div>
 
                 @if ($product->variants->isNotEmpty())

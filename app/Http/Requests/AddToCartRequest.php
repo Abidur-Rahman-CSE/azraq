@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Enums\ProductType;
 use App\Models\PersonalizationFont;
 use App\Models\PersonalizationMockup;
 use App\Models\Product;
@@ -81,6 +82,25 @@ class AddToCartRequest extends FormRequest
                 if (! $mockup || ! $allowedMockupIds->contains($mockup->id)) {
                     $validator->errors()->add('mockup_id', 'The selected mockup is not available for this product.');
                 }
+            }
+
+            if ($product->type === ProductType::LightCustomizable) {
+                collect($product->personalization_fields_blueprint ?? [])
+                    ->filter(fn ($field) => (bool) ($field['is_required'] ?? $field['required'] ?? false))
+                    ->each(function (array $field) use ($validator): void {
+                        $fieldKey = $field['field_key'] ?? $field['key'] ?? null;
+
+                        if (! $fieldKey) {
+                            return;
+                        }
+
+                        if (! filled($this->input('personalization.'.$fieldKey))) {
+                            $validator->errors()->add(
+                                'personalization.'.$fieldKey,
+                                ($field['label'] ?? 'This field').' is required.',
+                            );
+                        }
+                    });
             }
         });
     }

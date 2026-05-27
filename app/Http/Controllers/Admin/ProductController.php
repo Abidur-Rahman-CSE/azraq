@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -202,12 +203,34 @@ class ProductController extends Controller
             'live_preview_enabled' => $request->boolean('live_preview_enabled', true),
             'featured_image_url' => $request->route('product')?->featured_image_url,
             'personalization_fields_blueprint' => $request->filled('personalization_fields_blueprint')
-                ? json_decode($request->input('personalization_fields_blueprint'), true)
+                ? $this->normalizePersonalizationBlueprint(json_decode($request->input('personalization_fields_blueprint'), true) ?: [])
                 : null,
             'variant_media_links' => $request->filled('variant_media_links')
                 ? json_decode($request->input('variant_media_links'), true)
                 : null,
         ];
+    }
+
+    private function normalizePersonalizationBlueprint(array $fields): array
+    {
+        return collect($fields)
+            ->map(function (array $field, int $index): array {
+                $label = $field['label'] ?? $field['name'] ?? 'Custom field '.($index + 1);
+
+                return [
+                    ...$field,
+                    'label' => $label,
+                    'field_key' => Str::of($label)->snake()->toString() ?: 'custom_field_'.($index + 1),
+                    'preset_values' => collect($field['preset_values'] ?? $field['options'] ?? $field['values'] ?? $field['choices'] ?? [])
+                        ->map(fn ($value) => is_array($value) ? ($value['value'] ?? $value['label'] ?? '') : $value)
+                        ->map(fn ($value) => trim((string) $value))
+                        ->filter()
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function syncProductRelations(Product $product, array $data): void
