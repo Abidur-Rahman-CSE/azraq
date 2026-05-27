@@ -4,6 +4,7 @@ use App\Models\PersonalizationTemplate;
 use App\Models\PersonalizationMockup;
 use App\Models\Product;
 use App\Support\MockupZoneNormalizer;
+use App\Support\NikahRenderPreview;
 use App\Models\Category;
 use Database\Seeders\CatalogSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,6 +70,34 @@ it('adds an advanced personalized product to the cart with structured payload da
         ->assertSeeText('Bride Name: Amena')
         ->assertSeeText('Groom Name: Hassan')
         ->assertSeeText('Proof note: Please keep the bride name slightly larger.');
+});
+
+it('applies customer font choice only to bride and groom name fields', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $product = Product::where('slug', 'signature-nikah-nama')->firstOrFail();
+    $template = PersonalizationTemplate::with(['fields', 'fonts'])->whereBelongsTo($product)->firstOrFail();
+    $selectedFont = $template->fonts->firstOrFail();
+
+    $venueField = $template->fields->firstWhere('field_key', 'venue');
+
+    $venueField->update([
+        'settings' => array_merge($venueField->settings ?? [], [
+            'font_family_override' => '"Admin Venue Font", serif',
+        ]),
+    ]);
+
+    $preview = NikahRenderPreview::buildForProduct($product, [
+        'bride_name' => 'Amena',
+        'groom_name' => 'Hassan',
+        'venue' => 'Dhaka',
+    ], $selectedFont);
+
+    $layers = collect($preview['flat']['text_layers'])->keyBy('key');
+
+    expect($layers['bride_name']['settings']['font_family_override'])->toBe($selectedFont->resolved_font_family)
+        ->and($layers['groom_name']['settings']['font_family_override'])->toBe($selectedFont->resolved_font_family)
+        ->and($layers['venue']['settings']['font_family_override'])->toBe('"Admin Venue Font", serif');
 });
 
 it('loads the admin personalization template manager', function () {

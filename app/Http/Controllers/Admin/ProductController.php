@@ -212,11 +212,16 @@ class ProductController extends Controller
             'fields',
             'fonts',
             'mockups.map',
-        ])->where('is_active', true);
+        ])->where(function ($query) use ($product) {
+            $query->where(function ($unusedQuery) {
+                $unusedQuery->where('is_active', true)
+                    ->whereNull('product_id');
+            });
 
-        if ($product->personalizationTemplate?->id) {
-            $activeTemplateQuery->orWhere('id', $product->personalizationTemplate->id);
-        }
+            if ($product->personalizationTemplate?->id) {
+                $query->orWhere('id', $product->personalizationTemplate->id);
+            }
+        });
 
         $availableMockupQuery = PersonalizationMockup::query()
             ->with(['template', 'map'])

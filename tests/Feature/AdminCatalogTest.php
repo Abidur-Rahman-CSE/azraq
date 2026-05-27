@@ -535,6 +535,26 @@ it('keeps advanced customization create state clean until a template is chosen',
         ->assertSee('"defaultMockupId":""', false);
 });
 
+it('shows only unused personalization templates in the product template picker', function () {
+    $this->seed(CatalogSeeder::class);
+
+    $usedTemplate = PersonalizationTemplate::whereNotNull('product_id')->firstOrFail();
+    $unusedTemplate = PersonalizationTemplate::create([
+        'name' => 'Unused Modal Template',
+        'preview_image_url' => '/images/nikahnama/unused-modal-template.png',
+        'is_active' => true,
+    ]);
+
+    $response = $this->get(route('admin.catalog.products.create'))->assertOk();
+
+    preg_match('/<script type="application\\/json" id="nikah-product-form-payload">(.*?)<\\/script>/s', $response->getContent(), $matches);
+    $payload = json_decode(html_entity_decode($matches[1] ?? '{}'), true);
+    $designIds = collect($payload['designs'] ?? [])->pluck('id')->all();
+
+    expect($designIds)->toContain($unusedTemplate->id)
+        ->and($designIds)->not->toContain($usedTemplate->id);
+});
+
 it('creates a category with admin media fields', function () {
     $this->seed(CatalogSeeder::class);
     Storage::fake('public');

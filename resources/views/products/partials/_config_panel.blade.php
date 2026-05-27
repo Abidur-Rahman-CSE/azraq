@@ -39,6 +39,9 @@
         <input type="hidden" name="quantity" value="1">
         <input type="hidden" name="font_id" :value="primaryFontId()">
         <input type="hidden" name="proof_note" :value="proofNote">
+        @foreach ($orderedFields->filter(fn ($field) => str($field->field_key)->contains(['bride', 'groom'])) as $fontField)
+            <input type="hidden" name="font_selection[{{ $fontField->field_key }}]" :value="fieldFonts['{{ $fontField->field_key }}'] || ''">
+        @endforeach
         @if (($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []))->isNotEmpty())
             <input type="hidden" name="mockup_id" :value="currentMockup?.id || ''">
         @endif

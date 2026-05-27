@@ -22,6 +22,10 @@
     <form method="POST" action="{{ route('cart.store', $product) }}" class="space-y-4" x-ref="mainProductForm">
         @csrf
         <input type="hidden" name="quantity" value="1">
+        <input type="hidden" name="font_id" :value="primaryFontId()">
+        @foreach ($template->fields->filter(fn ($field) => str($field->field_key)->contains(['bride', 'groom'])) as $fontField)
+            <input type="hidden" name="font_selection[{{ $fontField->field_key }}]" :value="fieldFonts['{{ $fontField->field_key }}'] || ''">
+        @endforeach
         @if (($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []))->isNotEmpty())
             <input type="hidden" name="mockup_id" :value="window.__MOCKUPS__?.[activeMockup]?.id ?? ''">
         @endif
@@ -110,7 +114,7 @@
                 @foreach ($fonts as $font)
                     @php($fontKey = (string) $font->id)
                     <label class="cursor-pointer">
-                        <input type="radio" name="font_id" value="{{ $font->id }}" class="sr-only" x-model="activeFont" @change="renderPreview()" @checked(old('font_id', $fonts->firstWhere('is_default', true)?->id) == $font->id)>
+                        <input type="radio" value="{{ $font->id }}" class="sr-only" x-model="activeFont" @change="applyNameFont('{{ $font->id }}')" @checked(old('font_id', $fonts->firstWhere('is_default', true)?->id) == $font->id)>
                         <span
                             class="block rounded-xl border p-4 transition duration-200 ease-out"
                             :class="activeFont === '{{ $fontKey }}' ? 'border-[#C4A882] bg-[#FAF8F5]' : 'border-[#E8E3DC] bg-white'"

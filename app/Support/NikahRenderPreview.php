@@ -54,7 +54,10 @@ class NikahRenderPreview
         $textLayers = $template->fields->map(function ($field) use ($personalization, $fieldFonts, $font) {
             $value = $personalization[$field->field_key] ?? $field->default_value ?? $field->preview_sample_value ?? $field->placeholder;
             $selectedFieldFont = $fieldFonts[$field->field_key] ?? null;
-            $resolvedFont = $selectedFieldFont instanceof PersonalizationFont ? $selectedFieldFont : $font;
+            $isNameFontField = str($field->field_key)->contains(['bride', 'groom']);
+            $resolvedFont = $selectedFieldFont instanceof PersonalizationFont
+                ? $selectedFieldFont
+                : ($isNameFontField ? $font : null);
             $settings = $field->settings ?? [];
 
             if ($resolvedFont) {

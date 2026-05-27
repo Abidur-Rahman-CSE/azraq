@@ -1835,6 +1835,7 @@ function NikahProductForm({ payload }) {
     const [metaDescription, setMetaDescription] = useState(product.metaDescription || '');
     const [advancedTab, setAdvancedTab] = useState('identity');
     const [generalTab, setGeneralTab] = useState('setup');
+    const [templateModalOpen, setTemplateModalOpen] = useState(false);
     const [copiedVariantPricing, setCopiedVariantPricing] = useState(null);
     const [draggedFieldId, setDraggedFieldId] = useState(null);
     const previousDesignId = useRef(selectedDesignId);
@@ -2061,6 +2062,11 @@ function NikahProductForm({ payload }) {
         }
 
         setDefaultMockupId(mockupId);
+    }
+
+    function selectDesign(designId) {
+        setSelectedDesignId(designId ? Number(designId) : '');
+        setTemplateModalOpen(false);
     }
 
     function updateField(fieldId, key, value) {
@@ -2433,31 +2439,37 @@ function NikahProductForm({ payload }) {
                                     </div>
                                 </div>
 
-                                <div className="nikah-form__grid">
-                                    <label className="nikah-field">
-                                        <span>Personalization template</span>
-                                        <select value={selectedDesignId} onChange={(event) => setSelectedDesignId(Number(event.target.value) || '')}>
-                                            <option value="">Select a template</option>
-                                            {designs.map((design) => (
-                                                <option key={design.id} value={design.id}>{design.name}</option>
-                                            ))}
-                                        </select>
-                                        {getError(errors, 'assigned_template_id') ? <small>{getError(errors, 'assigned_template_id')}</small> : null}
-                                    </label>
-
+                                <div className="template-picker-stack">
                                     {selectedDesign ? (
                                         <div className="selected-design-preview">
                                             <div className="selected-design-preview__thumb">
-                                                {designThumbnail ? <img src={designThumbnail} alt={selectedDesign.name} /> : null}
+                                                {designThumbnail ? <img src={designThumbnail} alt={selectedDesign.name} /> : <span>No image</span>}
                                             </div>
                                             <div className="selected-design-preview__meta">
                                                 <strong>{selectedDesign.name}</strong>
                                                 <span>{selectedDesign.fields.length} personalization fields</span>
+                                                <div className="template-picker-actions">
+                                                    <button type="button" className="button-ghost" onClick={() => setTemplateModalOpen(true)}>
+                                                        Change template
+                                                    </button>
+                                                    <button type="button" className="button-ghost" onClick={() => selectDesign('')}>
+                                                        Clear
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="nikah-empty-note">Select one personalization template to unlock the field setup. Mockups are assigned separately below.</div>
+                                        <div className="template-picker-empty">
+                                            <div>
+                                                <strong>No template selected</strong>
+                                                <span>Select one unused personalization template to unlock the field setup. Mockups are assigned separately below.</span>
+                                            </div>
+                                            <button type="button" className="button-primary" onClick={() => setTemplateModalOpen(true)}>
+                                                Choose template
+                                            </button>
+                                        </div>
                                     )}
+                                    {getError(errors, 'assigned_template_id') ? <p className="nikah-inline-error">{getError(errors, 'assigned_template_id')}</p> : null}
                                 </div>
                             </section>
 
@@ -3151,6 +3163,57 @@ function NikahProductForm({ payload }) {
                     </div>
                 )}
             </div>
+
+            {isAdvancedMode && templateModalOpen ? (
+                <div className="variant-media-modal" role="dialog" aria-modal="true" aria-label="Choose personalization template">
+                    <div className="variant-media-modal__backdrop" onClick={() => setTemplateModalOpen(false)} />
+                    <div className="variant-media-modal__panel template-picker-modal">
+                        <div className="variant-media-modal__header">
+                            <div>
+                                <h4>Choose personalization template</h4>
+                                <p>Only unused active templates are available for new product assignments.</p>
+                            </div>
+                            <button type="button" className="variant-icon-button" onClick={() => setTemplateModalOpen(false)} aria-label="Close">
+                                <span aria-hidden="true">✕</span>
+                            </button>
+                        </div>
+
+                        {designs.length ? (
+                            <div className="template-picker-modal__grid">
+                                {designs.map((design) => {
+                                    const previewUrl = design.rendered_preview_url || design.thumbnail_url || design.preview_url || '';
+                                    const isSelected = String(design.id) === String(selectedDesignId);
+
+                                    return (
+                                        <button
+                                            key={design.id}
+                                            type="button"
+                                            className={`template-picker-card ${isSelected ? 'is-selected' : ''}`}
+                                            onClick={() => selectDesign(design.id)}
+                                        >
+                                            <span className="template-picker-card__image">
+                                                {previewUrl ? <img src={previewUrl} alt={design.name} /> : <span>No image</span>}
+                                            </span>
+                                            <span className="template-picker-card__copy">
+                                                <strong>{design.name}</strong>
+                                                <span>{design.fields.length} field{design.fields.length === 1 ? '' : 's'}</span>
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        ) : (
+                            <div className="nikah-empty-note">No unused active templates available. Create or duplicate a template first, then return to this form.</div>
+                        )}
+
+                        <div className="variant-media-modal__footer">
+                            <button type="button" className="button-ghost" onClick={() => setTemplateModalOpen(false)}>
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            ) : null}
         </>
     );
 }

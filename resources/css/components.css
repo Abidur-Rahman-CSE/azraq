@@ -567,10 +567,20 @@
     padding: 0.85rem;
 }
 
+.template-picker-stack {
+    display: grid;
+    gap: 0.75rem;
+}
+
 .selected-design-preview__thumb {
+    display: grid;
+    place-items: center;
     overflow: hidden;
     border-radius: 10px;
     background: #fff;
+    color: var(--color-text-soft);
+    font-size: 0.78rem;
+    font-weight: 700;
 }
 
 .selected-design-preview__thumb img {
@@ -593,6 +603,102 @@
 .selected-design-preview__meta span {
     color: var(--color-text-soft);
     font-size: 0.8rem;
+}
+
+.template-picker-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.45rem;
+}
+
+.template-picker-empty {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border: 0.5px dashed rgba(15, 46, 60, 0.18);
+    border-radius: 12px;
+    background: #faf7f1;
+    padding: 1rem;
+}
+
+.template-picker-empty > div {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.template-picker-empty strong {
+    color: var(--color-secondary-900);
+}
+
+.template-picker-empty span {
+    color: var(--color-text-soft);
+    font-size: 0.85rem;
+}
+
+.template-picker-modal {
+    width: min(980px, 100%);
+}
+
+.template-picker-modal__grid {
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+}
+
+.template-picker-card {
+    display: grid;
+    gap: 0.65rem;
+    border: 2px solid transparent;
+    border-radius: 10px;
+    background: #faf7f1;
+    padding: 0.55rem;
+    text-align: left;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.template-picker-card:hover,
+.template-picker-card.is-selected {
+    border-color: var(--color-secondary-900);
+    box-shadow: 0 12px 30px rgba(15, 46, 60, 0.12);
+    transform: translateY(-1px);
+}
+
+.template-picker-card__image {
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 8px;
+    background: #fff;
+    color: var(--color-text-soft);
+    font-size: 0.78rem;
+    font-weight: 700;
+}
+
+.template-picker-card__image img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+}
+
+.template-picker-card__copy {
+    display: grid;
+    gap: 0.2rem;
+}
+
+.template-picker-card__copy strong {
+    overflow: hidden;
+    color: var(--color-secondary-900);
+    font-size: 0.86rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.template-picker-card__copy span {
+    color: var(--color-text-soft);
+    font-size: 0.76rem;
 }
 
 .nikah-chip-board {
@@ -1745,6 +1851,11 @@
     .variant-group-card,
     .bundle-item-editor__row {
         grid-template-columns: 1fr;
+    }
+
+    .template-picker-empty {
+        align-items: stretch;
+        flex-direction: column;
     }
 }
 

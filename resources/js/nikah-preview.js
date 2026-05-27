@@ -1239,16 +1239,34 @@ export function registerNikahPreview(Alpine) {
 
             return this.activeFont || selectedFont || '';
         },
+        isNameFontField(fieldKey, templateField = null) {
+            const source = [
+                fieldKey,
+                templateField?.field_key,
+                templateField?.name,
+                templateField?.label,
+            ].filter(Boolean).join(' ').toLowerCase();
+
+            return source.includes('bride') || source.includes('groom');
+        },
         applyNameFont(fontId) {
             this.activeFont = `${fontId}`;
             const nextFieldFonts = { ...(this.fieldFonts ?? {}) };
             const templateFields = config.template?.fields ?? [];
 
+            Object.keys(nextFieldFonts).forEach((fieldKey) => {
+                const templateField = templateFields.find((field) => field.field_key === fieldKey || field.name === fieldKey);
+
+                if (!this.isNameFontField(fieldKey, templateField)) {
+                    delete nextFieldFonts[fieldKey];
+                }
+            });
+
             Object.keys(this.fields ?? {}).forEach((fieldKey) => {
                 const templateField = templateFields.find((field) => field.field_key === fieldKey || field.name === fieldKey);
                 const fieldType = templateField?.field_type ?? templateField?.settings?.field_type ?? 'text';
 
-                if (fieldType !== 'static') {
+                if (fieldType !== 'static' && this.isNameFontField(fieldKey, templateField)) {
                     nextFieldFonts[fieldKey] = `${fontId}`;
                 }
             });
