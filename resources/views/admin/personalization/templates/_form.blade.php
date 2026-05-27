@@ -875,14 +875,14 @@
                                 <label class="field-shell"><span class="text-sm font-medium text-[var(--color-secondary-900)]">Z-index</span><input type="number" min="0" class="field-input" x-model.number="field.z_index"></label>
                             </div>
 
-                            <div x-show="currentFieldTab(index) === 'typography'" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                            <div x-show="currentFieldTab(index) === 'typography'" class="template-field-typography grid gap-3">
                                 <label class="field-shell"><span class="text-sm font-medium text-[var(--color-secondary-900)]">Color</span><input class="field-input" x-model="field.text_color"></label>
-                                <div class="field-shell md:col-span-2 xl:col-span-3">
-                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font family <span class="font-normal text-[var(--color-text-soft)]">(blank = customer's chosen preset)</span></span>
-                                    <div class="mt-1.5 flex flex-wrap gap-1.5">
+                                <div class="field-shell template-font-family-control">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Font family <span class="font-normal text-[var(--color-text-soft)]">(blank = customer preset)</span></span>
+                                    <div class="mt-1 flex flex-wrap gap-1.5">
                                         <label class="cursor-pointer">
                                             <input type="radio" value="" x-model="field.settings.font_family_override" class="sr-only">
-                                            <span class="block rounded-full border px-3 py-1.5 text-[0.72rem] font-semibold transition"
+                                            <span class="template-font-chip block rounded-full border font-semibold transition"
                                                   :class="!field.settings.font_family_override ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)]' : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)]'">
                                                 Auto
                                             </span>
@@ -890,7 +890,7 @@
                                         <template x-for="f in sortedFonts()" :key="f.id">
                                             <label class="cursor-pointer">
                                                 <input type="radio" :value="f.font_family || f.css_font_family" x-model="field.settings.font_family_override" class="sr-only">
-                                                <span class="block rounded-full border px-3 py-1.5 text-sm transition"
+                                                <span class="template-font-chip block rounded-full border transition"
                                                       :class="field.settings.font_family_override === (f.font_family || f.css_font_family) ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)]' : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)]'"
                                                       :style="`font-family:${f.font_family||f.css_font_family};font-weight:${f.font_weight_default||'600'};`"
                                                       x-text="f.name||f.internal_name">
@@ -899,10 +899,21 @@
                                         </template>
                                     </div>
                                     <div x-show="field.settings.font_family_override"
-                                         class="mt-2 rounded-xl border border-[var(--color-border-soft)] bg-[rgba(253,240,213,0.42)] px-4 py-3 text-center text-xl"
+                                         class="template-font-preview mt-2 rounded-xl border border-[var(--color-border-soft)] bg-[rgba(253,240,213,0.42)] text-center"
                                          :style="`font-family:${field.settings.font_family_override||'inherit'};font-weight:600;`"
                                          x-text="fieldPreviewText(field)||'Amena & Hassan'">
                                     </div>
+                                </div>
+                                <div class="field-shell template-font-size-control">
+                                    <span class="text-sm font-medium text-[var(--color-secondary-900)]">Size range <span class="font-normal text-[var(--color-text-soft)]">(min → max)</span></span>
+                                    <div class="template-inline-control">
+                                        <input type="number" min="6" max="200" class="field-input template-number-input" x-model.number="field.font_size_min" @input="syncFontBounds(field,'min')">
+                                        <span class="text-[var(--color-text-soft)]">→</span>
+                                        <input type="number" min="6" max="200" class="field-input template-number-input" x-model.number="field.font_size_max" @input="syncFontBounds(field,'max')">
+                                    </div>
+                                    <span class="text-[11px] text-[var(--color-text-soft)]">
+                                        Fit: <span x-text="fieldFit(field).fontSize + 'px'"></span>
+                                    </span>
                                 </div>
                                 <div class="field-shell">
                                     <span class="text-sm font-medium text-[var(--color-secondary-900)]">Weight &amp; style</span>
@@ -915,7 +926,7 @@
                                             <option value="800">Extra bold</option>
                                         </select>
                                         <button type="button"
-                                                class="flex-shrink-0 rounded-xl border px-3 py-2 text-sm transition"
+                                                class="template-italic-toggle flex-shrink-0 rounded-xl border text-sm transition"
                                                 :class="field.settings.font_style === 'italic'
                                                     ? 'border-[var(--color-primary-900)] bg-[rgba(120,0,0,0.06)] text-[var(--color-primary-900)] italic'
                                                     : 'border-[var(--color-border-soft)] text-[var(--color-text-soft)]'"

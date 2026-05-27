@@ -1766,26 +1766,39 @@
     background: #fff;
 }
 
+.header-action-lg,
+.header-action-2xl {
+    display: none;
+}
+
+.header-menu-toggle {
+    display: inline-flex;
+}
+
 .mobile-drawer {
     position: fixed;
     inset: 0;
     z-index: 50;
     display: flex;
-    justify-content: flex-start;
+    justify-content: flex-end;
     background: rgba(15, 46, 60, 0.26);
     backdrop-filter: blur(3px);
 }
 
+.header-drawer {
+    display: flex;
+}
+
 .mobile-drawer-panel {
-    width: min(82vw, 20rem);
+    width: min(88vw, 24rem);
     height: 100%;
     min-height: 100dvh;
     overflow-y: auto;
     background:
         linear-gradient(180deg, rgba(255, 253, 249, 0.98), rgba(251, 247, 240, 0.98)),
         var(--bg-card);
-    border-right: 1px solid var(--border-soft);
-    box-shadow: 0 24px 60px rgba(15, 46, 60, 0.16);
+    border-left: 1px solid var(--border-soft);
+    box-shadow: -18px 24px 60px rgba(15, 46, 60, 0.18);
 }
 
 .mobile-drawer-panel .brand-lockup {
@@ -2551,6 +2564,63 @@
     min-height: 104px;
 }
 
+.template-field-typography .field-shell {
+    gap: 0.35rem;
+}
+
+.template-field-typography {
+    grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+    align-items: start;
+}
+
+.template-font-family-control {
+    grid-column: 1 / -1;
+}
+
+.template-field-typography .field-shell > span:first-child {
+    font-size: 0.78rem;
+    line-height: 1.25;
+}
+
+.template-field-typography .field-input,
+.template-field-typography .field-select {
+    min-height: 2.55rem;
+    border-radius: 0.95rem;
+    padding: 0.58rem 0.72rem;
+    font-size: 0.9rem;
+}
+
+.template-font-chip {
+    padding: 0.42rem 0.78rem;
+    font-size: 0.76rem;
+    line-height: 1.1;
+}
+
+.template-font-preview {
+    min-height: 3rem;
+    padding: 0.65rem 1rem;
+    font-size: 1rem;
+    line-height: 1.35;
+}
+
+.template-inline-control {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.template-field-typography .template-number-input {
+    width: 3.6rem;
+    padding-inline: 0.45rem;
+    text-align: center;
+}
+
+.template-italic-toggle {
+    min-width: 2.55rem;
+    min-height: 2.55rem;
+    padding-inline: 0.7rem;
+}
+
 .admin-content .space-y-8 > :not([hidden]) ~ :not([hidden]) {
     margin-top: 1.2rem;
 }
@@ -2623,6 +2693,19 @@
 
     .admin-shell__frame {
         grid-template-columns: 272px minmax(0, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .header-action-lg {
+        display: inline-flex;
+    }
+
+}
+
+@media (min-width: 1536px) {
+    .header-action-2xl {
+        display: inline-flex;
     }
 }
 

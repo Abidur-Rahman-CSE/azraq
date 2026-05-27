@@ -54,7 +54,6 @@
     x-data="{ mobileOpen: false }"
     x-effect="document.body.classList.toggle('overflow-hidden', mobileOpen)"
     @keydown.escape.window="mobileOpen = false"
-    @resize.window="if (window.innerWidth >= 1024) mobileOpen = false"
 >
     <div class="container-shell header-shell flex items-center justify-between gap-3 py-3 lg:grid lg:grid-cols-[auto_1fr_auto] lg:gap-6 lg:py-4">
         <div class="flex min-w-0 items-center">
@@ -126,14 +125,14 @@
             @endforeach
         </nav>
 
-        <div class="flex items-center justify-end gap-1.5 sm:gap-2 lg:gap-2.5">
+        <div class="flex shrink-0 items-center justify-end gap-1.5 sm:gap-2 lg:gap-2.5">
             <a href="{{ route('search.index') }}" class="header-icon-button" aria-label="Search">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <circle cx="11" cy="11" r="6"></circle>
                     <path d="M20 20l-3.5-3.5"></path>
                 </svg>
             </a>
-            <a href="{{ route('wishlist.index') }}" class="header-icon-button hidden lg:inline-flex" aria-label="Wishlist">
+            <a href="{{ route('wishlist.index') }}" class="header-icon-button header-action-lg" aria-label="Wishlist">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.65-7 10-7 10Z"></path>
                 </svg>
@@ -145,18 +144,18 @@
                     <circle cx="17" cy="19" r="1.2"></circle>
                 </svg>
             </a>
-            <a href="{{ $accountHref }}" class="header-icon-button hidden lg:inline-flex" aria-label="Account">
+            <a href="{{ $accountHref }}" class="header-icon-button header-action-lg" aria-label="Account">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <circle cx="12" cy="8" r="3.5"></circle>
                     <path d="M5 20c1.6-3.3 4.1-5 7-5s5.4 1.7 7 5"></path>
                 </svg>
             </a>
-            <button type="button" class="header-icon-button lg:hidden" x-on:click.stop="mobileOpen = true" aria-label="Open menu" :aria-expanded="mobileOpen ? 'true' : 'false'" aria-controls="mobile-navigation-drawer">
+            <button type="button" class="header-icon-button header-menu-toggle" x-on:click.stop="mobileOpen = true" aria-label="Open menu" :aria-expanded="mobileOpen ? 'true' : 'false'" aria-controls="mobile-navigation-drawer">
                 <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <path d="M4 7h16M4 12h16M4 17h16" />
                 </svg>
             </button>
-            <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-primary hidden 2xl:inline-flex">Book a Consultation</a>
+            <a href="{{ route('shop.index', ['type' => 'service']) }}" class="button-primary header-action-2xl">Book a Consultation</a>
         </div>
     </div>
 
@@ -164,7 +163,7 @@
         id="mobile-navigation-drawer"
         x-show="mobileOpen"
         x-cloak
-        class="mobile-drawer lg:hidden"
+        class="mobile-drawer header-drawer"
         x-transition.opacity
         x-on:click.self="mobileOpen = false"
         role="dialog"
@@ -175,11 +174,11 @@
             class="mobile-drawer-panel"
             x-show="mobileOpen"
             x-transition:enter="transition ease-out duration-200"
-            x-transition:enter-start="-translate-x-full"
+            x-transition:enter-start="translate-x-full"
             x-transition:enter-end="translate-x-0"
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="translate-x-0"
-            x-transition:leave-end="-translate-x-full"
+            x-transition:leave-end="translate-x-full"
             x-on:click.stop
         >
             <div class="flex items-center justify-between border-b border-[var(--border-soft)] px-4 py-4">
@@ -206,7 +205,7 @@
                         <div class="space-y-1.5">
                             @foreach ($group['items'] as $item)
                                 @php($icon = $mobileItemIcons[$item['label']] ?? 'sparkles')
-                                <a href="{{ url($item['href']) }}" class="mobile-drawer-link">
+                                <a href="{{ url($item['href']) }}" class="mobile-drawer-link" @click="mobileOpen = false">
                                     <span class="mobile-drawer-link__lead">
                                         <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon($icon) !!}</span>
                                         <span>{{ $item['label'] }}</span>
@@ -231,7 +230,7 @@
 
                     <div x-cloak x-show="open" x-transition.duration.180ms class="mobile-drawer-sublist">
                         @foreach ($navCategories as $category)
-                            <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink">
+                            <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
                                 <span>{{ $category['name'] }}</span>
                                 <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                             </a>
@@ -242,23 +241,23 @@
                 <section class="space-y-3">
                     <p class="mobile-drawer-section-title">More</p>
                     <div class="space-y-1.5">
-                        <a href="{{ route('wishlist.index') }}" class="mobile-drawer-link">
+                        <a href="{{ route('wishlist.index') }}" class="mobile-drawer-link" @click="mobileOpen = false">
                             <span class="mobile-drawer-link__lead">
                                 <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('heart') !!}</span>
                                 <span>Wishlist</span>
                             </span>
                             <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                         </a>
-                        <a href="{{ $accountHref }}" class="mobile-drawer-link">
+                        <a href="{{ $accountHref }}" class="mobile-drawer-link" @click="mobileOpen = false">
                             <span class="mobile-drawer-link__lead">
                                 <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('user') !!}</span>
                                 <span>Account</span>
                             </span>
                             <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                         </a>
-                        <a href="{{ route('shop.index', ['type' => 'service']) }}" class="mobile-drawer-link">
+                        <a href="{{ route('shop.index', ['type' => 'service']) }}" class="mobile-drawer-link" @click="mobileOpen = false">
                             <span class="mobile-drawer-link__lead">
-                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('Consultation') !!}</span>
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('sparkles') !!}</span>
                                 <span>Consultation</span>
                             </span>
                             <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
