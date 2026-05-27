@@ -27,3 +27,9 @@ Thumbs.db
 .code-review-graph/
 .claude/worktrees/
 
+storage/logs/*.log
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+bootstrap/cache/*.php
+
