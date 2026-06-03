@@ -11,7 +11,10 @@ use App\Support\MockupZoneNormalizer;
 use App\Support\NikahRenderPreview;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
+use Throwable;
 
 class ProductDetailController extends Controller
 {
@@ -201,7 +204,7 @@ class ProductDetailController extends Controller
         };
     }
 
-    public function previewImage(Product $product, MockupRenderService $mockupRenderService): BinaryFileResponse
+    public function previewImage(Product $product, MockupRenderService $mockupRenderService): BinaryFileResponse|RedirectResponse
     {
         $product->loadMissing([
             'images',
@@ -217,31 +220,74 @@ class ProductDetailController extends Controller
         $disk = Storage::disk('public');
 
         if (! $disk->exists($cachePath)) {
-            $renderPreview = NikahRenderPreview::buildForProduct($product);
-            abort_unless(is_array($renderPreview), 404);
+            try {
+                $renderPreview = NikahRenderPreview::buildForProduct($product);
+                abort_unless(is_array($renderPreview), 404);
 
-            $flatSvg = view('admin.orders.personalization-proof-svg', [
-                'item' => (object) ['product_name' => $product->name],
-                'renderPreview' => $renderPreview,
-                'mode' => 'flat',
-            ])->render();
+                $flatSvg = view('admin.orders.personalization-proof-svg', [
+                    'item' => (object) ['product_name' => $product->name],
+                    'renderPreview' => $renderPreview,
+                    'mode' => 'flat',
+                ])->render();
 
-            if (data_get($renderPreview, 'mockup')) {
-                $blob = $mockupRenderService->renderMockupProof($renderPreview, $flatSvg);
-            } else {
-                $flatImage = $mockupRenderService->renderFlatFromSvg($flatSvg);
-                $flatImage->setImageCompressionQuality(100);
-                $blob = $flatImage->getImagesBlob();
-                $flatImage->clear();
-                $flatImage->destroy();
+                if (data_get($renderPreview, 'mockup')) {
+                    $blob = $mockupRenderService->renderMockupProof($renderPreview, $flatSvg);
+                } else {
+                    $flatImage = $mockupRenderService->renderFlatFromSvg($flatSvg);
+                    $flatImage->setImageCompressionQuality(100);
+                    $blob = $flatImage->getImagesBlob();
+                    $flatImage->clear();
+                    $flatImage->destroy();
+                }
+
+                $disk->put($cachePath, $blob);
+            } catch (Throwable $exception) {
+                report($exception);
+
+                $fallbackUrl = $this->previewImageFallbackUrl($product);
+
+                if ($fallbackUrl) {
+                    return redirect($fallbackUrl);
+                }
+
+                throw $exception;
             }
-
-            $disk->put($cachePath, $blob);
         }
 
         return response()->file($disk->path($cachePath), [
             'Content-Type' => 'image/png',
             'Cache-Control' => 'public, max-age=86400, stale-while-revalidate=86400',
         ]);
+    }
+
+    private function previewImageFallbackUrl(Product $product): ?string
+    {
+        $template = $product->personalizationTemplate;
+        $mockup = $product->defaultPersonalizationMockup()
+            ?: $template?->mockups()->where('is_active', true)->orderBy('sort_order')->first();
+
+        return collect([
+            $mockup?->thumb_image_url,
+            $mockup?->base_image_url,
+            $template?->thumbnailArtworkUrl(),
+            $template?->previewArtworkUrl(),
+            $template?->baseArtworkUrl(),
+            $product->featured_image_url,
+            $product->primaryImage()?->image_url,
+        ])
+            ->filter(fn ($url) => filled($url) && ! str_starts_with((string) $url, 'blob:'))
+            ->map(fn ($url) => $this->absolutePreviewAssetUrl((string) $url))
+            ->first();
+    }
+
+    private function absolutePreviewAssetUrl(string $url): string
+    {
+        if (preg_match('/^(https?:|data:)/i', $url)) {
+            return $url;
+        }
+
+        return Str::startsWith($url, '/')
+            ? url($url)
+            : url('/'.ltrim($url, '/'));
     }
 }
