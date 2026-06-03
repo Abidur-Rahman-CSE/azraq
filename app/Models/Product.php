@@ -206,6 +206,12 @@ class Product extends Model
                 : $this->personalizationTemplate()->first();
 
             if ($template) {
+                $snapshotUrl = $template->thumbnailArtworkUrl();
+
+                if ($snapshotUrl) {
+                    return $snapshotUrl;
+                }
+
                 return route('products.preview.image', [
                     'product' => $this,
                     'v' => $this->storefrontPreviewVersion(),

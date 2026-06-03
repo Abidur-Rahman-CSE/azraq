@@ -81,12 +81,13 @@
 
         <section class="space-y-4">
             @forelse ($templates as $template)
+                @php($templatePreview = $template->thumbnailArtworkUrl())
                 <article class="surface-card p-5 lg:p-6">
                     <div class="grid gap-6 xl:grid-cols-[minmax(0,1.45fr)_repeat(5,minmax(0,0.62fr))] xl:items-center">
                         <div class="flex items-start gap-4">
                             <div class="h-24 w-24 overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-[var(--bg-section-soft)]">
-                                @if ($template->thumbnail_image_url ?: $template->preview_image_url)
-                                    <img src="{{ $template->thumbnail_image_url ?: $template->preview_image_url }}" alt="{{ $template->name }}" class="h-full w-full object-cover">
+                                @if ($templatePreview)
+                                    <img src="{{ $templatePreview }}" alt="{{ $template->name }}" class="h-full w-full object-cover">
                                 @else
                                     <div class="flex h-full items-center justify-center px-3 text-center text-xs font-semibold uppercase tracking-[0.14em] text-[var(--color-text-soft)]">No preview</div>
                                 @endif

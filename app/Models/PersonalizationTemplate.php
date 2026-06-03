@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class PersonalizationTemplate extends Model
 {
@@ -73,6 +75,10 @@ class PersonalizationTemplate extends Model
             return true;
         }
 
+        if (preg_match('/^https?:\/\//i', $url)) {
+            return true;
+        }
+
         $path = parse_url($url, PHP_URL_PATH) ?: $url;
 
         if (! str_starts_with($path, '/')) {
@@ -81,6 +87,10 @@ class PersonalizationTemplate extends Model
 
         if (! preg_match('/\.(avif|gif|jpe?g|png|svg|webp)$/i', $path)) {
             return true;
+        }
+
+        if (str_starts_with($path, '/storage/')) {
+            return Storage::disk('public')->exists(Str::after($path, '/storage/'));
         }
 
         return file_exists(public_path(ltrim($path, '/')));
