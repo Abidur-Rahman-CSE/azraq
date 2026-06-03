@@ -207,12 +207,17 @@ class Product extends Model
 
             if ($template) {
                 $snapshotUrl = $template->thumbnailArtworkUrl();
+                $defaultMockup = $this->defaultPersonalizationMockup()
+                    ?: $template->mockups()->where('is_active', true)->orderBy('sort_order')->first();
 
-                if ($snapshotUrl) {
-                    return $snapshotUrl;
+                if ($defaultMockup) {
+                    return route('products.preview.image', [
+                        'product' => $this,
+                        'v' => $this->storefrontPreviewVersion(),
+                    ]);
                 }
 
-                return route('products.preview.image', [
+                return $snapshotUrl ?: route('products.preview.image', [
                     'product' => $this,
                     'v' => $this->storefrontPreviewVersion(),
                 ]);
