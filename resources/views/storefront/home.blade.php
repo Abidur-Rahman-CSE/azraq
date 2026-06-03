@@ -239,16 +239,10 @@
         <section class="section-shell scroll-fade-in">
             <div class="container-shell">
                 <div class="glass-card-brand grid gap-6 p-5 sm:p-7 lg:grid-cols-[0.95fr_1.05fr] lg:gap-10 lg:p-10">
-                    <div class="relative overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)] aspect-[4/5] sm:aspect-[5/4] lg:aspect-auto lg:min-h-[440px]">
+                    <div class="overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)] aspect-[4/5] sm:aspect-[5/4] lg:aspect-auto lg:min-h-[440px]">
                         @php($nikahImage = $signatureNikah->storefront_preview_image_url)
-                        @php($nikahSnapshotImage = $signatureNikah->personalizationTemplate?->thumbnailArtworkUrl())
                         @if ($nikahImage)
                             <img src="{{ $nikahImage }}" alt="{{ $signatureNikah->name }}" class="h-full w-full object-cover">
-                            @if ($nikahSnapshotImage && $nikahSnapshotImage !== $nikahImage)
-                                <span class="absolute bottom-4 left-4 block h-28 w-20 overflow-hidden rounded-xl border border-white/85 bg-white shadow-[0_12px_32px_rgba(0,0,0,0.20)] sm:h-32 sm:w-24">
-                                    <img src="{{ $nikahSnapshotImage }}" alt="{{ $signatureNikah->name }} flat preview" class="h-full w-full object-cover" loading="lazy" decoding="async">
-                                </span>
-                            @endif
                         @endif
                     </div>
                     <div class="flex flex-col justify-center min-w-0">

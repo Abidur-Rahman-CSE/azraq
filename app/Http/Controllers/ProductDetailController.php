@@ -10,6 +10,7 @@ use App\Support\ComboPricing;
 use App\Support\MockupZoneNormalizer;
 use App\Support\NikahRenderPreview;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -204,7 +205,7 @@ class ProductDetailController extends Controller
         };
     }
 
-    public function previewImage(Product $product, MockupRenderService $mockupRenderService): BinaryFileResponse|RedirectResponse
+    public function previewImage(Product $product, MockupRenderService $mockupRenderService): BinaryFileResponse|RedirectResponse|Response
     {
         $product->loadMissing([
             'images',
@@ -244,10 +245,10 @@ class ProductDetailController extends Controller
             } catch (Throwable $exception) {
                 report($exception);
 
-                $fallbackUrl = $this->previewImageFallbackUrl($product);
+                $fallbackResponse = $this->previewImageFallbackResponse($product);
 
-                if ($fallbackUrl) {
-                    return redirect($fallbackUrl);
+                if ($fallbackResponse) {
+                    return $fallbackResponse;
                 }
 
                 throw $exception;
@@ -260,24 +261,76 @@ class ProductDetailController extends Controller
         ]);
     }
 
-    private function previewImageFallbackUrl(Product $product): ?string
+    private function previewImageFallbackResponse(Product $product): Response|RedirectResponse|null
     {
         $template = $product->personalizationTemplate;
         $mockup = $product->defaultPersonalizationMockup()
             ?: $template?->mockups()->where('is_active', true)->orderBy('sort_order')->first();
+        $map = $mockup?->map ? MockupZoneNormalizer::toImageSpace($mockup, $mockup->map) : null;
+        $flatUrl = $template?->thumbnailArtworkUrl()
+            ?: $template?->previewArtworkUrl()
+            ?: $template?->baseArtworkUrl();
 
-        return collect([
+        if ($mockup?->base_image_url && $flatUrl && is_array($map)) {
+            return response($this->fallbackCompositeSvg($mockup, $map, $flatUrl), 200, [
+                'Content-Type' => 'image/svg+xml',
+                'Cache-Control' => 'public, max-age=3600, stale-while-revalidate=86400',
+            ]);
+        }
+
+        $fallbackUrl = collect([
             $mockup?->thumb_image_url,
             $mockup?->base_image_url,
-            $template?->thumbnailArtworkUrl(),
-            $template?->previewArtworkUrl(),
-            $template?->baseArtworkUrl(),
+            $flatUrl,
             $product->featured_image_url,
             $product->primaryImage()?->image_url,
         ])
             ->filter(fn ($url) => filled($url) && ! str_starts_with((string) $url, 'blob:'))
             ->map(fn ($url) => $this->absolutePreviewAssetUrl((string) $url))
             ->first();
+
+        return $fallbackUrl ? redirect($fallbackUrl) : null;
+    }
+
+    private function fallbackCompositeSvg($mockup, array $map, string $flatUrl): string
+    {
+        [$imageWidth, $imageHeight] = MockupZoneNormalizer::resolveImageDimensions($mockup);
+        $width = (int) ($mockup->image_width ?: $imageWidth ?: 1600);
+        $height = (int) ($mockup->image_height ?: $imageHeight ?: 1200);
+
+        $points = [
+            [(float) ($map['top_left_x'] ?? 0.2) * $width, (float) ($map['top_left_y'] ?? 0.18) * $height],
+            [(float) ($map['top_right_x'] ?? 0.8) * $width, (float) ($map['top_right_y'] ?? 0.18) * $height],
+            [(float) ($map['bottom_right_x'] ?? 0.8) * $width, (float) ($map['bottom_right_y'] ?? 0.82) * $height],
+            [(float) ($map['bottom_left_x'] ?? 0.2) * $width, (float) ($map['bottom_left_y'] ?? 0.82) * $height],
+        ];
+
+        $xs = array_column($points, 0);
+        $ys = array_column($points, 1);
+        $left = min($xs);
+        $top = min($ys);
+        $zoneWidth = max(1, max($xs) - $left);
+        $zoneHeight = max(1, max($ys) - $top);
+        $polygon = collect($points)
+            ->map(fn (array $point) => round($point[0], 2).','.round($point[1], 2))
+            ->implode(' ');
+
+        $baseHref = $this->svgImageHref((string) $mockup->base_image_url);
+        $flatHref = $this->svgImageHref($flatUrl);
+        $escapedBaseUrl = $this->escapeSvgAttribute($baseHref);
+        $escapedFlatUrl = $this->escapeSvgAttribute($flatHref);
+
+        return <<<SVG
+<svg xmlns="http://www.w3.org/2000/svg" width="{$width}" height="{$height}" viewBox="0 0 {$width} {$height}">
+    <defs>
+        <clipPath id="certificate-zone">
+            <polygon points="{$polygon}" />
+        </clipPath>
+    </defs>
+    <image href="{$escapedBaseUrl}" x="0" y="0" width="{$width}" height="{$height}" preserveAspectRatio="xMidYMid slice" />
+    <image href="{$escapedFlatUrl}" x="{$left}" y="{$top}" width="{$zoneWidth}" height="{$zoneHeight}" preserveAspectRatio="xMidYMid meet" clip-path="url(#certificate-zone)" opacity="0.98" />
+</svg>
+SVG;
     }
 
     private function absolutePreviewAssetUrl(string $url): string
@@ -289,5 +342,43 @@ class ProductDetailController extends Controller
         return Str::startsWith($url, '/')
             ? url($url)
             : url('/'.ltrim($url, '/'));
+    }
+
+    private function svgImageHref(string $url): string
+    {
+        if (str_starts_with($url, 'data:')) {
+            return $url;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+
+        if ($path && str_starts_with($path, '/storage/')) {
+            $relativePath = Str::after($path, '/storage/');
+            $disk = Storage::disk('public');
+
+            if ($disk->exists($relativePath)) {
+                $absolutePath = $disk->path($relativePath);
+                $mime = @mime_content_type($absolutePath) ?: 'image/png';
+
+                return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($absolutePath));
+            }
+        }
+
+        if ($path && str_starts_with($path, '/images/')) {
+            $absolutePath = public_path(ltrim($path, '/'));
+
+            if (is_file($absolutePath)) {
+                $mime = @mime_content_type($absolutePath) ?: 'image/png';
+
+                return 'data:'.$mime.';base64,'.base64_encode((string) file_get_contents($absolutePath));
+            }
+        }
+
+        return $this->absolutePreviewAssetUrl($url);
+    }
+
+    private function escapeSvgAttribute(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_XML1, 'UTF-8');
     }
 }
