@@ -13,6 +13,10 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    signInAdmin($this);
+});
+
 it('shows the advanced personalized product detail page', function () {
     $this->seed(CatalogSeeder::class);
 

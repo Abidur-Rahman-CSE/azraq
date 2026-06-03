@@ -48,3 +48,14 @@ function something()
 {
     // ..
 }
+
+function signInAdmin(Tests\TestCase $testCase): \App\Models\User
+{
+    $admin = \App\Models\User::factory()->admin()->create([
+        'email' => 'admin@example.test',
+    ]);
+
+    $testCase->actingAs($admin);
+
+    return $admin;
+}

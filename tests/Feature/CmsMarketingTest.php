@@ -115,6 +115,8 @@ it('shows a lightweight account hub with recent customer activity', function () 
 });
 
 it('loads admin cms and marketing modules and moderates reviews', function () {
+    signInAdmin($this);
+
     $this->seed(CatalogSeeder::class);
 
     $this->get(route('admin.content.homepage-sections.index'))->assertOk()->assertSee('Homepage sections');

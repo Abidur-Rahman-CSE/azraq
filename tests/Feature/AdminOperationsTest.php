@@ -9,6 +9,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    signInAdmin($this);
+});
+
 it('creates inventory movements when stock-managed products are ordered', function () {
     $this->seed(CatalogSeeder::class);
 

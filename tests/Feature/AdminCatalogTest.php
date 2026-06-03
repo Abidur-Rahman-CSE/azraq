@@ -14,6 +14,10 @@ use Illuminate\Support\Facades\Storage;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    signInAdmin($this);
+});
+
 it('loads the admin dashboard and catalog pages', function () {
     $this->seed(CatalogSeeder::class);
 

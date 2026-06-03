@@ -29,6 +29,7 @@
                 ['label' => 'Inventory', 'route' => 'admin.inventory.index', 'match' => ['admin.inventory.*']],
                 ['label' => 'Orders', 'route' => 'admin.orders.index', 'match' => ['admin.orders.*']],
                 ['label' => 'Bookings', 'route' => 'admin.bookings.index', 'match' => ['admin.bookings.*']],
+                ['label' => 'Users', 'route' => 'admin.users.index', 'match' => ['admin.users.*']],
             ],
         ],
         [
@@ -177,9 +178,9 @@
 
                             <div class="relative">
                                 <button type="button" class="admin-profile-button" @click="profileOpen = ! profileOpen" :aria-expanded="profileOpen.toString()">
-                                    <span class="admin-profile-button__avatar">A</span>
+                                    <span class="admin-profile-button__avatar">{{ str(auth()->user()?->name ?? 'A')->substr(0, 1)->upper() }}</span>
                                     <span class="hidden text-left sm:block">
-                                        <span class="block text-sm font-semibold text-[var(--color-secondary-900)]">Azraq Admin</span>
+                                        <span class="block text-sm font-semibold text-[var(--color-secondary-900)]">{{ auth()->user()?->name ?? 'Azraq Admin' }}</span>
                                         <span class="block text-xs text-[var(--color-text-soft)]">Internal workspace</span>
                                     </span>
                                 </button>
@@ -191,9 +192,15 @@
                                     x-transition.opacity.scale.origin.top.right
                                     @click.outside="profileOpen = false"
                                 >
-                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">Azraq Bridal</p>
-                                    <p class="mt-1 text-sm text-[var(--color-text-soft)]">Admin controls are local and currently unauthenticated.</p>
-                                    <a href="{{ route('home') }}" class="mt-4 inline-flex text-sm font-semibold text-[var(--color-secondary-900)]">Open storefront</a>
+                                    <p class="text-sm font-semibold text-[var(--color-secondary-900)]">{{ auth()->user()?->name ?? 'Azraq Admin' }}</p>
+                                    <p class="mt-1 text-sm text-[var(--color-text-soft)]">{{ auth()->user()?->email }}</p>
+                                    <div class="mt-4 flex flex-col gap-3">
+                                        <a href="{{ route('home') }}" class="inline-flex text-sm font-semibold text-[var(--color-secondary-900)]">Open storefront</a>
+                                        <form method="POST" action="{{ route('admin.logout') }}">
+                                            @csrf
+                                            <button type="submit" class="text-sm font-semibold text-[var(--color-primary-900)]">Sign out</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>

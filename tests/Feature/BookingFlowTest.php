@@ -7,6 +7,10 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    signInAdmin($this);
+});
+
 it('shows a dedicated booking detail page for service products', function () {
     $this->seed(CatalogSeeder::class);
 

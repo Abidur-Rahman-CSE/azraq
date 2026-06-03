@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\MockupController;
 use App\Http\Controllers\Admin\OrderController as AdminOrderController;
 use App\Http\Controllers\Admin\PersonalizationTemplateController;
 use App\Http\Controllers\Admin\BookingController as AdminBookingController;
+use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\CouponController as AdminCouponController;
 use App\Http\Controllers\Admin\FaqController as AdminFaqController;
 use App\Http\Controllers\Admin\HomepageSectionController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\ReviewController as AdminReviewController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\TagController;
+use App\Http\Controllers\Admin\UserController as AdminUserController;
 use App\Http\Controllers\AccountController;
 use App\Http\Controllers\CartController;
 use App\Http\Controllers\CheckoutController;
@@ -80,7 +82,13 @@ Route::post('/products/{product}/book', [BookingController::class, 'store'])->na
 Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
 Route::get('/bookings/success/{booking}', [BookingController::class, 'success'])->name('bookings.success');
 
-Route::prefix('admin')->name('admin.')->group(function (): void {
+Route::middleware('guest')->group(function (): void {
+    Route::get('/admin/login', [AdminAuthController::class, 'create'])->name('login');
+    Route::post('/admin/login', [AdminAuthController::class, 'store'])->name('admin.login.store');
+});
+Route::post('/admin/logout', [AdminAuthController::class, 'destroy'])->middleware('auth')->name('admin.logout');
+
+Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(function (): void {
     Route::get('/', function () {
         $mockupsTableExists = Schema::hasTable('personalization_mockups');
         $mockupMapsTableExists = Schema::hasTable('personalization_mockup_maps');
@@ -235,6 +243,8 @@ Route::prefix('admin')->name('admin.')->group(function (): void {
             ],
         ]);
     })->name('dashboard');
+
+    Route::resource('users', AdminUserController::class)->except('show');
 
     Route::get('/mockups', [MockupController::class, 'index'])->name('mockups.index');
     Route::get('/mockups/create', [MockupController::class, 'create'])->name('mockups.create');

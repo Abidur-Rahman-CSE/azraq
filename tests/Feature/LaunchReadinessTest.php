@@ -8,6 +8,10 @@ use Illuminate\Support\Facades\Cache;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function () {
+    signInAdmin($this);
+});
+
 it('serves a robots file with a sitemap reference', function () {
     $this->get(route('seo.robots'))
         ->assertOk()
