@@ -3,8 +3,9 @@
 <article class="product-card-lux group">
     @php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
     @php($cardImage = $product->storefront_preview_image_url)
+    @php($snapshotImage = $product->is_customizable ? $product->personalizationTemplate?->thumbnailArtworkUrl() : null)
     @php($cardAlt = $primaryImage?->label ?: $product->name)
-    <a href="{{ route('products.show', $product) }}" class="block overflow-hidden rounded-t-[var(--radius-2xl)]" aria-label="View {{ $product->name }}">
+    <a href="{{ route('products.show', $product) }}" class="relative block overflow-hidden rounded-t-[var(--radius-2xl)]" aria-label="View {{ $product->name }}">
         @if ($cardImage)
             <img
                 src="{{ $cardImage }}"
@@ -13,6 +14,17 @@
                 loading="lazy"
                 decoding="async"
             >
+            @if ($snapshotImage && $snapshotImage !== $cardImage)
+                <span class="absolute bottom-3 left-3 block h-20 w-16 overflow-hidden rounded-lg border border-white/80 bg-white shadow-[0_8px_24px_rgba(0,0,0,0.18)] sm:h-24 sm:w-20">
+                    <img
+                        src="{{ $snapshotImage }}"
+                        alt="{{ $product->name }} flat preview"
+                        class="h-full w-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                    >
+                </span>
+            @endif
         @else
             <div class="flex aspect-[4/5] sm:aspect-[4/3] items-center justify-center bg-[rgba(253,240,213,0.50)] text-xs text-[var(--text-muted)]">
                 Preview soon
