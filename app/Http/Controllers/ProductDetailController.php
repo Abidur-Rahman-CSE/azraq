@@ -183,6 +183,9 @@ class ProductDetailController extends Controller
             ProductType::LightCustomizable => view('storefront.products.light-customizable', [
                 'product' => $product,
                 'recentlyViewed' => $recentlyViewed,
+                'faqs' => $faqs,
+                'related_products' => $product->relatedProducts->values(),
+                'comboUpsells' => $product->show_related_combos_on_product ? ComboPricing::suggestionsForProduct($product) : collect(),
             ]),
             ProductType::Bundle => view('storefront.products.bundle', [
                 'product' => $product,
