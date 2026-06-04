@@ -7,7 +7,7 @@
 
 <section class="lg:self-stretch">
     <div class="space-y-4 lg:sticky lg:top-[88px]">
-    <div class="surface-product overflow-hidden p-4 sm:p-5">
+    <div class="surface-product overflow-hidden p-2.5 sm:p-5">
         <div class="mb-4 flex items-center justify-between gap-3">
             <div>
                 <p class="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Preview gallery</p>
@@ -35,7 +35,11 @@
                 ⊕ Hover to zoom
             </div>
 
-            <div class="aspect-[4/5] w-full max-h-[58vh] lg:max-h-[500px]">
+            <div
+                class="w-full max-h-[56vh] lg:max-h-[500px]"
+                style="aspect-ratio: 4 / 5;"
+                :style="{ aspectRatio: activePreviewAspect }"
+            >
                 @if ($product->is_customizable)
                     <canvas
                         id="nikah-preview-canvas"
@@ -52,11 +56,23 @@
                 @endif
             </div>
 
+            @if ($product->is_customizable)
+                <div
+                    class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-white/45 backdrop-blur-[1px] transition-opacity duration-150"
+                    x-cloak
+                    x-show="previewBusy"
+                    x-transition.opacity.duration.150ms
+                    aria-hidden="true"
+                >
+                    <span class="h-8 w-8 rounded-full border-2 border-[var(--border-soft)] border-t-[var(--accent-primary)] motion-safe:animate-spin"></span>
+                </div>
+            @endif
+
             <template x-if="{{ $product->is_customizable ? 'previewCount > 1' : 'generalImageCount > 1' }}">
                 <div>
                     <button
                         type="button"
-                        class="absolute left-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-lg bg-white/75 text-3xl text-[var(--text-main)] shadow-sm backdrop-blur transition duration-200 ease-out hover:bg-white"
+                        class="absolute left-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg bg-white/80 text-2xl text-[var(--text-main)] shadow-sm backdrop-blur transition duration-200 ease-out hover:bg-white sm:left-3 sm:h-12 sm:w-12 sm:text-3xl"
                         @click.stop="previousPreview()"
                         aria-label="Previous preview"
                     >
@@ -64,7 +80,7 @@
                     </button>
                     <button
                         type="button"
-                        class="absolute right-3 top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-lg bg-white/75 text-3xl text-[var(--text-main)] shadow-sm backdrop-blur transition duration-200 ease-out hover:bg-white"
+                        class="absolute right-2 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-lg bg-white/80 text-2xl text-[var(--text-main)] shadow-sm backdrop-blur transition duration-200 ease-out hover:bg-white sm:right-3 sm:h-12 sm:w-12 sm:text-3xl"
                         @click.stop="nextPreview()"
                         aria-label="Next preview"
                     >

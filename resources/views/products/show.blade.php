@@ -2,7 +2,7 @@
     use Illuminate\Support\Str;
 
     $primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first();
-    $generalImages = $product->images
+    $galleryImages = $product->images
         ->take(8)
         ->map(fn ($image) => [
             'id' => $image->id,
@@ -11,6 +11,18 @@
             'alt' => $image->alt_text ?: $image->label ?: $product->name,
             'label' => $image->label ?: $product->name,
         ])
+        ->values();
+    $featuredGeneralImage = $product->featured_image_url
+        ? collect([[
+            'id' => 'featured',
+            'url' => $product->featured_image_url,
+            'thumb' => $product->featured_image_url,
+            'alt' => $product->name,
+            'label' => 'Featured image',
+        ]])
+        : collect();
+    $generalImages = $featuredGeneralImage
+        ->merge($galleryImages->reject(fn ($image) => $product->featured_image_url && $image['url'] === $product->featured_image_url))
         ->values();
 
     $activeFonts = $fonts instanceof \Illuminate\Support\Collection ? $fonts : collect($fonts ?? []);
@@ -300,7 +312,7 @@
             baseComparePrice: @js($product->compare_at_price ? (float) $product->compare_at_price : null),
         })"
     >
-        <div class="mx-auto max-w-screen-xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div class="mx-auto max-w-screen-xl px-2.5 py-4 sm:px-6 lg:px-8 lg:py-8">
             <nav class="flex flex-wrap items-center gap-1 text-xs text-[var(--text-muted)]">
                 <a href="{{ route('home') }}" class="transition duration-200 ease-out hover:text-[var(--accent-primary)] hover:underline">Home</a>
                 <span>/</span>
@@ -311,7 +323,7 @@
                 <span class="text-[var(--text-main)]">{{ $product->name }}</span>
             </nav>
 
-            <div class="mt-6 grid gap-8 lg:grid-cols-[minmax(0,55fr)_minmax(0,45fr)]">
+            <div class="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,55fr)_minmax(0,45fr)] lg:gap-8">
                 @include('products.partials._preview_stage', [
                     'product' => $product,
                     'template' => $template,

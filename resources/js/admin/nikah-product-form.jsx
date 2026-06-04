@@ -1133,14 +1133,37 @@ function VariantMediaMapper({
             .join(', ');
     }
 
+    function selectedMedia(target) {
+        const ids = links[target.key] || [];
+
+        return ids
+            .map((id) => mediaOptions.find((media) => media.id === id))
+            .filter(Boolean);
+    }
+
     return (
         <section className="variant-media-mapper">
             <div className="variant-media-mapper__heading">
                 <div>
                     <h4>{title}</h4>
-                    <p>Map one option value once. Every combination using that value will follow it.</p>
+                    <p>Choose from all assigned mockups, then attach the right scene to each variant option.</p>
                 </div>
             </div>
+
+            {mediaOptions.length ? (
+                <div className="variant-media-mapper__media-strip" aria-label={`All available ${mediaLabel}`}>
+                    {mediaOptions.map((media) => (
+                        <article
+                            key={media.id}
+                            className="variant-media-mapper__media-tile"
+                            title={media.label}
+                        >
+                            <img src={media.thumb} alt={media.label} />
+                            <span>{media.label}</span>
+                        </article>
+                    ))}
+                </div>
+            ) : null}
 
             {hasTargets && mediaOptions.length ? (
                 <div className="variant-media-mapper__groups">
@@ -1150,9 +1173,16 @@ function VariantMediaMapper({
                             <div className="variant-media-mapper__list">
                                 {group.targets.map((target) => (
                                     <article key={target.key} className="variant-media-mapper__row">
-                                        <div>
+                                        <div className="variant-media-mapper__row-copy">
                                             <strong>{target.label}</strong>
                                             <span>{selectedLabels(target)}</span>
+                                        </div>
+                                        <div className="variant-media-mapper__selected">
+                                            {selectedMedia(target).length ? selectedMedia(target).map((media) => (
+                                                <img key={media.id} src={media.thumb} alt={media.label} title={media.label} />
+                                            )) : (
+                                                <span>No scene</span>
+                                            )}
                                         </div>
                                         <button type="button" className="variant-option-add" onClick={() => setActiveTarget(target)}>
                                             Select {mediaLabel}
@@ -1865,12 +1895,20 @@ function NikahProductForm({ payload }) {
     const basePublishReady = Boolean(productName.trim() && categoryId && `${price}`.trim() !== '');
     const primaryExistingImage = existingImages.find((image) => image.is_primary) || existingImages[0] || null;
     const savedFeaturedImageUrl = product.featuredImageUrl || primaryExistingImage?.image_url || '';
-    const productImageOptions = existingImages.map((image, index) => ({
-        id: `${image.id}`,
-        label: `${index + 1}. ${image.label || image.alt_text || 'Product image'}`,
-        thumb: image.image_url,
-        alt_text: image.alt_text,
-    }));
+    const productImageOptions = [
+        ...(savedFeaturedImageUrl ? [{
+            id: 'featured',
+            label: 'Featured image',
+            thumb: savedFeaturedImageUrl,
+            alt_text: productName || 'Featured image',
+        }] : []),
+        ...existingImages.map((image, index) => ({
+            id: `${image.id}`,
+            label: `${index + 1}. ${image.label || image.alt_text || 'Product image'}`,
+            thumb: image.image_url,
+            alt_text: image.alt_text,
+        })),
+    ];
     const mockupOptions = availableMockups
         .filter((mockup) => activeMockups.includes(mockup.id))
         .map((mockup) => ({
@@ -1888,6 +1926,7 @@ function NikahProductForm({ payload }) {
         { id: 'fields', label: 'Fields' },
         { id: 'pricing', label: 'Pricing' },
         { id: 'variants', label: 'Variants' },
+        { id: 'mapping', label: 'Mockup mapping' },
         { id: 'related', label: 'Related' },
         { id: 'seo', label: 'SEO' },
     ];
@@ -1896,6 +1935,7 @@ function NikahProductForm({ payload }) {
         { id: 'organization', label: 'Organization' },
         { id: 'pricing', label: 'Pricing' },
         { id: 'variants', label: 'Variants' },
+        { id: 'image_mapping', label: 'Image mapping' },
         ...(currentType === 'bundle' ? [{ id: 'combo', label: 'Combo' }] : []),
         ...(currentType === 'service' ? [{ id: 'service', label: 'Service' }] : []),
         ...(isLightMode ? [{ id: 'custom_fields', label: 'Custom fields' }] : []),
@@ -2677,6 +2717,16 @@ function NikahProductForm({ payload }) {
                                     hasCopiedPricing={Boolean(copiedVariantPricing)}
                                     emptyMessage="No variants added yet. Leave this empty for a single-option Nikahnama product."
                                 />
+                            </section>
+
+                            <section className="nikah-step-card nikah-step-card--accent-amber" hidden={advancedTab !== 'mapping'}>
+                                <div className="nikah-step-card__heading">
+                                    <span className="nikah-step-card__step">7</span>
+                                    <div>
+                                        <h3>Variant mockup mapping</h3>
+                                        <p>Map frame sizes, styles, or finishes to the storefront scene customers should see.</p>
+                                    </div>
+                                </div>
 
                                 <VariantMediaMapper
                                     variants={variants}
@@ -2691,7 +2741,7 @@ function NikahProductForm({ payload }) {
 
                             <section className="nikah-step-card" hidden={advancedTab !== 'related'}>
                                 <div className="nikah-step-card__heading">
-                                    <span className="nikah-step-card__step">7</span>
+                                    <span className="nikah-step-card__step">8</span>
                                     <div>
                                         <h3>Related discovery</h3>
                                         <p>Cross-link this Nikahnama with supporting products and relevant browse categories.</p>
@@ -3015,6 +3065,17 @@ function NikahProductForm({ payload }) {
                                 hasCopiedPricing={Boolean(copiedVariantPricing)}
                                 emptyMessage="No variants added yet. Leave this empty for a single-price product."
                             />
+
+                        </section>
+
+                        <section className="nikah-step-card" hidden={generalTab !== 'image_mapping'}>
+                            <div className="nikah-step-card__heading">
+                                <span className="nikah-step-card__step">5</span>
+                                <div>
+                                    <h3>Variant image mapping</h3>
+                                    <p>Map each color, size, or option value to the product image customers should see.</p>
+                                </div>
+                            </div>
 
                             <VariantMediaMapper
                                 variants={variants}

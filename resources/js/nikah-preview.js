@@ -42,6 +42,31 @@ async function loadImage(url) {
     return promise;
 }
 
+function preloadMockupAssets(scene) {
+    if (!scene) {
+        return Promise.resolve();
+    }
+
+    return Promise.all([
+        loadImage(scene.base_image_url || scene.image_url),
+        loadImage(scene.overlay_image_url || scene.overlay_url),
+        loadImage(scene.mask_image_url || scene.mask_url),
+    ]).then(() => undefined);
+}
+
+function whenIdle(callback) {
+    if ('requestIdleCallback' in window) {
+        window.requestIdleCallback(callback, { timeout: 1200 });
+        return;
+    }
+
+    window.setTimeout(callback, 80);
+}
+
+function nextFrame() {
+    return new Promise((resolve) => window.requestAnimationFrame(resolve));
+}
+
 function getContainGeometry(image, width, height) {
     const sourceWidth = image.naturalWidth || image.width;
     const sourceHeight = image.naturalHeight || image.height;
@@ -319,6 +344,43 @@ function normalizeOptionKey(value) {
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '_')
         .replace(/^_+|_+$/g, '');
+}
+
+function normalizeOptionValue(value) {
+    return `${value ?? ''}`
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, ' ');
+}
+
+function mediaLinksForOption(links, key, value) {
+    const normalizedKey = normalizeOptionKey(key);
+    const rawValue = `${value ?? ''}`.trim();
+    const direct = links?.[`${normalizedKey}:${rawValue}`];
+
+    if (Array.isArray(direct) && direct.length) {
+        return direct;
+    }
+
+    const normalizedValue = normalizeOptionValue(value);
+    const match = Object.entries(links ?? {}).find(([linkKey, ids]) => {
+        if (!Array.isArray(ids) || !ids.length) {
+            return false;
+        }
+
+        const [candidateKey, ...candidateValueParts] = `${linkKey}`.split(':');
+
+        return normalizeOptionKey(candidateKey) === normalizedKey
+            && normalizeOptionValue(candidateValueParts.join(':')) === normalizedValue;
+    });
+
+    return match?.[1] ?? [];
+}
+
+function firstMappedMediaIndex(items, mappedMediaIds) {
+    return mappedMediaIds
+        .map((mediaId) => (items ?? []).findIndex((item) => `${item.id}` === `${mediaId}`))
+        .find((index) => index >= 0);
 }
 
 function humanizeOptionKey(value) {
@@ -864,6 +926,9 @@ export function registerNikahPreview(Alpine) {
         fieldFonts: cloneData(config.fieldFonts ?? {}),
         activeFont: config.activeFont ?? null,
         previewReady: false,
+        previewBusy: false,
+        previewRenderToken: 0,
+        thumbnailRenderToken: 0,
         proofNote: config.proofNote ?? '',
         selectedVariant: config.selectedVariant ?? '',
         selectedVariants: cloneData(config.selectedVariants ?? {}),
@@ -896,12 +961,12 @@ export function registerNikahPreview(Alpine) {
             return this.variantGroups.length > 0;
         },
         get activeVariant() {
-            if (this.selectedVariant) {
-                return this.variants.find((variant) => `${variant.id}` === `${this.selectedVariant}`) ?? null;
-            }
-
             if (this.hasGroupedVariants && this.variants.length) {
                 return this.findMatchingVariant(this.selectedVariants) ?? null;
+            }
+
+            if (this.selectedVariant) {
+                return this.variants.find((variant) => `${variant.id}` === `${this.selectedVariant}`) ?? null;
             }
 
             return this.variants.find((variant) => variant.is_default) ?? this.variants[0] ?? null;
@@ -1109,11 +1174,13 @@ export function registerNikahPreview(Alpine) {
 
             if (this.hasGroupedVariants) {
                 this.reconcileSelections(Math.max(0, changedIndex + 1));
+                this.syncPreviewFromActiveVariant();
                 return;
             }
 
             if (variantId) {
                 this.selectedVariant = `${variantId}`;
+                this.syncPreviewFromActiveVariant();
                 return;
             }
 
@@ -1121,39 +1188,42 @@ export function registerNikahPreview(Alpine) {
 
             if (match?.id) {
                 this.selectedVariant = `${match.id}`;
+                this.syncPreviewFromActiveVariant();
             }
         },
         syncPreviewFromActiveVariant() {
             const variant = this.activeVariant;
 
             if (!variant) {
-                return;
+                return false;
             }
 
             const mappedMediaIds = Object.entries(variant.option_values ?? {})
-                .map(([key, value]) => config.variantMediaLinks?.[`${normalizeOptionKey(key)}:${value}`] ?? [])
+                .map(([key, value]) => mediaLinksForOption(config.variantMediaLinks, key, value))
                 .flat()
                 .filter(Boolean);
 
             if (!this.isCustomizable) {
-                const imageId = mappedMediaIds[0];
-                const imageIndex = (config.generalImages ?? []).findIndex((image) => `${image.id}` === `${imageId}`);
+                const imageIndex = firstMappedMediaIndex(config.generalImages, mappedMediaIds);
 
-                if (imageIndex >= 0) {
+                if (imageIndex !== undefined) {
                     this.selectImage(imageIndex);
+                    return true;
                 }
 
-                return;
+                return false;
             }
 
             if (this.isCustomizable) {
-                const mockupId = mappedMediaIds[0];
-                const mockupIndex = (config.mockups ?? []).findIndex((mockup) => `${mockup.id}` === `${mockupId}`);
+                const mockupIndex = firstMappedMediaIndex(config.mockups, mappedMediaIds);
 
-                if (mockupIndex >= 0) {
+                if (mockupIndex !== undefined) {
                     this.selectMockup(mockupIndex);
+                    return true;
                 }
             }
+
+            return false;
         },
         openSizeGuide() {
             document.getElementById('shipping-care-policy')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1171,7 +1241,7 @@ export function registerNikahPreview(Alpine) {
             this.mode = 'mockup';
             this.activeThumb = index + (this.hasFlatPreview ? 1 : 0);
             this.activePreviewIndex = this.activeThumb;
-            this.renderPreview();
+            this.renderPreview({ refreshThumbs: false });
         },
         selectThumb(index) {
             if (!this.isCustomizable) {
@@ -1194,7 +1264,7 @@ export function registerNikahPreview(Alpine) {
                 this.mode = 'mockup';
             }
 
-            this.renderPreview();
+            this.renderPreview({ refreshThumbs: false });
         },
         selectPreview(index) {
             this.selectThumb(index);
@@ -1362,19 +1432,52 @@ export function registerNikahPreview(Alpine) {
             }
         },
 
-        async renderPreview() {
+        preloadPreviewMedia() {
+            if (!this.isCustomizable) {
+                (config.generalImages ?? []).forEach((image) => loadImage(image.url || image.thumb));
+                return;
+            }
+
+            (config.mockups ?? []).forEach((scene) => {
+                preloadMockupAssets(scene).catch(() => {});
+            });
+
+            if ((config.mockups ?? []).some((scene) => scene.map || scene.zone_points)) {
+                loadPerspective().catch(() => {});
+            }
+        },
+        async renderPreview(options = {}) {
             if (!this.isCustomizable) {
                 return;
             }
 
+            const { refreshThumbs = true } = options;
+            const token = Date.now() + Math.random();
+            this.previewRenderToken = token;
             this.previewReady = false;
+            this.previewBusy = true;
+
             try {
+                await nextFrame();
+                if (this.mode === 'mockup') {
+                    await preloadMockupAssets(config.mockups?.[this.activeMockup]);
+                }
+
+                if (this.previewRenderToken !== token) {
+                    return;
+                }
+
                 await window.NikahPreview.render(this.fields, this.activeFont, this.activeMockup, this.mode, this.fieldFonts);
             } finally {
-                this.previewReady = true;
+                if (this.previewRenderToken === token) {
+                    this.previewReady = true;
+                    this.previewBusy = false;
+                }
             }
 
-            this.renderThumbnailRail().catch(() => {});
+            if (refreshThumbs && this.previewRenderToken === token) {
+                whenIdle(() => this.renderThumbnailRail().catch(() => {}));
+            }
         },
         async renderThumbnailRail() {
             if (!this.isCustomizable || !window.NikahPreview) {
@@ -1454,6 +1557,7 @@ export function registerNikahPreview(Alpine) {
                         fonts: config.fonts ?? [],
                     });
 
+                    this.preloadPreviewMedia();
                     this.activeFont = this.primaryFontId() || config.activeFont || null;
                     const defaultMockupIndex = (config.mockups ?? []).findIndex((mockup) => `${mockup.id}` === `${config.defaultMockupId}`);
 
@@ -1469,10 +1573,16 @@ export function registerNikahPreview(Alpine) {
                         this.mode = 'mockup';
                     }
 
-                    this.syncPreviewFromActiveVariant();
+                    const syncedVariantPreview = this.syncPreviewFromActiveVariant();
                     this.initZoom();
-                    this.renderPreview();
+
+                    if (syncedVariantPreview) {
+                        whenIdle(() => this.renderThumbnailRail().catch(() => {}));
+                    } else {
+                        this.renderPreview();
+                    }
                 } else {
+                    this.preloadPreviewMedia();
                     this.syncPreviewFromActiveVariant();
                 }
             });
