@@ -6,11 +6,14 @@
     ];
     $activeFilterChips = collect();
     $selectedCategory = $filters['selectedCategory'] ?? null;
-    $bannerCategory = $selectedCategory;
-    $selectedCategoryBanner = $bannerCategory?->banner_image_url ?: $bannerCategory?->image_url;
-    $selectedCategoryMobileBanner = $bannerCategory?->mobile_banner_image_url;
+    $bannerCategory = $currentCollection ? null : $selectedCategory;
+    $selectedCategoryBanner = $currentCollection?->cover_image_url ?: ($bannerCategory?->banner_image_url ?: $bannerCategory?->image_url);
+    $selectedCategoryMobileBanner = $currentCollection ? null : $bannerCategory?->mobile_banner_image_url;
+    $bannerTitle = $currentCollection?->name ?: $selectedCategory?->name;
+    $bannerDescription = $currentCollection?->description ?: ($selectedCategory?->storefront_excerpt ?: $selectedCategory?->description);
+    $bannerEyebrow = $currentCollection ? 'Collection' : 'Category';
 
-    if (! $selectedCategoryBanner && $selectedCategory?->parent) {
+    if (! $currentCollection && ! $selectedCategoryBanner && $selectedCategory?->parent) {
         $bannerCategory = $selectedCategory->parent;
         $selectedCategoryBanner = $bannerCategory->banner_image_url ?: $bannerCategory->image_url;
         $selectedCategoryMobileBanner = $bannerCategory->mobile_banner_image_url;
@@ -25,7 +28,10 @@
     }
 
     $clearCategoryQuery = request()->except(['category', 'page']);
-    $clearCategoryUrl = route('shop.index').($clearCategoryQuery ? '?'.http_build_query($clearCategoryQuery) : '');
+    $clearCategoryUrl = $currentCollection
+        ? url()->current().($clearCategoryQuery ? '?'.http_build_query($clearCategoryQuery) : '')
+        : route('shop.index').($clearCategoryQuery ? '?'.http_build_query($clearCategoryQuery) : '');
+    $clearAllUrl = $currentCollection ? route('collections.show', $currentCollection) : route('shop.index');
 
     if (filled($appliedFilters['category'] ?? null)) {
         $activeFilterChips->push([
@@ -117,7 +123,7 @@
                     </aside>
 
                     <div class="min-w-0 space-y-6">
-                        @if ($selectedCategory && $selectedCategoryBanner)
+                        @if ($selectedCategoryBanner && ($currentCollection || $selectedCategory))
                             <div class="relative overflow-hidden rounded-[var(--radius-2xl)] border border-[var(--border-soft)] bg-[var(--bg-section-soft)] shadow-sm">
                                 <picture>
                                     @if ($selectedCategoryMobileBanner)
@@ -125,7 +131,7 @@
                                     @endif
                                     <img
                                         src="{{ $selectedCategoryBanner }}"
-                                        alt="{{ $bannerCategory?->alt_text ?: $selectedCategory->name }}"
+                                        alt="{{ $currentCollection?->name ?: ($bannerCategory?->alt_text ?: $selectedCategory->name) }}"
                                         class="h-40 w-full object-cover sm:h-52 lg:h-64"
                                         loading="eager"
                                         decoding="async"
@@ -141,19 +147,23 @@
                                     <nav class="mb-2 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-white/82" aria-label="Category breadcrumb">
                                         <a href="{{ route('shop.index') }}" class="transition hover:text-white">Shop</a>
                                         <span class="text-white/55">&gt;</span>
-                                        @foreach ($categoryBreadcrumb as $crumb)
-                                            @if (! $loop->last)
-                                                <a href="{{ route('categories.show', $crumb) }}" class="transition hover:text-white">{{ $crumb->name }}</a>
-                                                <span class="text-white/55">&gt;</span>
-                                            @else
-                                                <span class="text-white">{{ $crumb->name }}</span>
-                                            @endif
-                                        @endforeach
+                                        @if ($currentCollection)
+                                            <span class="text-white">{{ $currentCollection->name }}</span>
+                                        @else
+                                            @foreach ($categoryBreadcrumb as $crumb)
+                                                @if (! $loop->last)
+                                                    <a href="{{ route('categories.show', $crumb) }}" class="transition hover:text-white">{{ $crumb->name }}</a>
+                                                    <span class="text-white/55">&gt;</span>
+                                                @else
+                                                    <span class="text-white">{{ $crumb->name }}</span>
+                                                @endif
+                                            @endforeach
+                                        @endif
                                     </nav>
-                                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-white/85">Category</p>
-                                    <h1 class="mt-1 font-serif text-3xl font-semibold leading-tight text-white sm:text-4xl">{{ $selectedCategory->name }}</h1>
-                                    @if (filled($selectedCategory->storefront_excerpt ?: $selectedCategory->description))
-                                        <p class="mt-2 max-w-xl text-sm leading-6 text-white/90">{{ $selectedCategory->storefront_excerpt ?: \Illuminate\Support\Str::limit(strip_tags($selectedCategory->description), 140) }}</p>
+                                    <p class="text-xs font-semibold uppercase tracking-[0.22em] text-white/85">{{ $bannerEyebrow }}</p>
+                                    <h1 class="mt-1 font-serif text-3xl font-semibold leading-tight text-white sm:text-4xl">{{ $bannerTitle }}</h1>
+                                    @if (filled($bannerDescription))
+                                        <p class="mt-2 max-w-xl text-sm leading-6 text-white/90">{{ \Illuminate\Support\Str::limit(strip_tags($bannerDescription), 140) }}</p>
                                     @endif
                                 </div>
                             </div>
@@ -171,7 +181,7 @@
                                                 <span aria-hidden="true">×</span>
                                             </a>
                                         @endforeach
-                                        <a href="{{ route('shop.index') }}" class="inline-flex items-center rounded-full border border-[var(--border-soft)] bg-white/80 px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent-primary)]">
+                                        <a href="{{ $clearAllUrl }}" class="inline-flex items-center rounded-full border border-[var(--border-soft)] bg-white/80 px-3 py-1 text-[11px] font-semibold text-[var(--text-muted)] transition hover:text-[var(--accent-primary)]">
                                             Clear all
                                         </a>
                                     </div>

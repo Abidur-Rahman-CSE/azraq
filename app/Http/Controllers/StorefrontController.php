@@ -239,7 +239,7 @@ class StorefrontController extends Controller
             'title' => $collection->name,
             'description' => $collection->description,
             'products' => $products,
-            'filters' => $this->filters($request),
+            'filters' => $this->filters($request, null, $collection),
             'currentCategory' => null,
             'currentCollection' => $collection,
             'heroCollections' => Collection::withCount('products')
@@ -293,12 +293,42 @@ class StorefrontController extends Controller
             }, fn ($query) => $query->latest());
     }
 
-    private function filters(Request $request, ?Category $currentCategory = null): array
+    private function filters(Request $request, ?Category $currentCategory = null, ?Collection $currentCollection = null): array
     {
-        $priceBounds = Product::query()
+        $filterProductScope = Product::query()
             ->where('status', 'active')
+            ->when($currentCollection, fn ($query) => $query->whereHas('collections', fn ($related) => $related->whereKey($currentCollection->id)));
+
+        $priceBounds = (clone $filterProductScope)
             ->selectRaw('MIN(price) as min_price, MAX(price) as max_price')
             ->first();
+
+        $collectionCategoryIds = collect();
+        $visibleCategoryIds = null;
+
+        if ($currentCollection) {
+            $collectionCategoryIds = (clone $filterProductScope)
+                ->pluck('category_id')
+                ->filter()
+                ->unique()
+                ->values();
+
+            $visibleCategoryIds = Category::query()
+                ->whereIn('id', $collectionCategoryIds)
+                ->with('parent.parent')
+                ->get()
+                ->flatMap(function (Category $category) {
+                    return [
+                        $category->id,
+                        $category->parent_id,
+                        $category->parent?->parent_id,
+                    ];
+                })
+                ->filter()
+                ->unique()
+                ->values();
+        }
+
         $selectedCategorySlug = $currentCategory?->slug ?: $request->string('category')->toString();
         $selectedCategory = $currentCategory
             ?: (filled($selectedCategorySlug) ? Category::query()
@@ -343,13 +373,19 @@ class StorefrontController extends Controller
             'parentCategories' => Category::query()
                 ->where('is_active', true)
                 ->whereNull('parent_id')
-                ->withCount('products')
+                ->when($visibleCategoryIds !== null, fn ($query) => $query->whereIn('id', $visibleCategoryIds))
+                ->withCount(['products as products_count' => fn ($query) => $query
+                    ->when($currentCollection, fn ($productQuery) => $productQuery->whereHas('collections', fn ($related) => $related->whereKey($currentCollection->id)))])
                 ->with(['children' => fn ($query) => $query
                     ->where('is_active', true)
-                    ->withCount('products')
+                    ->when($visibleCategoryIds !== null, fn ($childQuery) => $childQuery->whereIn('id', $visibleCategoryIds))
+                    ->withCount(['products as products_count' => fn ($productQuery) => $productQuery
+                        ->when($currentCollection, fn ($scopedProductQuery) => $scopedProductQuery->whereHas('collections', fn ($related) => $related->whereKey($currentCollection->id)))])
                     ->with(['children' => fn ($childQuery) => $childQuery
                         ->where('is_active', true)
-                        ->withCount('products')
+                        ->when($visibleCategoryIds !== null, fn ($grandchildQuery) => $grandchildQuery->whereIn('id', $visibleCategoryIds))
+                        ->withCount(['products as products_count' => fn ($productQuery) => $productQuery
+                            ->when($currentCollection, fn ($scopedProductQuery) => $scopedProductQuery->whereHas('collections', fn ($related) => $related->whereKey($currentCollection->id)))])
                         ->orderBy('sort_order')
                         ->orderBy('name')])
                     ->orderBy('sort_order')
@@ -358,6 +394,7 @@ class StorefrontController extends Controller
                 ->orderBy('name')
                 ->get(),
             'selectedCategory' => $selectedCategory,
+            'currentCollection' => $currentCollection,
             'collections' => $this->collectionsFromCachedIds(
                 'storefront.filter.collection_ids',
                 fn () => Collection::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->pluck('id')->all()

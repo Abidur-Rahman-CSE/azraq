@@ -11,10 +11,24 @@
     $boundsMin = (int) data_get($filters, 'priceBounds.min', 0);
     $boundsMax = max((int) data_get($filters, 'priceBounds.max', 0), $boundsMin);
     $selectedCategory = $filters['selectedCategory'] ?? null;
-    $clearUrl = $selectedCategory ? route('shop.index') : $action;
+    $currentCollection = $filters['currentCollection'] ?? null;
+    $clearUrl = $currentCollection
+        ? $action
+        : ($selectedCategory ? route('shop.index') : $action);
     $parentCategories = collect($filters['parentCategories'] ?? $filters['categories']);
     $selectedAncestorIds = collect();
     $ancestor = $selectedCategory;
+    $categoryUrlFor = function (\App\Models\Category $category) use ($action, $currentCollection) {
+        $categoryQuery = request()->except(['category', 'page']);
+
+        if ($currentCollection) {
+            $categoryQuery['category'] = $category->slug;
+
+            return $action.($categoryQuery ? '?'.http_build_query($categoryQuery) : '');
+        }
+
+        return route('categories.show', $category).($categoryQuery ? '?'.http_build_query($categoryQuery) : '');
+    };
 
     while ($ancestor) {
         $selectedAncestorIds->push($ancestor->id);
@@ -48,8 +62,7 @@
                         $children = collect($category->children ?? []);
                         $isSelected = $selectedCategory?->is($category);
                         $isExpanded = $selectedAncestorIds->contains($category->id);
-                        $categoryQuery = request()->except(['category', 'page']);
-                        $categoryUrl = route('categories.show', $category).($categoryQuery ? '?'.http_build_query($categoryQuery) : '');
+                        $categoryUrl = $categoryUrlFor($category);
                     @endphp
                     <a
                         href="{{ $categoryUrl }}"
@@ -71,8 +84,7 @@
                                     $grandchildren = collect($child->children ?? []);
                                     $isChildSelected = $selectedCategory?->is($child);
                                     $isChildExpanded = $selectedAncestorIds->contains($child->id);
-                                    $childQuery = request()->except(['category', 'page']);
-                                    $childUrl = route('categories.show', $child).($childQuery ? '?'.http_build_query($childQuery) : '');
+                                    $childUrl = $categoryUrlFor($child);
                                 @endphp
                                 <a href="{{ $childUrl }}" class="flex items-center justify-between gap-3 rounded-md px-1 py-1.5 text-sm transition hover:text-[var(--accent-primary)]">
                                     <span class="{{ $isChildExpanded ? 'font-semibold text-[var(--accent-primary)]' : 'text-[var(--text-muted)]' }}">{{ $child->name }}</span>
@@ -88,8 +100,7 @@
                                     <div class="ml-4 border-l border-[rgba(120,0,0,0.10)] pl-3">
                                         @foreach ($grandchildren as $grandchild)
                                             @php
-                                                $grandchildQuery = request()->except(['category', 'page']);
-                                                $grandchildUrl = route('categories.show', $grandchild).($grandchildQuery ? '?'.http_build_query($grandchildQuery) : '');
+                                                $grandchildUrl = $categoryUrlFor($grandchild);
                                                 $isGrandchildSelected = $selectedCategory?->is($grandchild);
                                             @endphp
                                             <a href="{{ $grandchildUrl }}" class="flex items-center justify-between gap-3 rounded-md px-1 py-1.5 text-sm transition hover:text-[var(--accent-primary)]">

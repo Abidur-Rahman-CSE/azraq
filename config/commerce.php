@@ -24,6 +24,7 @@ return [
         'nav' => [
             ['label' => 'Home', 'href' => '/'],
             ['label' => 'Shop', 'href' => '/shop'],
+            ['label' => 'Collections', 'href' => '#collections'],
             ['label' => 'Categories', 'href' => '#categories'],
             ['label' => 'About', 'href' => '/pages/about'],
         ],
