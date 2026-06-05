@@ -5,13 +5,13 @@
     $showFlatPreview = $product->is_customizable;
 @endphp
 
-<section class="lg:self-stretch">
-    <div class="space-y-4 lg:sticky lg:top-[88px]">
-    <div class="surface-product overflow-hidden p-2.5 sm:p-5">
-        <div class="mb-4 flex items-center justify-between gap-3">
-            <div>
+<section class="min-w-0 lg:sticky lg:top-[88px] lg:self-start">
+    <div class="min-w-0 space-y-4">
+    <div class="surface-product max-w-full overflow-hidden p-2.5 sm:p-5">
+        <div class="mb-4 flex min-w-0 items-center justify-between gap-3">
+            <div class="min-w-0">
                 <p class="text-xs font-medium uppercase tracking-[0.18em] text-[var(--text-muted)]">Preview gallery</p>
-                <p class="mt-1 text-sm font-medium text-[var(--text-main)]" x-text="currentPreviewTitle">
+                <p class="mt-1 truncate text-sm font-medium text-[var(--text-main)]" x-text="currentPreviewTitle">
                     {{ $product->is_customizable ? ($mockupItems->first()['name'] ?? 'Template preview') : ($generalImages->first()['label'] ?? $product->name) }}
                 </p>
             </div>
@@ -36,22 +36,28 @@
             </div>
 
             <div
-                class="w-full max-h-[56vh] lg:max-h-[500px]"
+                class="relative mx-auto flex aspect-[4/5] w-full max-w-[320px] items-center justify-center overflow-hidden bg-[var(--bg-section-soft)] sm:max-w-[420px] lg:max-h-[500px] lg:max-w-none"
                 style="aspect-ratio: 4 / 5;"
-                :style="{ aspectRatio: activePreviewAspect }"
             >
                 @if ($product->is_customizable)
                     <canvas
                         id="nikah-preview-canvas"
                         x-ref="previewCanvas"
                         aria-label="Certificate preview"
-                        class="block h-full w-full origin-center transform-gpu transition-transform duration-300 ease-out"
+                        class="block h-full w-full origin-center object-contain transform-gpu transition-transform duration-300 ease-out"
                     ></canvas>
                 @else
                     <img
                         :src="activeGeneralImage?.url || @js($generalImages->first()['url'] ?? $product->featured_image_url)"
+                        alt=""
+                        aria-hidden="true"
+                        class="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl"
+                    >
+                    <div class="absolute inset-0 bg-[rgba(255,250,242,0.28)]" aria-hidden="true"></div>
+                    <img
+                        :src="activeGeneralImage?.url || @js($generalImages->first()['url'] ?? $product->featured_image_url)"
                         :alt="activeGeneralImage?.alt || @js($generalImages->first()['alt'] ?? $product->name)"
-                        class="block h-full w-full object-cover transition duration-200 ease-out"
+                        class="relative block h-full w-full object-contain transition duration-200 ease-out"
                     >
                 @endif
             </div>
@@ -90,7 +96,7 @@
             </template>
         </div>
 
-        <div class="mt-4 p-1 flex snap-x snap-mandatory gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div class="mt-4 flex max-w-full snap-x snap-mandatory gap-2 overflow-x-auto p-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             @if ($product->is_customizable && $showFlatPreview)
                 <button
                     type="button"

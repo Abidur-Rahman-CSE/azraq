@@ -199,6 +199,8 @@ class StorefrontController extends Controller
 
     public function category(Request $request, Category $category)
     {
+        $category->loadMissing('parent');
+
         $listingQuery = $this->productListingQuery($request, $category);
 
         $products = (clone $listingQuery)
@@ -210,7 +212,7 @@ class StorefrontController extends Controller
             'title' => $category->name,
             'description' => $category->description,
             'products' => $products,
-            'filters' => $this->filters($request),
+            'filters' => $this->filters($request, $category),
             'currentCategory' => $category,
             'currentCollection' => null,
             'heroCollections' => Collection::withCount('products')
@@ -265,6 +267,22 @@ class StorefrontController extends Controller
             }))
             ->when($request->string('type')->toString(), fn ($query, $type) => $query->where('type', $type))
             ->when($request->string('tag')->toString(), fn ($query, $tag) => $query->whereHas('tags', fn ($related) => $related->where('slug', $tag)))
+            ->when(! $category ? $request->string('category')->toString() : null, fn ($query, $categorySlug) => $query->whereHas('category', fn ($related) => $related->where('slug', (string) $categorySlug)))
+            ->when($request->filled('min_price'), fn ($query) => $query->where('price', '>=', max(0, (float) $request->input('min_price'))))
+            ->when($request->filled('max_price'), fn ($query) => $query->where('price', '<=', max(0, (float) $request->input('max_price'))))
+            ->when(collect((array) $request->input('availability', []))->filter()->isNotEmpty(), function ($query) use ($request): void {
+                $availability = collect((array) $request->input('availability', []))->filter()->values();
+
+                $query->where(function ($inner) use ($availability): void {
+                    if ($availability->contains('in_stock')) {
+                        $inner->orWhere(fn ($stockQuery) => $stockQuery->where('manage_stock', true)->where('stock_quantity', '>', 0));
+                    }
+
+                    if ($availability->contains('made_to_order')) {
+                        $inner->orWhere('manage_stock', false);
+                    }
+                });
+            })
             ->when($request->string('sort')->toString(), function ($query, $sort): void {
                 match ($sort) {
                     'price_low' => $query->orderBy('price'),
@@ -275,8 +293,43 @@ class StorefrontController extends Controller
             }, fn ($query) => $query->latest());
     }
 
-    private function filters(Request $request): array
+    private function filters(Request $request, ?Category $currentCategory = null): array
     {
+        $priceBounds = Product::query()
+            ->where('status', 'active')
+            ->selectRaw('MIN(price) as min_price, MAX(price) as max_price')
+            ->first();
+        $selectedCategorySlug = $currentCategory?->slug ?: $request->string('category')->toString();
+        $selectedCategory = $currentCategory
+            ?: (filled($selectedCategorySlug) ? Category::query()
+                ->where('is_active', true)
+                ->with(['parent.parent'])
+                ->with(['children' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->withCount('products')
+                    ->with(['children' => fn ($childQuery) => $childQuery->where('is_active', true)->withCount('products')])])
+                ->where('slug', $selectedCategorySlug)
+                ->first() : null);
+        $selectedCategory?->loadMissing([
+            'parent.parent',
+            'children' => fn ($query) => $query
+                ->where('is_active', true)
+                ->withCount('products')
+                ->with(['children' => fn ($childQuery) => $childQuery->where('is_active', true)->withCount('products')]),
+        ]);
+        $selectedCategory?->parent?->loadMissing([
+            'children' => fn ($query) => $query
+                ->where('is_active', true)
+                ->withCount('products')
+                ->with(['children' => fn ($childQuery) => $childQuery->where('is_active', true)->withCount('products')]),
+        ]);
+        $selectedCategory?->parent?->parent?->loadMissing([
+            'children' => fn ($query) => $query
+                ->where('is_active', true)
+                ->withCount('products')
+                ->with(['children' => fn ($childQuery) => $childQuery->where('is_active', true)->withCount('products')]),
+        ]);
+
         return [
             'productTypes' => ProductType::options(),
             'tags' => $this->tagsFromCachedIds(
@@ -287,6 +340,24 @@ class StorefrontController extends Controller
                 'storefront.filter.category_ids',
                 fn () => Category::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->pluck('id')->all()
             ),
+            'parentCategories' => Category::query()
+                ->where('is_active', true)
+                ->whereNull('parent_id')
+                ->withCount('products')
+                ->with(['children' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->withCount('products')
+                    ->with(['children' => fn ($childQuery) => $childQuery
+                        ->where('is_active', true)
+                        ->withCount('products')
+                        ->orderBy('sort_order')
+                        ->orderBy('name')])
+                    ->orderBy('sort_order')
+                    ->orderBy('name')])
+                ->orderBy('sort_order')
+                ->orderBy('name')
+                ->get(),
+            'selectedCategory' => $selectedCategory,
             'collections' => $this->collectionsFromCachedIds(
                 'storefront.filter.collection_ids',
                 fn () => Collection::query()->where('is_active', true)->orderBy('sort_order')->orderBy('name')->pluck('id')->all()
@@ -295,7 +366,15 @@ class StorefrontController extends Controller
                 'search' => $request->string('search')->toString(),
                 'type' => $request->string('type')->toString(),
                 'tag' => $request->string('tag')->toString(),
+                'category' => $selectedCategorySlug,
+                'min_price' => $request->input('min_price'),
+                'max_price' => $request->input('max_price'),
+                'availability' => collect((array) $request->input('availability', []))->filter()->values()->all(),
                 'sort' => $request->string('sort')->toString(),
+            ],
+            'priceBounds' => [
+                'min' => (int) floor((float) ($priceBounds?->min_price ?? 0)),
+                'max' => (int) ceil((float) ($priceBounds?->max_price ?? 0)),
             ],
         ];
     }

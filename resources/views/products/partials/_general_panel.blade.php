@@ -1,5 +1,5 @@
-<section class="space-y-4 text-[var(--text-main)]">
-    <div class="surface-card-featured p-5 sm:p-6">
+<section class="min-w-0 space-y-4 text-[var(--text-main)]">
+    <div class="surface-card-featured max-w-full overflow-hidden p-5 sm:p-6">
         <div class="flex flex-wrap gap-2">
             @foreach ($badgeItems as $index => $badge)
                 @php
@@ -13,7 +13,7 @@
             @endforeach
         </div>
 
-        <h1 class="mt-2 font-serif text-[26px] font-semibold leading-tight text-[var(--text-main)]">{{ $product->name }}</h1>
+        <h1 class="mt-2 break-words font-serif text-[26px] font-semibold leading-tight text-[var(--text-main)]">{{ $product->name }}</h1>
 
         <div class="mt-3 flex flex-wrap items-center gap-2">
             <span class="text-2xl font-semibold text-[var(--accent-primary)]" x-text="formatMoney(displayPrice)">BDT {{ number_format((float) $product->price, 0) }}</span>
@@ -26,19 +26,19 @@
         <p class="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">{{ $shortDescription }}</p>
     </div>
 
-    <form id="order-form" method="POST" action="{{ route('cart.store', $product) }}" class="space-y-4" x-ref="mainOrderForm" @submit="submitting = true">
+    <form id="order-form" method="POST" action="{{ route('cart.store', $product) }}" class="min-w-0 space-y-4" x-ref="mainOrderForm" @submit="submitting = true">
         @csrf
 
-        <div class="surface-card p-5">
+        <div class="surface-card max-w-full overflow-hidden p-5">
             @include('products.partials._variant_selectors', [
                 'variantGroups' => $variantGroups,
                 'simpleVariants' => $simpleVariants,
             ])
         </div>
 
-        <div class="surface-card p-5">
+        <div class="surface-card max-w-full overflow-hidden p-5">
             <h2 class="text-base font-semibold text-[var(--text-main)]">Quantity</h2>
-            <div class="mt-4 inline-flex items-center overflow-hidden rounded-lg border border-[var(--border-soft)]">
+            <div class="mt-4 inline-flex max-w-full items-center overflow-hidden rounded-lg border border-[var(--border-soft)]">
                 <button type="button" class="px-4 py-2.5 transition duration-200 ease-out hover:bg-[var(--bg-section-soft)]" @click="quantity = Math.max(1, quantity - 1)" aria-label="Decrease quantity">−</button>
                 <input type="number" min="1" name="quantity" x-model="quantity" class="min-w-[48px] border-0 bg-white px-4 py-2.5 text-center text-sm font-medium text-[var(--text-main)] focus:outline-none focus:ring-0">
                 <button type="button" class="px-4 py-2.5 transition duration-200 ease-out hover:bg-[var(--bg-section-soft)]" @click="quantity = quantity + 1" aria-label="Increase quantity">+</button>
@@ -48,7 +48,7 @@
             @enderror
         </div>
 
-        <div class="surface-card-featured p-5" x-ref="ctaAnchor">
+        <div class="surface-card-featured max-w-full overflow-hidden p-5" x-ref="ctaAnchor">
             <button
                 type="submit"
                 class="button-primary relative mt-0 w-full overflow-hidden !rounded-[var(--radius-xl)] !py-4 !text-base"
@@ -72,7 +72,7 @@
             </button>
 
             <div class="mt-4 border-t border-[var(--border-soft)] pt-4">
-                <div class="grid gap-2 text-[11px] text-[var(--text-muted)] sm:grid-cols-3">
+                <div class="grid min-w-0 gap-2 text-[11px] text-[var(--text-muted)] sm:grid-cols-3">
                     <div class="flex items-center gap-1.5">
                         <svg class="h-3.5 w-3.5 text-[var(--accent-soft)]" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M6.4 11.2 3.2 8l1.1-1.1 2.1 2.1 5-5L12.5 5z"/></svg>
                         <span>Proof before production</span>

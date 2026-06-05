@@ -286,7 +286,7 @@
     </x-slot:head>
 
     <div
-        class="text-[var(--text-main)]"
+        class="w-full min-w-0 overflow-x-clip text-[var(--text-main)]"
         x-data="storefrontPdp({
             isCustomizable: @js($product->is_customizable),
             canvasId: 'nikah-preview-canvas',
@@ -312,18 +312,18 @@
             baseComparePrice: @js($product->compare_at_price ? (float) $product->compare_at_price : null),
         })"
     >
-        <div class="mx-auto max-w-screen-xl px-2.5 py-4 sm:px-6 lg:px-8 lg:py-8">
-            <nav class="flex flex-wrap items-center gap-1 text-xs text-[var(--text-muted)]">
+        <div class="mx-auto w-full min-w-0 max-w-screen-xl px-2.5 py-4 sm:px-6 lg:px-8 lg:py-8">
+            <nav class="flex min-w-0 flex-wrap items-center gap-1 text-xs text-[var(--text-muted)]">
                 <a href="{{ route('home') }}" class="transition duration-200 ease-out hover:text-[var(--accent-primary)] hover:underline">Home</a>
                 <span>/</span>
                 @if ($product->category)
                     <a href="{{ route('categories.show', $product->category) }}" class="transition duration-200 ease-out hover:text-[var(--accent-primary)] hover:underline">{{ $product->category->name }}</a>
                     <span>/</span>
                 @endif
-                <span class="text-[var(--text-main)]">{{ $product->name }}</span>
+                <span class="min-w-0 break-words text-[var(--text-main)]">{{ $product->name }}</span>
             </nav>
 
-            <div class="mt-4 grid gap-5 lg:mt-6 lg:grid-cols-[minmax(0,55fr)_minmax(0,45fr)] lg:gap-8">
+            <div class="mt-4 grid min-w-0 gap-5 lg:mt-6 lg:grid-cols-[minmax(0,55fr)_minmax(0,45fr)] lg:gap-8">
                 @include('products.partials._preview_stage', [
                     'product' => $product,
                     'template' => $template,
@@ -363,8 +363,8 @@
             ])
 
             @if ($comboUpsells->isNotEmpty())
-                <section class="mt-6 space-y-4 lg:col-span-2">
-                    <div class="surface-card-featured p-6 sm:p-8">
+                <section class="mt-6 min-w-0 space-y-4 lg:col-span-2">
+                    <div class="surface-card-featured max-w-full overflow-hidden p-5 sm:p-8">
                         <p class="text-xs uppercase tracking-[0.3em] text-[var(--accent-primary)]">{{ $product->includedInBundles()->exists() ? 'Complete the set and save more' : 'Premium combos you may love' }}</p>
                         <h2 class="mt-3 font-serif text-2xl font-semibold text-[var(--text-main)]">{{ $product->includedInBundles()->exists() ? 'This item is part of a curated bridal combo' : 'Save more with curated bridal combos' }}</h2>
                         <p class="mt-2 max-w-3xl text-sm leading-7 text-[var(--text-muted)]">Explore curated bridal sets designed to make your order feel complete while helping you save more.</p>
@@ -398,7 +398,7 @@
             @endif
 
             <div
-                class="surface-card sticky bottom-0 z-30 mt-6 border-t px-4 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
+                class="surface-card sticky bottom-0 z-30 mt-6 max-w-full border-t px-3 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur lg:hidden"
                 x-show="showStickyBar"
                 x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="translate-y-full opacity-0"

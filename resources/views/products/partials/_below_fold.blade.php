@@ -1,13 +1,13 @@
-<section class="mt-16 space-y-6 lg:col-span-2">
-    <div id="shipping-care-policy" class="surface-card p-8">
-        <div class="grid items-center gap-8 lg:grid-cols-2">
+<section class="mt-16 min-w-0 space-y-6 lg:col-span-2">
+    <div id="shipping-care-policy" class="surface-card max-w-full overflow-hidden p-5 sm:p-8">
+        <div class="grid min-w-0 items-center gap-6 lg:grid-cols-2 lg:gap-8">
             @if ($storyVisual)
                 <div class="relative overflow-hidden rounded-xl aspect-[4/3]">
                     <img src="{{ $storyVisual }}" alt="{{ $product->name }}" class="h-full w-full object-cover transition-transform duration-700 ease-out hover:scale-105">
                 </div>
             @endif
 
-            <div>
+            <div class="min-w-0">
                 <p class="mb-3 text-xs uppercase tracking-[0.3em] text-[var(--accent-primary)]">Product story</p>
                 <h2 class="mb-4 font-serif text-2xl font-semibold leading-snug text-[var(--text-main)]">
                     {{ $product->is_customizable ? 'A keepsake designed for ceremonial display' : 'A considered detail for bridal gifting and display' }}
@@ -20,9 +20,9 @@
     </div>
 
     @if ($product->is_customizable)
-        <div class="surface-card p-8">
+        <div class="surface-card max-w-full overflow-hidden p-5 sm:p-8">
             <h3 class="mb-6 font-serif text-xl font-semibold text-[var(--text-main)]">What&apos;s included</h3>
-            <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div class="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @foreach ([
                     ['label' => 'Personalised certificate', 'copy' => 'A bespoke nikah nama proof and print'],
                     ['label' => 'Digital proof review', 'copy' => 'A designer checks the proof before production'],
@@ -38,9 +38,9 @@
             </div>
         </div>
 
-        <div class="surface-card p-8">
+        <div class="surface-card max-w-full overflow-hidden p-5 sm:p-8">
             <h3 class="mb-6 font-serif text-xl font-semibold text-[var(--text-main)]">How it works</h3>
-            <div class="grid gap-5 lg:grid-cols-3">
+            <div class="grid min-w-0 gap-5 lg:grid-cols-3">
                 @foreach ([
                     ['title' => 'Enter your details', 'copy' => 'Add names, dates, and any wording preferences for the proof.'],
                     ['title' => 'Review your digital proof', 'copy' => 'See the live preview and confirm the composition before print.'],
@@ -56,13 +56,13 @@
         </div>
     @endif
 
-    <div class="surface-card p-8">
+    <div class="surface-card max-w-full overflow-hidden p-5 sm:p-8">
         <h3 class="mb-6 font-serif text-xl font-semibold text-[var(--text-main)]">Shipping, care, and policy</h3>
-        <dl class="grid gap-4 lg:grid-cols-2">
+        <dl class="grid min-w-0 gap-4 lg:grid-cols-2">
             @foreach ($deliveryRows as $row)
-                <div class="flex items-start justify-between gap-4 border-b border-[var(--border-soft)] py-3">
+                <div class="flex min-w-0 items-start justify-between gap-4 border-b border-[var(--border-soft)] py-3">
                     <dt class="text-sm text-[var(--text-muted)]">{{ $row['label'] }}</dt>
-                    <dd class="text-right text-sm font-medium text-[var(--text-main)]">{{ $row['value'] }}</dd>
+                    <dd class="min-w-0 break-words text-right text-sm font-medium text-[var(--text-main)]">{{ $row['value'] }}</dd>
                 </div>
             @endforeach
         </dl>
@@ -70,7 +70,7 @@
     </div>
 
     @if ($faqs->isNotEmpty())
-        <div class="surface-card p-8" x-data="{ open: null }">
+        <div class="surface-card max-w-full overflow-hidden p-5 sm:p-8" x-data="{ open: null }">
             <h3 class="mb-2 font-serif text-xl font-semibold text-[var(--text-main)]">FAQ</h3>
             <div>
                 @foreach ($faqs as $index => $faq)
@@ -96,9 +96,9 @@
     @endif
 
     @if ($relatedCategories->isNotEmpty())
-        <div class="surface-card p-8">
+        <div class="surface-card max-w-full overflow-hidden p-5 sm:p-8">
             <h3 class="mb-6 font-serif text-xl font-semibold text-[var(--text-main)]">Browse the collection</h3>
-            <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div class="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @foreach ($relatedCategories as $category)
                     <a href="{{ route('categories.show', $category) }}" class="group relative overflow-hidden rounded-xl aspect-[3/2]">
                         <img src="{{ $category->banner_image_url ?: $category->image_url }}" alt="{{ $category->name }}" class="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105">
@@ -114,13 +114,13 @@
     @endif
 
     @if ($relatedProducts->isNotEmpty())
-        <div class="surface-card p-8">
+        <div class="surface-card max-w-full overflow-hidden p-5 sm:p-8">
             <div class="mb-6 flex items-center justify-between gap-4">
                 <h3 class="font-serif text-xl font-semibold text-[var(--text-main)]">You might also like</h3>
                 <a href="{{ route('categories.show', $product->category) }}" class="text-sm text-[var(--accent-primary)] transition duration-200 ease-out hover:underline">Browse all →</a>
             </div>
 
-            <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div class="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 @foreach ($relatedProducts->take(4) as $relatedProduct)
                     @php
                         $relatedImage = $relatedProduct->storefront_preview_image_url;
@@ -150,7 +150,7 @@
         </div>
     @endif
 
-    <div class="surface-card p-8" x-show="recentlyViewedItems.length" x-cloak>
+    <div class="surface-card max-w-full overflow-hidden p-5 sm:p-8" x-show="recentlyViewedItems.length" x-cloak>
         <h3 class="mb-4 text-sm font-medium uppercase tracking-[0.3em] text-[var(--text-muted)]">Recently viewed</h3>
         <div class="flex gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             <template x-for="item in recentlyViewedItems" :key="item.id">

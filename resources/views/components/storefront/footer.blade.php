@@ -12,7 +12,6 @@
                     </span>
                     <span class="brand-wordmark">
                         <span class="brand-wordmark-top" style="color: #fff;">AZRAQ</span>
-                        <span class="brand-wordmark-bottom" style="color: rgba(102,155,188,0.70); letter-spacing: 0.22em;">Bridal Collection</span>
                     </span>
                 </div>
 

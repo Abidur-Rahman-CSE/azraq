@@ -16,17 +16,23 @@
         'Account' => 'user',
         'Consultation' => 'sparkles',
     ];
-    $navCategories = collect(Cache::remember('storefront.header.nav_categories.v2', now()->addHours(4), function () {
+    $navCategories = collect(Cache::remember('storefront.header.nav_categories.v3', now()->addHours(4), function () {
         return Category::query()
             ->where('is_active', true)
             ->whereNull('parent_id')
+            ->with(['children' => fn ($query) => $query->where('is_active', true)->orderBy('sort_order')->orderBy('name')])
             ->orderBy('sort_order')
             ->orderBy('name')
-            ->get(['id', 'name', 'slug'])
+            ->get(['id', 'name', 'slug', 'parent_id'])
             ->map(fn (Category $category) => [
                 'id' => (int) $category->id,
                 'name' => $category->name,
                 'slug' => $category->slug,
+                'children' => $category->children->map(fn (Category $child) => [
+                    'id' => (int) $child->id,
+                    'name' => $child->name,
+                    'slug' => $child->slug,
+                ])->values()->all(),
             ])
             ->values()
             ->all();
@@ -63,7 +69,6 @@
                 </span>
                 <span class="brand-wordmark">
                     <span class="brand-wordmark-top">AZRAQ</span>
-                    <span class="brand-wordmark-bottom">Bridal Collection</span>
                 </span>
             </a>
         </div>
@@ -99,13 +104,31 @@
                         >
                             <div class="space-y-1">
                                 @foreach ($navCategories as $category)
-                                    <a
-                                        href="{{ route('categories.show', $category['slug']) }}"
-                                        class="flex items-center justify-between rounded-[var(--radius-lg)] px-3 py-2.5 text-sm font-medium text-[var(--text-main)] transition duration-200 ease-out hover:bg-[var(--bg-section-soft)] hover:text-[var(--accent-primary)]"
-                                    >
-                                        <span>{{ $category['name'] }}</span>
-                                        <span class="text-[var(--text-muted)]">/</span>
-                                    </a>
+                                    @php($children = collect($category['children'] ?? []))
+                                    <div class="group/category relative">
+                                        <a
+                                            href="{{ route('categories.show', $category['slug']) }}"
+                                            class="flex items-center justify-between rounded-[var(--radius-lg)] px-3 py-2.5 text-sm font-medium text-[var(--text-main)] transition duration-200 ease-out hover:bg-[var(--bg-section-soft)] hover:text-[var(--accent-primary)]"
+                                        >
+                                            <span>{{ $category['name'] }}</span>
+                                            @if ($children->isNotEmpty())
+                                                <span class="text-[var(--text-muted)] transition group-hover/category:text-[var(--accent-primary)]">&gt;</span>
+                                            @endif
+                                        </a>
+
+                                        @if ($children->isNotEmpty())
+                                            <div class="absolute left-full top-0 z-50 ml-2 hidden min-w-60 rounded-[var(--radius-xl)] border border-[var(--border-soft)] bg-white/98 p-2 shadow-[0_18px_60px_rgba(0,0,0,0.08)] backdrop-blur group-hover/category:block">
+                                                @foreach ($children as $child)
+                                                    <a
+                                                        href="{{ route('categories.show', $child['slug']) }}"
+                                                        class="block rounded-[var(--radius-lg)] px-3 py-2.5 text-sm font-medium text-[var(--text-main)] transition duration-200 ease-out hover:bg-[var(--bg-section-soft)] hover:text-[var(--accent-primary)]"
+                                                    >
+                                                        {{ $child['name'] }}
+                                                    </a>
+                                                @endforeach
+                                            </div>
+                                        @endif
+                                    </div>
                                 @endforeach
                             </div>
                         </div>
@@ -188,7 +211,6 @@
                     </span>
                     <span class="brand-wordmark">
                         <span class="brand-wordmark-top">AZRAQ</span>
-                        <span class="brand-wordmark-bottom">Bridal Collection</span>
                     </span>
                 </a>
                 <button type="button" class="header-icon-button" x-on:click="mobileOpen = false" aria-label="Close menu">
@@ -217,7 +239,7 @@
                     </section>
                 @endforeach
 
-                <section class="space-y-2" x-data="{ open: false }">
+                <section class="space-y-2" x-data="{ open: false, openCategory: null }">
                     <button type="button" class="mobile-drawer-link mobile-drawer-link--toggle" @click="open = !open" :aria-expanded="open ? 'true' : 'false'">
                         <span class="mobile-drawer-link__lead">
                             <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('grid') !!}</span>
@@ -230,10 +252,31 @@
 
                     <div x-cloak x-show="open" x-transition.duration.180ms class="mobile-drawer-sublist">
                         @foreach ($navCategories as $category)
-                            <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
-                                <span>{{ $category['name'] }}</span>
-                                <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
-                            </a>
+                            @php($children = collect($category['children'] ?? []))
+                            @if ($children->isNotEmpty())
+                                <div>
+                                    <button type="button" class="mobile-drawer-sublink w-full" @click="openCategory = openCategory === {{ $category['id'] }} ? null : {{ $category['id'] }}">
+                                        <span>{{ $category['name'] }}</span>
+                                        <svg class="h-4 w-4 transition-transform duration-200" :class="openCategory === {{ $category['id'] }} ? 'rotate-90' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                            <path d="m7.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round" />
+                                        </svg>
+                                    </button>
+                                    <div x-cloak x-show="openCategory === {{ $category['id'] }}" x-transition.duration.160ms class="ml-4 mt-1 space-y-1 border-l border-[var(--border-soft)] pl-3">
+                                        <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
+                                            <span>All {{ $category['name'] }}</span>
+                                        </a>
+                                        @foreach ($children as $child)
+                                            <a href="{{ route('categories.show', $child['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
+                                                <span>{{ $child['name'] }}</span>
+                                            </a>
+                                        @endforeach
+                                    </div>
+                                </div>
+                            @else
+                                <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
+                                    <span>{{ $category['name'] }}</span>
+                                </a>
+                            @endif
                         @endforeach
                     </div>
                 </section>

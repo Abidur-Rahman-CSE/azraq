@@ -96,6 +96,19 @@ function drawContainedImage(ctx, image, width, height) {
     return { drawWidth, drawHeight, offsetX, offsetY };
 }
 
+function drawBlurredCoverFill(ctx, image, width, height) {
+    ctx.save();
+    ctx.filter = 'blur(24px)';
+    ctx.globalAlpha = 0.62;
+    drawCoverImage(ctx, image, width, height);
+    ctx.restore();
+
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 250, 242, 0.28)';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+}
+
 function drawCoverImage(ctx, image, width, height) {
     const sourceWidth = image.naturalWidth || image.width;
     const sourceHeight = image.naturalHeight || image.height;
@@ -608,6 +621,7 @@ const NikahPreview = {
         }
 
         if (mode === 'flat' || !this.mockups[mockupIndex]) {
+            drawBlurredCoverFill(ctx, flatCanvas, width, height);
             drawContainedImage(ctx, flatCanvas, width, height);
             return flatCanvas;
         }
@@ -621,10 +635,12 @@ const NikahPreview = {
         ]);
 
         if (!backgroundImage || !Perspective) {
+            drawBlurredCoverFill(ctx, flatCanvas, width, height);
             drawContainedImage(ctx, flatCanvas, width, height);
             return flatCanvas;
         }
 
+        drawBlurredCoverFill(ctx, backgroundImage, width, height);
         const geometry = drawContainedImage(ctx, backgroundImage, width, height);
         const points = getAdminMapPoints(scene, geometry);
 

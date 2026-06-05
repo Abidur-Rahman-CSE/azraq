@@ -4,26 +4,26 @@
 @endphp
 
 @if ($variantGroups->isNotEmpty() || $simpleVariants->isNotEmpty())
-    <div class="space-y-4">
-        <div class="flex items-center justify-between gap-3">
+    <div class="min-w-0 space-y-4">
+        <div class="flex min-w-0 items-center justify-between gap-3">
             <h2 class="text-[13px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">Choose a variant</h2>
-            <span class="text-xs font-medium text-[var(--text-main)]" x-text="activeVariant?.label || activeVariant?.name || '—'">—</span>
+            <span class="min-w-0 truncate text-right text-xs font-medium text-[var(--text-main)]" x-text="activeVariant?.label || activeVariant?.name || '—'">—</span>
         </div>
 
         <template x-if="hasGroupedVariants">
-            <div class="space-y-5">
+            <div class="min-w-0 space-y-5">
                 <template x-for="group in variantGroups" :key="group.key">
-                    <div class="space-y-3">
-                        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <div class="min-w-0 space-y-3">
+                        <div class="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                             <span class="font-serif text-[0.96rem] font-semibold uppercase tracking-[0.035em] text-[var(--accent-secondary)] sm:text-[1.02rem]" x-text="`${group.name}:`"></span>
                             <span class="font-serif text-[0.96rem] font-semibold tracking-[0.015em] text-[var(--accent-secondary)] sm:text-[1.02rem]" x-text="selectedValueLabel(group.key)"></span>
                         </div>
 
-                        <div class="flex flex-wrap gap-2.5" x-show="visibleValuesForGroup(group.key).length > 0">
+                        <div class="flex min-w-0 flex-wrap gap-2.5" x-show="visibleValuesForGroup(group.key).length > 0">
                             <template x-for="value in visibleValuesForGroup(group.key)" :key="`${group.key}-${value.value}`">
                                 <button
                                     type="button"
-                                    class="flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium leading-none transition-all duration-200 ease-out sm:px-5 sm:text-[0.92rem]"
+                                    class="flex max-w-full min-w-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-medium leading-none transition-all duration-200 ease-out sm:px-5 sm:text-[0.92rem]"
                                     @click="selectVariant(group.key, value.value, value.variant_id ?? null)"
                                     :class="selectedVariants[group.key] === value.value
                                         ? 'border-[var(--accent-secondary)] bg-[var(--accent-secondary)] text-white shadow-[0_10px_24px_rgba(0,48,73,0.12)]'
@@ -35,7 +35,7 @@
                                         class="h-2 w-2 rounded-full border border-black/10"
                                         :style="`background:${swatchColor(value)}`"
                                     ></span>
-                                    <span x-text="value.label"></span>
+                                    <span class="min-w-0 break-words leading-snug" x-text="value.label"></span>
                                 </button>
                             </template>
                         </div>
@@ -58,12 +58,12 @@
         </template>
 
         <template x-if="!hasGroupedVariants && variants.length">
-            <div class="flex flex-wrap gap-2.5">
+            <div class="flex min-w-0 flex-wrap gap-2.5">
                 <template x-for="variant in variants" :key="variant.id">
                     <label class="cursor-pointer">
                         <input type="radio" name="variant_id" :value="variant.id" class="sr-only" x-model="selectedVariant" @change="syncPreviewFromActiveVariant()">
                         <span
-                            class="inline-flex rounded-full border px-3.5 py-2 text-sm font-medium leading-none transition-all duration-200 ease-out sm:px-5 sm:text-[0.92rem]"
+                            class="inline-flex max-w-full rounded-full border px-3.5 py-2 text-sm font-medium leading-snug transition-all duration-200 ease-out sm:px-5 sm:text-[0.92rem]"
                             :class="selectedVariant === `${variant.id}`
                                 ? 'border-[var(--accent-secondary)] bg-[var(--accent-secondary)] text-white shadow-[0_10px_24px_rgba(0,48,73,0.12)]'
                                 : 'border-[rgba(0,48,73,0.14)] bg-transparent text-[var(--accent-secondary)] hover:border-[var(--accent-secondary)]'"

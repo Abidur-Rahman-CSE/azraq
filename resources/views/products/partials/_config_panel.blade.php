@@ -5,8 +5,8 @@
     $proofNoteLabel = $template->proof_note_label ?: 'Add special instructions';
 @endphp
 
-<section class="space-y-4 text-[var(--text-main)]">
-    <div class="surface-card-featured p-5 sm:p-6">
+<section class="min-w-0 space-y-4 text-[var(--text-main)]">
+    <div class="surface-card-featured max-w-full overflow-hidden p-5 sm:p-6">
         <div class="flex flex-wrap gap-2">
             @foreach ($badgeItems as $index => $badge)
                 @php
@@ -20,7 +20,7 @@
             @endforeach
         </div>
 
-        <h1 class="mt-2 font-serif text-[26px] font-semibold leading-tight text-[var(--text-main)]">{{ $product->name }}</h1>
+        <h1 class="mt-2 break-words font-serif text-[26px] font-semibold leading-tight text-[var(--text-main)]">{{ $product->name }}</h1>
 
         <div class="mt-3 flex flex-wrap items-center gap-2">
             <span class="text-2xl font-semibold text-[var(--accent-primary)]" x-text="formatMoney(displayPrice)">BDT {{ number_format((float) $product->price, 0) }}</span>
@@ -34,7 +34,7 @@
         <p class="mt-2 text-sm leading-relaxed text-[var(--text-muted)]">{{ $shortDescription }}</p>
     </div>
 
-    <form id="order-form" method="POST" action="{{ route('cart.store', $product) }}" class="space-y-4" x-ref="mainOrderForm" @submit="submitting = true">
+    <form id="order-form" method="POST" action="{{ route('cart.store', $product) }}" class="min-w-0 space-y-4" x-ref="mainOrderForm" @submit="submitting = true">
         @csrf
         <input type="hidden" name="quantity" value="1">
         <input type="hidden" name="font_id" :value="primaryFontId()">
@@ -57,7 +57,7 @@
             <div class="h-px flex-1 bg-[var(--border-soft)]"></div>
         </div>
 
-        <div class="surface-card p-5">
+        <div class="surface-card max-w-full overflow-hidden p-5">
             <div class="mb-4 flex items-center gap-3">
                 <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(120,0,0,0.08)] text-sm font-semibold text-[var(--accent-primary)]">1</span>
                 <h2 class="text-base font-semibold text-[var(--text-main)]">Personalise your certificate</h2>
@@ -91,8 +91,8 @@
                     @endif
 
                     <div class="field-group">
-                        <div class="mb-1 flex items-baseline justify-between gap-3">
-                            <label for="field-{{ $fieldKey }}" class="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                        <div class="mb-1 flex min-w-0 items-baseline justify-between gap-3">
+                            <label for="field-{{ $fieldKey }}" class="min-w-0 break-words text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--text-muted)]">
                                 {{ $field->label }}
                                 @if ($field->is_required)
                                     <span class="text-[var(--accent-primary)]">*</span>
@@ -170,17 +170,17 @@
             </div>
         </div>
 
-        <div class="surface-card p-5">
+        <div class="surface-card max-w-full overflow-hidden p-5">
             <div class="mb-4 flex items-center gap-3">
                 <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[rgba(120,0,0,0.08)] text-sm font-semibold text-[var(--accent-primary)]">2</span>
                 <h2 class="text-base font-semibold text-[var(--text-main)]">Choose a font</h2>
             </div>
 
-            <div class="flex flex-wrap gap-2">
+            <div class="flex min-w-0 flex-wrap gap-2">
                 @foreach ($fonts as $font)
                     <button
                         type="button"
-                        class="min-w-[96px] rounded-lg border p-3 text-left transition-all duration-200 ease-out"
+                        class="min-w-0 max-w-full rounded-lg border p-3 text-left transition-all duration-200 ease-out sm:min-w-[96px]"
                         :class="activeFont === '{{ $font->id }}' ? 'border-[var(--accent-primary)] bg-[var(--pill-bg)]' : 'border-[var(--border-soft)] hover:border-[var(--accent-primary)]'"
                         @click="applyNameFont('{{ $font->id }}')"
                         aria-label="Choose {{ $font->name }}"
@@ -225,7 +225,7 @@
         @endif
         --}}
 
-        <div class="surface-card p-5" x-data="{ open: false }">
+        <div class="surface-card max-w-full overflow-hidden p-5" x-data="{ open: false }">
             <button type="button" class="flex w-full items-center justify-between gap-3 text-left text-sm text-[var(--accent-primary)]" @click="open = !open">
                 <span>{{ $proofNoteLabel }} +</span>
                 <span class="text-lg transition-transform duration-200" :class="open ? 'rotate-45' : ''">+</span>
@@ -243,7 +243,7 @@
             </div>
         </div>
 
-        <div class="surface-card-featured p-5" x-ref="ctaAnchor">
+        <div class="surface-card-featured max-w-full overflow-hidden p-5" x-ref="ctaAnchor">
             <button
                 type="submit"
                 class="button-primary relative mt-0 w-full overflow-hidden !rounded-[var(--radius-xl)] !py-4 !text-base"
