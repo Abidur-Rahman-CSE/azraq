@@ -37,9 +37,10 @@
             'items' => [
                 ['label' => 'Homepage', 'route' => 'admin.content.homepage-sections.index', 'match' => ['admin.content.homepage-sections.*']],
                 ['label' => 'FAQs', 'route' => 'admin.content.faqs.index', 'match' => ['admin.content.faqs.*']],
+                ['label' => 'Shipping & Policy', 'route' => 'admin.settings.edit', 'hash' => 'shipping-care-policy-settings', 'match' => ['admin.settings.*']],
                 ['label' => 'Pages', 'route' => 'admin.content.pages.index', 'match' => ['admin.content.pages.*']],
                 ['label' => 'Coupons', 'route' => 'admin.marketing.coupons.index', 'match' => ['admin.marketing.coupons.*']],
-                ['label' => 'Settings', 'route' => 'admin.settings.edit', 'match' => ['admin.settings.*']],
+                ['label' => 'Settings', 'route' => 'admin.settings.edit', 'match' => ['admin.settings.general']],
             ],
         ],
     ];
@@ -81,7 +82,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{{ $title ?? 'Admin | '.config('brand.name') }}</title>
         <meta name="robots" content="noindex,nofollow">
-        <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo/Azraq.svg') }}">
+        @include('components.layouts._favicons')
         @viteReactRefresh
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
@@ -114,10 +115,6 @@
                     </button>
                 </div>
 
-                <div class="admin-sidebar__meta">
-                    <p>Premium operational control for catalog, personalization, proofing, and content.</p>
-                </div>
-
                 <nav class="admin-sidebar__nav">
                     @foreach ($navigationGroups as $group)
                         <div class="admin-nav-group">
@@ -130,7 +127,7 @@
                                         );
                                     @endphp
                                     <a
-                                        href="{{ route($item['route']) }}"
+                                        href="{{ route($item['route']).(isset($item['hash']) ? '#'.$item['hash'] : '') }}"
                                         @class([
                                             'admin-nav-link',
                                             'is-active' => $isActive,
@@ -143,13 +140,6 @@
                         </div>
                     @endforeach
                 </nav>
-
-                <div class="admin-sidebar__footer">
-                    <div class="admin-sidebar__support surface-card-soft p-4">
-                        <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Current focus</p>
-                        <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Media workflows, Nikah template tooling, and order proof readiness are next in this upgrade pass.</p>
-                    </div>
-                </div>
             </aside>
 
             <div class="admin-main">

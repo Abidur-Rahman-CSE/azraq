@@ -1501,6 +1501,193 @@ function ContentRepeater({ label, name, items, onChange, titleLabel = 'Title', d
     );
 }
 
+function normalizePolicyItem(item = {}, fallbackTitle = '') {
+    return {
+        id: item.id || uid('policy-item'),
+        label: item.label || item.title || fallbackTitle,
+        value: item.value || item.description || item.copy || '',
+    };
+}
+
+function ProductPolicyEditor({ rows, isCustomized, onRowsChange, onCustomizedChange, defaults }) {
+    const visibleRows = (rows?.length ? rows : defaults).map((row, index) => normalizePolicyItem(row, `Policy ${index + 1}`));
+
+    function updateRow(rowId, key, value) {
+        onCustomizedChange(true);
+        onRowsChange(visibleRows.map((row) => (row.id === rowId ? { ...row, [key]: value } : row)));
+    }
+
+    function resetDefaults() {
+        onCustomizedChange(false);
+        onRowsChange(defaults.map((row, index) => normalizePolicyItem(row, `Policy ${index + 1}`)));
+    }
+
+    return (
+        <section className="nikah-step-card">
+            {isCustomized ? (
+                <input type="hidden" name="shipping_care_policy" value={JSON.stringify(visibleRows.map(({ id, ...row }) => row))} />
+            ) : null}
+
+            <div className="nikah-step-card__heading">
+                <span className="nikah-step-card__step">P</span>
+                <div>
+                    <h3>Shipping, care, and policy</h3>
+                    <p>Default policy text is shown on the storefront. Edit anything here only when this product needs custom policy copy.</p>
+                </div>
+            </div>
+
+            <div className="bundle-item-editor__list">
+                {visibleRows.map((row) => (
+                    <article key={row.id} className="bundle-item-editor__row product-copy-row">
+                        <label className="nikah-field">
+                            <span>Label</span>
+                            <input type="text" value={row.label} onChange={(event) => updateRow(row.id, 'label', event.target.value)} />
+                        </label>
+                        <label className="nikah-field">
+                            <span>Value</span>
+                            <textarea rows="2" value={row.value} onChange={(event) => updateRow(row.id, 'value', event.target.value)} />
+                        </label>
+                        <button
+                            type="button"
+                            className="variant-icon-button variant-icon-button--danger"
+                            onClick={() => {
+                                onCustomizedChange(true);
+                                onRowsChange(visibleRows.filter((currentRow) => currentRow.id !== row.id));
+                            }}
+                            aria-label="Remove policy row"
+                        >
+                            <span aria-hidden="true">✕</span>
+                        </button>
+                    </article>
+                ))}
+            </div>
+
+            <div className="template-picker-actions">
+                <button type="button" className="nikah-add-field" onClick={() => {
+                    onCustomizedChange(true);
+                    onRowsChange([...visibleRows, normalizePolicyItem()]);
+                }}>
+                    Add policy row
+                </button>
+                <button type="button" className="button-ghost" onClick={resetDefaults}>
+                    Use defaults
+                </button>
+            </div>
+        </section>
+    );
+}
+
+function ProductFaqEditor({
+    defaultFaqs,
+    selectedDefaultFaqIds,
+    customFaqs,
+    isCustomized,
+    onSelectedDefaultFaqIdsChange,
+    onCustomFaqsChange,
+    onCustomizedChange,
+}) {
+    const normalizedCustomFaqs = (customFaqs || []).map((item) => normalizeContentItem(item, 'Question'));
+    const selectedIds = selectedDefaultFaqIds || [];
+    const serializedFaqs = [
+        ...defaultFaqs
+            .filter((faq) => selectedIds.includes(faq.id))
+            .map((faq) => ({ question: faq.question, answer: faq.answer })),
+        ...normalizedCustomFaqs.map(({ id, title, description }) => ({ question: title, answer: description })),
+    ];
+
+    function toggleDefaultFaq(id) {
+        onCustomizedChange(true);
+        onSelectedDefaultFaqIdsChange(
+            selectedIds.includes(id)
+                ? selectedIds.filter((selectedId) => selectedId !== id)
+                : [...selectedIds, id],
+        );
+    }
+
+    function updateCustomFaq(itemId, key, value) {
+        onCustomizedChange(true);
+        onCustomFaqsChange(normalizedCustomFaqs.map((item) => (item.id === itemId ? { ...item, [key]: value } : item)));
+    }
+
+    function resetDefaults() {
+        onCustomizedChange(false);
+        onSelectedDefaultFaqIdsChange(defaultFaqs.map((faq) => faq.id));
+        onCustomFaqsChange([]);
+    }
+
+    return (
+        <section className="nikah-step-card">
+            {isCustomized ? (
+                <input type="hidden" name="product_faqs" value={JSON.stringify(serializedFaqs)} />
+            ) : null}
+
+            <div className="nikah-step-card__heading">
+                <span className="nikah-step-card__step">F</span>
+                <div>
+                    <h3>FAQ</h3>
+                    <p>Default published FAQs are selected automatically. Uncheck or add product-specific questions when needed.</p>
+                </div>
+            </div>
+
+            <div className="bundle-item-editor__list">
+                {defaultFaqs.length ? defaultFaqs.map((faq) => (
+                    <label key={faq.id} className="general-checkbox">
+                        <input
+                            type="checkbox"
+                            checked={selectedIds.includes(faq.id)}
+                            onChange={() => toggleDefaultFaq(faq.id)}
+                        />
+                        <span>
+                            <strong>{faq.question}</strong>
+                            <small>{faq.answer}</small>
+                        </span>
+                    </label>
+                )) : (
+                    <div className="nikah-empty-note">No published default FAQs yet. Add custom product FAQs below.</div>
+                )}
+            </div>
+
+            <div className="bundle-item-editor__list">
+                {normalizedCustomFaqs.map((item) => (
+                    <article key={item.id} className="bundle-item-editor__row product-copy-row">
+                        <label className="nikah-field">
+                            <span>Question</span>
+                            <input type="text" value={item.title} onChange={(event) => updateCustomFaq(item.id, 'title', event.target.value)} />
+                        </label>
+                        <label className="nikah-field">
+                            <span>Answer</span>
+                            <textarea rows="2" value={item.description} onChange={(event) => updateCustomFaq(item.id, 'description', event.target.value)} />
+                        </label>
+                        <button
+                            type="button"
+                            className="variant-icon-button variant-icon-button--danger"
+                            onClick={() => {
+                                onCustomizedChange(true);
+                                onCustomFaqsChange(normalizedCustomFaqs.filter((currentItem) => currentItem.id !== item.id));
+                            }}
+                            aria-label="Remove FAQ"
+                        >
+                            <span aria-hidden="true">✕</span>
+                        </button>
+                    </article>
+                ))}
+            </div>
+
+            <div className="template-picker-actions">
+                <button type="button" className="nikah-add-field" onClick={() => {
+                    onCustomizedChange(true);
+                    onCustomFaqsChange([...normalizedCustomFaqs, normalizeContentItem({}, 'Question')]);
+                }}>
+                    Add new FAQ
+                </button>
+                <button type="button" className="button-ghost" onClick={resetDefaults}>
+                    Use all default FAQs
+                </button>
+            </div>
+        </section>
+    );
+}
+
 function ServiceMetaEditor({ meta, onUpdate }) {
     return (
         <section className="bundle-item-editor">
@@ -1802,6 +1989,8 @@ function NikahProductForm({ payload }) {
         mockups,
         errors,
         page,
+        defaultPolicyRows = [],
+        defaultProductFaqs = [],
     } = payload;
 
     const initialDesignId = product.isNew ? (product.selectedDesignId || '') : (product.selectedDesignId || designs[0]?.id || '');
@@ -1814,6 +2003,12 @@ function NikahProductForm({ payload }) {
     const initialGeneratedSku = skuifyValue(product.name || '');
     const initialGeneratedMetaTitle = buildMetaTitle(product.name || '');
     const initialGeneratedMetaDescription = truncateText(product.excerpt || '', 160);
+    const normalizedDefaultPolicyRows = defaultPolicyRows.map((row, index) => normalizePolicyItem(row, `Policy ${index + 1}`));
+    const normalizedDefaultFaqs = defaultProductFaqs.map((faq) => ({
+        id: Number(faq.id),
+        question: faq.question || '',
+        answer: faq.answer || '',
+    }));
 
     const [currentType, setCurrentType] = useState(product.currentType || GENERAL_DEFAULT_TYPE);
     const [lastGeneralType, setLastGeneralType] = useState(
@@ -1849,6 +2044,22 @@ function NikahProductForm({ payload }) {
     const [defaultMockupId, setDefaultMockupId] = useState(product.isNew ? '' : (product.defaultMockupId || ''));
     const [personalizationFields, setPersonalizationFields] = useState(initialFields);
     const [variantMediaLinks, setVariantMediaLinks] = useState(product.variantMediaLinks || {});
+    const [policyRows, setPolicyRows] = useState(
+        (product.shippingCarePolicy || normalizedDefaultPolicyRows).map((row, index) => normalizePolicyItem(row, `Policy ${index + 1}`)),
+    );
+    const [policyCustomized, setPolicyCustomized] = useState(Boolean(product.shippingCarePolicy));
+    const [selectedDefaultFaqIds, setSelectedDefaultFaqIds] = useState(
+        product.productFaqs
+            ? []
+            : normalizedDefaultFaqs.map((faq) => faq.id),
+    );
+    const [customFaqs, setCustomFaqs] = useState(
+        (product.productFaqs || []).map((faq) => normalizeContentItem({
+            title: faq.question || faq.title,
+            description: faq.answer || faq.description,
+        }, 'Question')),
+    );
+    const [faqCustomized, setFaqCustomized] = useState(Boolean(product.productFaqs));
     const [price, setPrice] = useState(product.price || '');
     const [compareAtPrice, setCompareAtPrice] = useState(product.compareAtPrice || '');
     const [leadTimeDays, setLeadTimeDays] = useState(product.leadTimeDays || '');
@@ -1927,6 +2138,8 @@ function NikahProductForm({ payload }) {
         { id: 'pricing', label: 'Pricing' },
         { id: 'variants', label: 'Variants' },
         { id: 'mapping', label: 'Mockup mapping' },
+        { id: 'policy', label: 'Shipping, care, and policy' },
+        { id: 'faq', label: 'FAQ' },
         { id: 'related', label: 'Related' },
         { id: 'seo', label: 'SEO' },
     ];
@@ -1940,6 +2153,8 @@ function NikahProductForm({ payload }) {
         ...(currentType === 'service' ? [{ id: 'service', label: 'Service' }] : []),
         ...(isLightMode ? [{ id: 'custom_fields', label: 'Custom fields' }] : []),
         { id: 'media', label: 'Media' },
+        { id: 'policy', label: 'Shipping, care, and policy' },
+        { id: 'faq', label: 'FAQ' },
         { id: 'seo', label: 'SEO' },
     ];
 
@@ -2739,6 +2954,28 @@ function NikahProductForm({ payload }) {
                                 />
                             </section>
 
+                            <div hidden={advancedTab !== 'policy'}>
+                                <ProductPolicyEditor
+                                    rows={policyRows}
+                                    isCustomized={policyCustomized}
+                                    onRowsChange={setPolicyRows}
+                                    onCustomizedChange={setPolicyCustomized}
+                                    defaults={normalizedDefaultPolicyRows}
+                                />
+                            </div>
+
+                            <div hidden={advancedTab !== 'faq'}>
+                                <ProductFaqEditor
+                                    defaultFaqs={normalizedDefaultFaqs}
+                                    selectedDefaultFaqIds={selectedDefaultFaqIds}
+                                    customFaqs={customFaqs}
+                                    isCustomized={faqCustomized}
+                                    onSelectedDefaultFaqIdsChange={setSelectedDefaultFaqIds}
+                                    onCustomFaqsChange={setCustomFaqs}
+                                    onCustomizedChange={setFaqCustomized}
+                                />
+                            </div>
+
                             <section className="nikah-step-card" hidden={advancedTab !== 'related'}>
                                 <div className="nikah-step-card__heading">
                                     <span className="nikah-step-card__step">8</span>
@@ -3210,6 +3447,28 @@ function NikahProductForm({ payload }) {
                                 )}
                             </div>
                         </section>
+
+                        <div hidden={generalTab !== 'policy'}>
+                            <ProductPolicyEditor
+                                rows={policyRows}
+                                isCustomized={policyCustomized}
+                                onRowsChange={setPolicyRows}
+                                onCustomizedChange={setPolicyCustomized}
+                                defaults={normalizedDefaultPolicyRows}
+                            />
+                        </div>
+
+                        <div hidden={generalTab !== 'faq'}>
+                            <ProductFaqEditor
+                                defaultFaqs={normalizedDefaultFaqs}
+                                selectedDefaultFaqIds={selectedDefaultFaqIds}
+                                customFaqs={customFaqs}
+                                isCustomized={faqCustomized}
+                                onSelectedDefaultFaqIdsChange={setSelectedDefaultFaqIds}
+                                onCustomFaqsChange={setCustomFaqs}
+                                onCustomizedChange={setFaqCustomized}
+                            />
+                        </div>
 
                         <div hidden={generalTab !== 'seo'}>
                             <SharedSeoCard

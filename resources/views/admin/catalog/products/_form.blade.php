@@ -158,6 +158,18 @@
         'gallery_intro_text' => $product->serviceMeta?->gallery_intro_text,
     ]);
 
+    $policyOverride = old('shipping_care_policy');
+    if (is_string($policyOverride) && filled($policyOverride)) {
+        $policyOverride = json_decode($policyOverride, true);
+    }
+    $policyOverride = $policyOverride ?? $product->shipping_care_policy;
+
+    $faqOverride = old('product_faqs');
+    if (is_string($faqOverride) && filled($faqOverride)) {
+        $faqOverride = json_decode($faqOverride, true);
+    }
+    $faqOverride = $faqOverride ?? $product->product_faqs;
+
     $designPayload = $personalizationTemplates->map(function ($template) {
         $snapshotUrl = $template->thumbnail_image_url
             ? $template->thumbnail_image_url.'?v='.urlencode((string) optional($template->updated_at)->timestamp)
@@ -291,6 +303,8 @@
             'defaultMockupId' => $defaultMockupId ? (int) $defaultMockupId : '',
             'personalizationFields' => $personalizationFieldsBlueprint,
             'variantMediaLinks' => $variantMediaLinks,
+            'shippingCarePolicy' => $policyOverride,
+            'productFaqs' => $faqOverride,
             'variants' => $variantPayload,
             'bundleItems' => $bundleItemPayload,
             'serviceMeta' => [
@@ -358,6 +372,12 @@
         ])->values()->all(),
         'designs' => $designPayload->all(),
         'mockups' => $mockupPayload->all(),
+        'defaultPolicyRows' => collect($defaultPolicyRows)->values()->all(),
+        'defaultProductFaqs' => $defaultProductFaqs->map(fn ($faq) => [
+            'id' => (int) $faq->id,
+            'question' => $faq->question,
+            'answer' => $faq->answer,
+        ])->values()->all(),
         'errors' => $errors->toArray(),
     ];
 @endphp

@@ -19,6 +19,7 @@
             $statRows = [['num' => '', 'label' => '']];
         }
         $spotlightProductId = old('settings.product_id', data_get($settings ?? [], 'product_id'));
+        $spotlightImageUrl = old('settings.image_url', data_get($settings ?? [], 'image_url'));
         $processSteps = old('settings.process_steps', data_get($settings ?? [], 'process_steps', []));
         if (! is_array($processSteps) || count($processSteps) === 0) {
             $processSteps = ['', '', ''];
@@ -230,12 +231,20 @@
                         </label>
                         <div class="grid gap-3 md:grid-cols-2">
                             <label class="space-y-1.5">
-                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button label</span>
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button 1 label</span>
                                 <input type="text" name="cta_label" value="{{ old('cta_label', $section->cta_label) }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Configure your Nikah">
                             </label>
                             <label class="space-y-1.5">
-                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button link</span>
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button 1 URL</span>
                                 <input type="text" name="cta_href" value="{{ old('cta_href', $section->cta_href) }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="/shop">
+                            </label>
+                            <label class="space-y-1.5">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button 2 label</span>
+                                <input type="text" name="settings[secondary_cta_label]" value="{{ $secondaryCtaLabel }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="Explore Nikah Collection">
+                            </label>
+                            <label class="space-y-1.5">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Button 2 URL</span>
+                                <input type="text" name="settings[secondary_cta_href]" value="{{ $secondaryCtaHref }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-2.5 text-sm" placeholder="/categories/nikah-collection">
                             </label>
                         </div>
                         <div class="space-y-2">
@@ -411,6 +420,28 @@
                             @endforeach
                         </select>
                     </label>
+                    <div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_180px]">
+                        <div class="space-y-3">
+                            <label class="space-y-2 block">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Spotlight image upload</span>
+                                <input type="file" name="spotlight_image_upload" accept="image/*" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3 text-sm">
+                            </label>
+                            <label class="space-y-2 block">
+                                <span class="text-sm font-medium text-[var(--color-secondary-900)]">Or image URL</span>
+                                <input type="text" name="settings[image_url]" value="{{ $spotlightImageUrl }}" class="w-full rounded-2xl border border-[var(--color-border-soft)] px-4 py-3" placeholder="/storage/homepage-sections/signature.jpg">
+                            </label>
+                            <p class="text-xs text-[var(--color-text-soft)]">If blank, the storefront uses the selected product preview image.</p>
+                        </div>
+                        @if ($spotlightImageUrl)
+                            <div class="overflow-hidden rounded-2xl border border-[var(--color-border-soft)] bg-[var(--color-surface-cream)]">
+                                <img src="{{ $spotlightImageUrl }}" alt="Signature Nikah spotlight preview" class="h-full w-full object-cover" style="max-height: 180px;">
+                            </div>
+                        @else
+                            <div class="flex min-h-36 items-center justify-center rounded-2xl border border-dashed border-[var(--color-border-soft)] bg-[var(--color-surface-cream)] text-center text-xs text-[var(--color-text-soft)]">
+                                Product preview fallback
+                            </div>
+                        @endif
+                    </div>
                     <div class="space-y-2">
                         <p class="text-sm font-medium text-[var(--color-secondary-900)]">Process steps (3 inline)</p>
                         @foreach ($processSteps as $idx => $step)

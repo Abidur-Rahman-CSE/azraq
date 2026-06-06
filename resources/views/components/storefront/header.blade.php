@@ -283,113 +283,141 @@
             </div>
 
             <div class="space-y-5 px-4 py-4 pb-8">
-                @foreach ($mobileGroups as $group)
-                    <section class="space-y-3">
-                        <p class="mobile-drawer-section-title">{{ $group['label'] }}</p>
-                        <div class="space-y-1.5">
-                            @foreach ($group['items'] as $item)
-                                @php($icon = $mobileItemIcons[$item['label']] ?? 'sparkles')
-                                <a href="{{ url($item['href']) }}" class="mobile-drawer-link" @click="mobileOpen = false">
-                                    <span class="mobile-drawer-link__lead">
-                                        <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon($icon) !!}</span>
-                                        <span>{{ $item['label'] }}</span>
-                                    </span>
-                                    <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
-                                </a>
+                <section class="space-y-3">
+                    <p class="mobile-drawer-section-title">Browse</p>
+                    <div class="space-y-1.5">
+                        <a href="{{ route('home') }}" class="mobile-drawer-link" @click="mobileOpen = false">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('home') !!}</span>
+                                <span>Home</span>
+                            </span>
+                        </a>
+                        <a href="{{ route('shop.index') }}" class="mobile-drawer-link" @click="mobileOpen = false">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('bag') !!}</span>
+                                <span>All Products</span>
+                            </span>
+                        </a>
+                    </div>
+
+                    <div class="space-y-2" x-data="{ open: false, openCategory: null }">
+                        <button type="button" class="mobile-drawer-link mobile-drawer-link--toggle" @click="open = !open" :aria-expanded="open ? 'true' : 'false'">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('grid') !!}</span>
+                                <span>Categories</span>
+                            </span>
+                            <svg class="mobile-drawer-link__accordion" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
+
+                        <div x-cloak x-show="open" x-transition.duration.180ms class="mobile-drawer-sublist">
+                            @foreach ($navCategories as $category)
+                                @php($children = collect($category['children'] ?? []))
+                                @if ($children->isNotEmpty())
+                                    <div>
+                                        <button type="button" class="mobile-drawer-sublink w-full" @click="openCategory = openCategory === {{ $category['id'] }} ? null : {{ $category['id'] }}">
+                                            <span>{{ $category['name'] }}</span>
+                                            <svg class="h-4 w-4 transition-transform duration-200" :class="openCategory === {{ $category['id'] }} ? 'rotate-90' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                                <path d="m7.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round" />
+                                            </svg>
+                                        </button>
+                                        <div x-cloak x-show="openCategory === {{ $category['id'] }}" x-transition.duration.160ms class="ml-4 mt-1 space-y-1 border-l border-[var(--border-soft)] pl-3">
+                                            <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
+                                                <span>All {{ $category['name'] }}</span>
+                                            </a>
+                                            @foreach ($children as $child)
+                                                <a href="{{ route('categories.show', $child['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
+                                                    <span>{{ $child['name'] }}</span>
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    </div>
+                                @else
+                                    <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
+                                        <span>{{ $category['name'] }}</span>
+                                    </a>
+                                @endif
                             @endforeach
                         </div>
-                    </section>
-                @endforeach
-
-                <section class="space-y-2" x-data="{ open: false }">
-                    <button type="button" class="mobile-drawer-link mobile-drawer-link--toggle" @click="open = !open" :aria-expanded="open ? 'true' : 'false'">
-                        <span class="mobile-drawer-link__lead">
-                            <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('grid') !!}</span>
-                            <span>Collections</span>
-                        </span>
-                        <svg class="mobile-drawer-link__accordion" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                    </button>
-
-                    <div x-cloak x-show="open" x-transition.duration.180ms class="mobile-drawer-sublist">
-                        @forelse ($navCollections as $collection)
-                            <a href="{{ route('collections.show', $collection['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
-                                <span>{{ $collection['name'] }}</span>
-                            </a>
-                        @empty
-                            <a href="{{ route('shop.index') }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
-                                <span>All products</span>
-                            </a>
-                        @endforelse
                     </div>
-                </section>
 
-                <section class="space-y-2" x-data="{ open: false, openCategory: null }">
-                    <button type="button" class="mobile-drawer-link mobile-drawer-link--toggle" @click="open = !open" :aria-expanded="open ? 'true' : 'false'">
-                        <span class="mobile-drawer-link__lead">
-                            <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('grid') !!}</span>
-                            <span>Categories</span>
-                        </span>
-                        <svg class="mobile-drawer-link__accordion" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                            <path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
-                        </svg>
-                    </button>
+                    <div class="space-y-2" x-data="{ open: false }">
+                        <button type="button" class="mobile-drawer-link mobile-drawer-link--toggle" @click="open = !open" :aria-expanded="open ? 'true' : 'false'">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('grid') !!}</span>
+                                <span>Collections</span>
+                            </span>
+                            <svg class="mobile-drawer-link__accordion" :class="open ? 'rotate-180' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                                <path d="m5 7.5 5 5 5-5" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </button>
 
-                    <div x-cloak x-show="open" x-transition.duration.180ms class="mobile-drawer-sublist">
-                        @foreach ($navCategories as $category)
-                            @php($children = collect($category['children'] ?? []))
-                            @if ($children->isNotEmpty())
-                                <div>
-                                    <button type="button" class="mobile-drawer-sublink w-full" @click="openCategory = openCategory === {{ $category['id'] }} ? null : {{ $category['id'] }}">
-                                        <span>{{ $category['name'] }}</span>
-                                        <svg class="h-4 w-4 transition-transform duration-200" :class="openCategory === {{ $category['id'] }} ? 'rotate-90' : ''" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-                                            <path d="m7.5 5 5 5-5 5" stroke-linecap="round" stroke-linejoin="round" />
-                                        </svg>
-                                    </button>
-                                    <div x-cloak x-show="openCategory === {{ $category['id'] }}" x-transition.duration.160ms class="ml-4 mt-1 space-y-1 border-l border-[var(--border-soft)] pl-3">
-                                        <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
-                                            <span>All {{ $category['name'] }}</span>
-                                        </a>
-                                        @foreach ($children as $child)
-                                            <a href="{{ route('categories.show', $child['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
-                                                <span>{{ $child['name'] }}</span>
-                                            </a>
-                                        @endforeach
-                                    </div>
-                                </div>
-                            @else
-                                <a href="{{ route('categories.show', $category['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
-                                    <span>{{ $category['name'] }}</span>
+                        <div x-cloak x-show="open" x-transition.duration.180ms class="mobile-drawer-sublist">
+                            @forelse ($navCollections as $collection)
+                                <a href="{{ route('collections.show', $collection['slug']) }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
+                                    <span>{{ $collection['name'] }}</span>
                                 </a>
-                            @endif
-                        @endforeach
+                            @empty
+                                <a href="{{ route('shop.index') }}" class="mobile-drawer-sublink" @click="mobileOpen = false">
+                                    <span>All products</span>
+                                </a>
+                            @endforelse
+                        </div>
                     </div>
+
+                    <a href="{{ route('shop.index', ['type' => 'service']) }}" class="mobile-drawer-link" @click="mobileOpen = false">
+                        <span class="mobile-drawer-link__lead">
+                            <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('sparkles') !!}</span>
+                            <span>Consultation</span>
+                        </span>
+                    </a>
                 </section>
 
                 <section class="space-y-3">
-                    <p class="mobile-drawer-section-title">More</p>
+                    <p class="mobile-drawer-section-title">Orders</p>
                     <div class="space-y-1.5">
-                        <a href="{{ route('wishlist.index') }}" class="mobile-drawer-link" @click="mobileOpen = false">
+                        <a href="{{ route('orders.track.form') }}" class="mobile-drawer-link" @click="mobileOpen = false">
                             <span class="mobile-drawer-link__lead">
-                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('heart') !!}</span>
-                                <span>Wishlist</span>
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('bag') !!}</span>
+                                <span>Track Order</span>
                             </span>
-                            <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                         </a>
                         <a href="{{ $accountHref }}" class="mobile-drawer-link" @click="mobileOpen = false">
                             <span class="mobile-drawer-link__lead">
                                 <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('user') !!}</span>
                                 <span>Account</span>
                             </span>
-                            <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
                         </a>
-                        <a href="{{ route('shop.index', ['type' => 'service']) }}" class="mobile-drawer-link" @click="mobileOpen = false">
+                        <a href="{{ route('wishlist.index') }}" class="mobile-drawer-link" @click="mobileOpen = false">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('heart') !!}</span>
+                                <span>Wishlist</span>
+                            </span>
+                        </a>
+                        <a href="{{ route('cart.index') }}" class="mobile-drawer-link" @click="mobileOpen = false">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('bag') !!}</span>
+                                <span>Cart</span>
+                            </span>
+                        </a>
+                    </div>
+                </section>
+
+                <section class="space-y-3">
+                    <p class="mobile-drawer-section-title">About</p>
+                    <div class="space-y-1.5">
+                        <a href="{{ url('/pages/about') }}" class="mobile-drawer-link" @click="mobileOpen = false">
                             <span class="mobile-drawer-link__lead">
                                 <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('sparkles') !!}</span>
-                                <span>Consultation</span>
+                                <span>About</span>
                             </span>
-                            <span class="mobile-drawer-link__chevron" aria-hidden="true">/</span>
+                        </a>
+                        <a href="{{ url('/pages/contact') }}" class="mobile-drawer-link" @click="mobileOpen = false">
+                            <span class="mobile-drawer-link__lead">
+                                <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('sparkles') !!}</span>
+                                <span>Contact</span>
+                            </span>
                         </a>
                     </div>
                 </section>

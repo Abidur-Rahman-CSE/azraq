@@ -428,6 +428,39 @@
                 </div>
             </div>
 
+            @if (collect($policyRows ?? [])->isNotEmpty())
+                <div class="surface-card p-8">
+                    <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">Shipping, care, and policy</h2>
+                    <dl class="mt-6 grid gap-4 lg:grid-cols-2">
+                        @foreach ($policyRows as $row)
+                            <div class="flex items-start justify-between gap-4 border-b border-[var(--border-soft)] py-3">
+                                <dt class="text-sm text-[var(--text-muted)]">{{ $row['label'] }}</dt>
+                                <dd class="text-right text-sm font-medium text-[var(--text-main)]">{{ $row['value'] }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </div>
+            @endif
+
+            @if (($faqs ?? collect())->isNotEmpty())
+                <div class="surface-card p-8" x-data="{ open: null }">
+                    <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">FAQ</h2>
+                    <div class="mt-4 divide-y divide-[var(--border-soft)]">
+                        @foreach ($faqs as $index => $faq)
+                            <div>
+                                <button type="button" class="flex w-full items-center justify-between gap-4 py-4 text-left text-sm font-semibold text-[var(--text-main)]" @click="open === {{ $index }} ? open = null : open = {{ $index }}">
+                                    <span>{{ $faq->question }}</span>
+                                    <span class="text-lg text-[var(--accent-primary)]">+</span>
+                                </button>
+                                <div x-cloak x-show="open === {{ $index }}" x-transition class="pb-4 text-sm leading-7 text-[var(--text-muted)]">
+                                    {{ $faq->answer }}
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @endif
+
             @if ($comboGallery->count() > 1)
                 <div class="surface-card p-8">
                     <h2 class="font-serif text-xl font-semibold text-[var(--text-main)]">Gallery</h2>

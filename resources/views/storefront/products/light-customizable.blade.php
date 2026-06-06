@@ -150,7 +150,7 @@
         ->values();
     $shortDescription = $product->excerpt ?: Str::limit(strip_tags($product->description), 150);
     $storyVisual = $product->storefront_preview_image_url ?: $product->featured_image_url ?: $primaryImage?->image_url;
-    $deliveryRows = [
+    $deliveryRows = $policyRows ?? [
         ['label' => 'Production time', 'value' => ($product->lead_time_days ?: 4).' to '.(($product->lead_time_days ?: 4) + 2).' business days'],
         ['label' => 'Personalization', 'value' => 'Text details are reviewed before production'],
         ['label' => 'Delivery estimate', 'value' => '2 to 5 business days after dispatch'],

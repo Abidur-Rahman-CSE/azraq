@@ -66,7 +66,6 @@
                 </div>
             @endforeach
         </dl>
-        <p class="mt-4 text-sm text-[var(--text-muted)]">All items are gift-ready wrapped and carefully posted.</p>
     </div>
 
     @if ($faqs->isNotEmpty())

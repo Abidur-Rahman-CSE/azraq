@@ -7,11 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProductRequest;
 use App\Models\Category;
 use App\Models\Collection;
+use App\Models\Faq;
 use App\Models\PersonalizationTemplate;
 use App\Models\PersonalizationMockup;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ServiceProductMeta;
+use App\Models\Setting;
 use App\Models\Tag;
 use App\Support\PersonalizationTemplateSnapshot;
 use Illuminate\Database\Eloquent\Builder;
@@ -245,6 +247,11 @@ class ProductController extends Controller
             'personalizationTemplates' => $activeTemplateQuery->orderBy('name')->get(),
             'personalizationMockups' => $availableMockupQuery->orderBy('sort_order')->orderBy('title')->get(),
             'productTypes' => ProductType::options(),
+            'defaultPolicyRows' => $this->defaultPolicyRows(),
+            'defaultProductFaqs' => Faq::query()
+                ->where('is_published', true)
+                ->orderBy('sort_order')
+                ->get(),
         ];
     }
 
@@ -268,6 +275,8 @@ class ProductController extends Controller
                 'default_mockup_id',
                 'personalization_fields_blueprint',
                 'variant_media_links',
+                'shipping_care_policy',
+                'product_faqs',
                 'related_category_ids',
                 'featured_image_upload',
                 'gallery_uploads',
@@ -292,7 +301,62 @@ class ProductController extends Controller
             'variant_media_links' => $request->filled('variant_media_links')
                 ? json_decode($request->input('variant_media_links'), true)
                 : null,
+            'shipping_care_policy' => $request->filled('shipping_care_policy')
+                ? $this->normalizePolicyRows(json_decode($request->input('shipping_care_policy'), true) ?: [])
+                : null,
+            'product_faqs' => $request->filled('product_faqs')
+                ? $this->normalizeProductFaqs(json_decode($request->input('product_faqs'), true) ?: [])
+                : null,
         ];
+    }
+
+    private function defaultPolicyRows(): array
+    {
+        $fallbackRows = [
+            ['label' => 'Timeline', 'value' => 'Orders are prepared carefully within the listed production window.'],
+            ['label' => 'Packaging', 'value' => 'All items are gift-ready wrapped and carefully posted.'],
+            ['label' => 'Care', 'value' => 'Keep prints dry, away from direct sunlight, and handle frames with clean hands.'],
+            ['label' => 'Returns', 'value' => 'Personalized items are final sale once proof is approved; damaged parcels are reviewed quickly.'],
+        ];
+
+        $configuredRows = Setting::query()
+            ->where('group', 'storefront')
+            ->where('key', 'default_shipping_care_policy')
+            ->value('value');
+
+        if (! filled($configuredRows)) {
+            return $fallbackRows;
+        }
+
+        return $this->normalizePolicyRows(json_decode($configuredRows, true) ?: []) ?: $fallbackRows;
+    }
+
+    private function normalizePolicyRows(array $rows): ?array
+    {
+        $normalized = collect($rows)
+            ->map(fn ($row) => [
+                'label' => trim((string) ($row['label'] ?? $row['title'] ?? '')),
+                'value' => trim((string) ($row['value'] ?? $row['description'] ?? $row['copy'] ?? '')),
+            ])
+            ->filter(fn ($row) => filled($row['label']) || filled($row['value']))
+            ->values()
+            ->all();
+
+        return $normalized ?: null;
+    }
+
+    private function normalizeProductFaqs(array $faqs): ?array
+    {
+        $normalized = collect($faqs)
+            ->map(fn ($faq) => [
+                'question' => trim((string) ($faq['question'] ?? $faq['title'] ?? '')),
+                'answer' => trim((string) ($faq['answer'] ?? $faq['description'] ?? '')),
+            ])
+            ->filter(fn ($faq) => filled($faq['question']) || filled($faq['answer']))
+            ->values()
+            ->all();
+
+        return $normalized ?: null;
     }
 
     private function normalizePersonalizationBlueprint(array $fields): array

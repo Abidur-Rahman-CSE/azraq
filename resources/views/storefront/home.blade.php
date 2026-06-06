@@ -69,8 +69,37 @@
         ->merge($featuredProducts ?? collect())
         ->merge($comboSpotlight ?? collect())
         ->merge($bridalWearSpotlight ?? collect())
+        ->merge($bookingHighlights ?? collect())
         ->unique('id');
-    $curatedEditions = $curatedPool->take($curatedPool->count() >= 8 ? 8 : 4);
+    $curatedEditions = $curatedPool->take($curatedPool->count() >= 12 ? 12 : 8);
+    $curatedFilterKeys = function (Product $product): array {
+        $keys = [];
+
+        if ($product->type === \App\Enums\ProductType::AdvancedPersonalized || $product->category?->slug === 'nikah-collection') {
+            $keys[] = 'nikah';
+        }
+
+        if ($product->category?->slug === 'customized-bridal-wear') {
+            $keys[] = 'bridal';
+        }
+
+        if ($product->type === \App\Enums\ProductType::Bundle) {
+            $keys[] = 'combos';
+        }
+
+        if ($product->type === \App\Enums\ProductType::Service) {
+            $keys[] = 'bookings';
+        }
+
+        return array_values(array_unique($keys));
+    };
+    $curatedFilters = collect([
+        ['key' => 'all', 'label' => 'All', 'count' => $curatedEditions->count()],
+        ['key' => 'nikah', 'label' => 'Nikah', 'count' => $curatedEditions->filter(fn (Product $product) => in_array('nikah', $curatedFilterKeys($product), true))->count()],
+        ['key' => 'bridal', 'label' => 'Bridal wear', 'count' => $curatedEditions->filter(fn (Product $product) => in_array('bridal', $curatedFilterKeys($product), true))->count()],
+        ['key' => 'combos', 'label' => 'Combos', 'count' => $curatedEditions->filter(fn (Product $product) => in_array('combos', $curatedFilterKeys($product), true))->count()],
+        ['key' => 'bookings', 'label' => 'Bookings', 'count' => $curatedEditions->filter(fn (Product $product) => in_array('bookings', $curatedFilterKeys($product), true))->count()],
+    ])->filter(fn ($filter) => $filter['key'] === 'all' || $filter['count'] > 0)->values();
 
     // ── Testimonial
     $featuredTestimonial = $testimonials->sortByDesc('rating')->sortByDesc(fn ($r) => mb_strlen($r->body ?? ''))->first();
@@ -80,6 +109,7 @@
     $processSteps = collect(data_get($spotlightSection, 'settings.process_steps', [
         '01 Fill details', '02 Choose typography', '03 Approve proof',
     ]))->filter()->take(6);
+    $signatureNikahHref = $signatureNikah ? route('products.show', $signatureNikah) : route('shop.index');
 
     // ── Finale
     $finaleBg = data_get($finaleSection, 'settings.background_image_url')
@@ -239,19 +269,20 @@
         <section class="section-shell scroll-fade-in">
             <div class="container-shell">
                 <div class="glass-card-brand grid gap-6 p-5 sm:p-7 lg:grid-cols-[0.95fr_1.05fr] lg:gap-10 lg:p-10">
-                    <div class="overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)] aspect-[4/5] sm:aspect-[5/4] lg:aspect-auto lg:min-h-[440px]">
-                        @php($nikahImage = $signatureNikah->storefront_preview_image_url)
+                    <div class="mx-auto aspect-[4/5] w-full max-w-[320px] overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)] sm:aspect-[5/4] sm:max-w-none lg:aspect-auto lg:min-h-[440px]">
+                        @php($nikahImageProduct = $latestNikahNama ?? $signatureNikah)
+                        @php($nikahImage = data_get($spotlightSection, 'settings.image_url') ?: $nikahImageProduct?->storefront_preview_image_url ?: $signatureNikah->storefront_preview_image_url)
                         @if ($nikahImage)
-                            <img src="{{ $nikahImage }}" alt="{{ $signatureNikah->name }}" class="h-full w-full object-cover">
+                            <img src="{{ $nikahImage }}" alt="{{ $nikahImageProduct?->name ?? $signatureNikah->name }}" class="h-full w-full object-cover">
                         @endif
                     </div>
-                    <div class="flex flex-col justify-center min-w-0">
+                    <div class="flex min-w-0 flex-col items-center justify-center text-center lg:items-start lg:text-left">
                         <span class="section-kicker text-[0.62rem]">{{ $spotlightSection->subtitle ?? 'Signature Nikah Nama' }}</span>
                         <h2 class="mt-3 text-3xl font-semibold leading-[1.1] tracking-[-0.015em] text-[var(--text-main)] sm:text-4xl lg:text-5xl" style="font-family: 'Cormorant Garamond', Georgia, serif;">{{ $copy($spotlightSection->title, $signatureNikah->name) }}</h2>
                         <p class="mt-4 text-sm leading-7 text-[var(--text-muted)] sm:text-base">{{ \Illuminate\Support\Str::limit($copy($spotlightSection->content, $signatureNikah->description), 220) }}</p>
 
                         @if ($processSteps->isNotEmpty())
-                            <div class="mt-6 process-rail">
+                            <div class="mt-6 process-rail justify-center lg:justify-start">
                                 @foreach ($processSteps as $idx => $step)
                                     <span class="process-rail__step">{{ $step }}</span>
                                     @if (!$loop->last)
@@ -261,8 +292,8 @@
                             </div>
                         @endif
 
-                        <div class="mt-7 flex flex-wrap gap-3">
-                            <a href="{{ filled($spotlightSection->cta_href) ? $spotlightSection->cta_href : route('products.show', $signatureNikah) }}" class="button-primary">{{ $spotlightSection->cta_label ?: 'Customize your Nikah' }}</a>
+                        <div class="mt-7 flex flex-wrap justify-center gap-3 lg:justify-start">
+                            <a href="{{ $signatureNikahHref }}" class="button-primary">{{ $spotlightSection->cta_label ?: 'Customize your Nikah' }}</a>
                             @php($secLabel = data_get($spotlightSection, 'settings.secondary_cta_label'))
                             @php($secHref  = data_get($spotlightSection, 'settings.secondary_cta_href'))
                             @if ($secLabel && $secHref)
@@ -279,7 +310,11 @@
 
     {{-- ── 5. CURATED EDITIONS ───────────────────────────────── --}}
     @if ($productsSection && $curatedEditions->isNotEmpty())
-        <section id="curated" class="section-shell scroll-fade-in">
+        <section
+            id="curated"
+            class="section-shell scroll-fade-in"
+            x-data="{ activeMerchFilter: 'all' }"
+        >
             <div class="container-shell">
                 <x-storefront.section-header
                     :eyebrow="$productsSection->subtitle ?? 'Curated editions'"
@@ -289,17 +324,29 @@
                 />
 
                 <div class="mt-7 filter-pill-row">
-                    <a href="{{ route('shop.index') }}" class="filter-pill filter-pill--active">All</a>
-                    <a href="{{ route('shop.index', ['type' => 'nikah_personalization']) }}" class="filter-pill">Nikah</a>
-                    <a href="{{ route('shop.index', ['type' => 'advanced_personalization']) }}" class="filter-pill">Bridal wear</a>
-                    <a href="{{ route('shop.index', ['type' => 'bundle']) }}" class="filter-pill">Combos</a>
-                    <a href="{{ route('shop.index', ['type' => 'service']) }}" class="filter-pill">Bookings</a>
+                    @foreach ($curatedFilters as $filter)
+                        <button
+                            type="button"
+                            class="filter-pill"
+                            @click="activeMerchFilter = @js($filter['key']); $nextTick(() => $refs.merchandisingCarousel?.querySelector('.carousel-track')?.scrollTo({ left: 0, behavior: 'smooth' }))"
+                            :class="activeMerchFilter === @js($filter['key']) ? 'filter-pill--active' : ''"
+                            :aria-pressed="(activeMerchFilter === @js($filter['key'])).toString()"
+                        >
+                            {{ $filter['label'] }}
+                        </button>
+                    @endforeach
                 </div>
 
                 <div class="mt-8">
-                    <x-storefront.carousel :md-cols="3" :lg-cols="4">
+                    <x-storefront.carousel :md-cols="3" :lg-cols="4" class="merchandising-carousel" x-ref="merchandisingCarousel">
                         @foreach ($curatedEditions as $product)
-                            <x-storefront.listing-card :product="$product" />
+                            @php($productFilterKeys = $curatedFilterKeys($product))
+                            <div
+                                x-show="activeMerchFilter === 'all' || @js($productFilterKeys).includes(activeMerchFilter)"
+                                x-transition.opacity.duration.180ms
+                            >
+                                <x-storefront.listing-card :product="$product" />
+                            </div>
                         @endforeach
                     </x-storefront.carousel>
                 </div>

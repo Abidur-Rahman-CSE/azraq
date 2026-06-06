@@ -105,6 +105,10 @@ class HomepageSectionController extends Controller
         }
 
         if ($homepageSection->section_key === 'signature_nikah_spotlight') {
+            $settings['image_url'] = $this->resolveUpload(
+                $request->file('spotlight_image_upload'),
+                $incomingSettings['image_url'] ?? ($settings['image_url'] ?? null)
+            );
             $settings['product_id'] = isset($incomingSettings['product_id']) && $incomingSettings['product_id'] !== ''
                 ? (int) $incomingSettings['product_id']
                 : null;
@@ -154,6 +158,7 @@ class HomepageSectionController extends Controller
             'desktop_image_upload',
             'mobile_image_upload',
             'background_image_upload',
+            'spotlight_image_upload',
             'slide_images',
             'settings',
         ]) + [

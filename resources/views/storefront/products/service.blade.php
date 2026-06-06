@@ -24,8 +24,19 @@
     $packages = collect($serviceMeta->packages ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
     $beforeAppointment = collect($serviceMeta->before_appointment ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
     $pricingNotes = collect($serviceMeta->pricing_notes ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
-    $policies = collect($serviceMeta->policies ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
-    $serviceFaqs = collect($serviceMeta->faqs ?: [])->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
+    $policies = collect($policyRows ?? ($serviceMeta->policies ?: []))
+        ->map(fn ($item) => [
+            'title' => $item['title'] ?? $item['label'] ?? 'Policy',
+            'description' => $item['description'] ?? $item['value'] ?? '',
+        ])
+        ->filter(fn ($item) => filled($item['title'] ?? null) || filled($item['description'] ?? null));
+    $serviceFaqs = ($product->product_faqs || collect($serviceMeta->faqs ?: [])->isEmpty())
+        ? collect($faqs ?? [])->map(fn ($faq) => [
+            'title' => data_get($faq, 'question', 'Question'),
+            'description' => data_get($faq, 'answer', ''),
+        ])
+        : collect($serviceMeta->faqs ?: []);
+    $serviceFaqs = $serviceFaqs->filter(fn ($item) => filled($item['title'] ?? $item['question'] ?? null) || filled($item['description'] ?? $item['answer'] ?? null));
 @endphp
 
 <x-layouts.product-detail

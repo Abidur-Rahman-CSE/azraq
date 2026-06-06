@@ -24,6 +24,7 @@ class HomepageSectionRequest extends FormRequest
             'desktop_image_upload' => ['nullable', 'image', 'max:10240'],
             'mobile_image_upload' => ['nullable', 'image', 'max:10240'],
             'background_image_upload' => ['nullable', 'image', 'max:10240'],
+            'spotlight_image_upload' => ['nullable', 'image', 'max:10240'],
 
             'settings' => ['nullable', 'array'],
 
@@ -61,6 +62,7 @@ class HomepageSectionRequest extends FormRequest
             'settings.stats.*.label' => ['nullable', 'string', 'max:80'],
 
             // Signature Nikah spotlight
+            'settings.image_url' => ['nullable', 'string', 'max:2048'],
             'settings.product_id' => ['nullable', 'integer', 'exists:products,id'],
             'settings.process_steps' => ['nullable', 'array', 'max:6'],
             'settings.process_steps.*' => ['nullable', 'string', 'max:120'],

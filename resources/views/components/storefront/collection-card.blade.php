@@ -38,8 +38,8 @@
         @endif
 
         <div class="collection-card-rich__footer">
-            <span class="collection-card-rich__count">{{ $count }} pieces</span>
-            <span class="collection-card-rich__cta">View edit →</span>
+            <span class="collection-card-rich__count">{{ $count }} items</span>
+            <span class="collection-card-rich__cta">View all →</span>
         </div>
     </div>
 </a>

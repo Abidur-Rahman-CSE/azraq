@@ -37,10 +37,11 @@ class HomepageSectionsSeeder extends Seeder
                 'subtitle' => 'Signature Nikah',
                 'content' => 'Premium Nikah personalization with structured details, curated typography, and proof-aware production.',
                 'cta_label' => 'Customize your Nikah',
-                'cta_href' => '/shop?type=nikah_personalization',
+                'cta_href' => null,
                 'sort_order' => 15,
                 'is_enabled' => true,
                 'settings' => [
+                    'image_url' => null,
                     'product_id' => null,
                     'process_steps' => [
                         '01 Fill details',

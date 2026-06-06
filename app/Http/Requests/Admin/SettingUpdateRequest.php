@@ -19,6 +19,7 @@ class SettingUpdateRequest extends FormRequest
             'announcement_cta_href' => ['nullable', 'string', 'max:255'],
             'support_phone' => ['nullable', 'string', 'max:50'],
             'support_email' => ['nullable', 'email', 'max:255'],
+            'default_shipping_care_policy' => ['nullable', 'json'],
         ];
     }
 }

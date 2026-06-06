@@ -43,6 +43,8 @@ class Product extends Model
         'personalization_help_text',
         'personalization_fields_blueprint',
         'variant_media_links',
+        'shipping_care_policy',
+        'product_faqs',
         'combo_discount_type',
         'combo_discount_value',
         'combo_rounding_rule',
@@ -71,6 +73,8 @@ class Product extends Model
             'font_presets_enabled' => 'boolean',
             'personalization_fields_blueprint' => 'array',
             'variant_media_links' => 'array',
+            'shipping_care_policy' => 'array',
+            'product_faqs' => 'array',
             'combo_discount_value' => 'decimal:2',
             'show_combo_savings_badge' => 'boolean',
             'show_related_combos_on_product' => 'boolean',
@@ -222,6 +226,8 @@ class Product extends Model
                     'v' => $this->storefrontPreviewVersion(),
                 ]);
             }
+
+            return null;
         }
 
         return $this->featured_image_url ?: $this->primaryImage()?->image_url;

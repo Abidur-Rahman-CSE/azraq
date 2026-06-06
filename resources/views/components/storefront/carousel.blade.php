@@ -12,7 +12,7 @@
     };
 @endphp
 
-<div class="carousel-rail" style="--carousel-md: {{ $mdCols }}; --carousel-lg: {{ $lgCols }};">
+<div {{ $attributes->class(['carousel-rail']) }} style="--carousel-md: {{ $mdCols }}; --carousel-lg: {{ $lgCols }};">
     <div class="carousel-track {{ $gapClass }}">
         {{ $slot }}
     </div>

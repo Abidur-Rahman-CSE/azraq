@@ -92,7 +92,10 @@ class CollectionController extends Controller
     {
         return [
             'collection' => $collection,
-            'products' => Product::query()->orderBy('name')->get(),
+            'products' => Product::query()
+                ->with(['category', 'images', 'personalizationTemplate', 'personalizationMockups'])
+                ->orderBy('name')
+                ->get(),
         ];
     }
 

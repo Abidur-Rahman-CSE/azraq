@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Admin Login | {{ config('brand.name') }}</title>
         <meta name="robots" content="noindex,nofollow">
-        <link rel="icon" type="image/svg+xml" href="{{ asset('images/logo/Azraq.svg') }}">
+        @include('components.layouts._favicons')
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
     <body class="min-h-screen bg-[var(--color-surface)] font-sans text-[var(--color-text-main)] antialiased">

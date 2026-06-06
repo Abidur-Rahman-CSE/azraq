@@ -455,7 +455,7 @@
             "subtitle": "Signature Nikah",
             "content": "Premium Nikah personalization with structured details, curated typography, and proof-aware production.",
             "cta_label": "Customize your Nikah",
-            "cta_href": "/shop?type=nikah_personalization",
+            "cta_href": null,
             "is_enabled": 1,
             "sort_order": 15,
             "settings": "{\"product_id\":10,\"process_steps\":[\"01 Fill details\",\"02 Choose typography\",\"03 Approve proof\"],\"secondary_cta_label\":\"Explore Nikah Collection\",\"secondary_cta_href\":\"\\/categories\\/nikah-collection\"}",

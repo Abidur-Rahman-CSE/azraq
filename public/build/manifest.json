@@ -17,7 +17,7 @@
     ]
   },
   "resources/css/app.css": {
-    "file": "assets/app-BUDmvX79.css",
+    "file": "assets/app-Yclmi5cm.css",
     "name": "app",
     "names": [
       "app.css"
@@ -26,7 +26,7 @@
     "isEntry": true
   },
   "resources/js/admin/nikah-product-form.jsx": {
-    "file": "assets/nikah-product-form-BZ1O6yU5.js",
+    "file": "assets/nikah-product-form-CQ9SXcAr.js",
     "name": "nikah-product-form",
     "src": "resources/js/admin/nikah-product-form.jsx",
     "isDynamicEntry": true,
@@ -39,7 +39,7 @@
     ]
   },
   "resources/js/app.js": {
-    "file": "assets/app-BtNURk9E.js",
+    "file": "assets/app-BwXQqbcm.js",
     "name": "app",
     "src": "resources/js/app.js",
     "isEntry": true,

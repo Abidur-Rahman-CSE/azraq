@@ -95,8 +95,34 @@ class StorefrontController extends Controller
         // Signature Nikah spotlight — admin can override via signature_nikah_spotlight.settings.product_id
         $spotlightOverrideId = (int) data_get($homepageSections->get('signature_nikah_spotlight'), 'settings.product_id');
         $signatureNikah = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
-            ->when($spotlightOverrideId > 0, fn ($q) => $q->where('id', $spotlightOverrideId))
-            ->when($spotlightOverrideId === 0, fn ($q) => $q->where('slug', 'signature-nikah-nama'))
+            ->where('status', 'active')
+            ->when(
+                $spotlightOverrideId > 0,
+                fn ($q) => $q->where('id', $spotlightOverrideId),
+                fn ($q) => $q
+                    ->where(function ($query): void {
+                        $query
+                            ->where('type', ProductType::AdvancedPersonalized->value)
+                            ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('slug', 'nikah-collection'));
+                    })
+                    ->latest()
+            )
+            ->first();
+
+        $latestNikahNama = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
+            ->where('status', 'active')
+            ->where(function ($query): void {
+                $query
+                    ->where('type', ProductType::AdvancedPersonalized->value)
+                    ->orWhereHas('category', fn ($categoryQuery) => $categoryQuery->where('slug', 'nikah-collection'));
+            })
+            ->where(function ($query): void {
+                $query
+                    ->whereNotNull('featured_image_url')
+                    ->orWhereHas('images')
+                    ->orWhereHas('personalizationTemplate');
+            })
+            ->latest()
             ->first();
 
         $comboSpotlight = Product::with(['category', 'tags', 'images', 'personalizationTemplate', 'personalizationMockups'])
@@ -136,6 +162,7 @@ class StorefrontController extends Controller
             'homepageSections',
             'faqPreview',
             'signatureNikah',
+            'latestNikahNama',
             'comboSpotlight',
             'bookingHighlights',
             'bridalWearSpotlight',

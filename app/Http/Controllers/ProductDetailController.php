@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\ProductType;
 use App\Models\Faq;
 use App\Models\Product;
+use App\Models\Setting;
 use App\Services\MockupRenderService;
 use App\Support\ComboPricing;
 use App\Support\MockupZoneNormalizer;
@@ -58,11 +59,8 @@ class ProductDetailController extends Controller
             ->values()
             ->all());
 
-        $faqs = Faq::query()
-            ->where('is_published', true)
-            ->orderBy('sort_order')
-            ->limit(6)
-            ->get();
+        $policyRows = $this->policyRowsForProduct($product);
+        $faqs = $this->faqsForProduct($product);
 
         if ($product->type === ProductType::AdvancedPersonalized && $product->personalizationTemplate) {
             $template = $product->personalizationTemplate;
@@ -144,6 +142,7 @@ class ProductDetailController extends Controller
                     ];
                 })->values(),
                 'faqs' => $faqs,
+                'policyRows' => $policyRows,
                 'related_products' => $product->relatedProducts->values(),
                 'comboUpsells' => $product->show_related_combos_on_product ? ComboPricing::suggestionsForProduct($product) : collect(),
                 'recentlyViewed' => $recentlyViewed,
@@ -170,13 +169,14 @@ class ProductDetailController extends Controller
                 'relatedProducts' => $relatedServiceProducts,
                 'relatedCategories' => $product->relatedCategories->take(4),
                 'recentlyViewed' => $recentlyViewed,
+                'policyRows' => $policyRows,
+                'faqs' => $faqs,
             ]);
         }
 
         if (! in_array($product->type, [ProductType::Standard, ProductType::LightCustomizable, ProductType::Bundle], true)) {
             return redirect()
-                ->route('shop.index', ['type' => $product->type?->value])
-                ->with('status', 'This product type will get its dedicated detail flow in a later phase.');
+                ->route('shop.index', ['type' => $product->type?->value]);
         }
 
         return match ($product->type) {
@@ -184,6 +184,7 @@ class ProductDetailController extends Controller
                 'product' => $product,
                 'recentlyViewed' => $recentlyViewed,
                 'faqs' => $faqs,
+                'policyRows' => $policyRows,
                 'related_products' => $product->relatedProducts->values(),
                 'comboUpsells' => $product->show_related_combos_on_product ? ComboPricing::suggestionsForProduct($product) : collect(),
             ]),
@@ -192,6 +193,8 @@ class ProductDetailController extends Controller
                 'recentlyViewed' => $recentlyViewed,
                 'bundlePricing' => ComboPricing::summary($product),
                 'bundleValue' => $product->bundleItems->sum(fn ($item) => (float) $item->childProduct?->price * $item->quantity),
+                'policyRows' => $policyRows,
+                'faqs' => $faqs,
             ]),
             default => view('products.show', [
                 'product' => $product,
@@ -199,6 +202,7 @@ class ProductDetailController extends Controller
                 'fonts' => collect(),
                 'mockups' => collect(),
                 'faqs' => $faqs,
+                'policyRows' => $policyRows,
                 'related_products' => $product->relatedProducts->values(),
                 'comboUpsells' => $product->show_related_combos_on_product ? ComboPricing::suggestionsForProduct($product) : collect(),
                 'recentlyViewed' => $recentlyViewed,
@@ -206,6 +210,87 @@ class ProductDetailController extends Controller
                 'showFlatPreviewFirst' => false,
             ]),
         };
+    }
+
+    private function policyRowsForProduct(Product $product): array
+    {
+        $customRows = collect($product->shipping_care_policy ?: [])
+            ->map(fn ($row) => [
+                'label' => trim((string) ($row['label'] ?? $row['title'] ?? '')),
+                'value' => trim((string) ($row['value'] ?? $row['description'] ?? $row['copy'] ?? '')),
+            ])
+            ->filter(fn ($row) => filled($row['label']) || filled($row['value']))
+            ->values()
+            ->all();
+
+        if ($customRows) {
+            return $customRows;
+        }
+
+        $leadTime = (int) ($product->lead_time_days ?: 4);
+        $defaultRows = $this->defaultPolicyRows();
+
+        if ($defaultRows) {
+            return collect($defaultRows)
+                ->map(fn ($row) => [
+                    'label' => $row['label'],
+                    'value' => str_replace(
+                        ['{lead_time}', '{lead_time_max}'],
+                        [$leadTime, $leadTime + 2],
+                        $row['value'],
+                    ),
+                ])
+                ->all();
+        }
+
+        return [
+            ['label' => 'Timeline', 'value' => 'Prepared within '.$leadTime.' to '.($leadTime + 2).' business days.'],
+            ['label' => 'Packaging', 'value' => 'All items are gift-ready wrapped and carefully posted.'],
+            ['label' => 'Care', 'value' => 'Keep prints dry, away from direct sunlight, and handle frames with clean hands.'],
+            ['label' => 'Returns', 'value' => 'Personalized items are final sale once proof is approved; damaged parcels are reviewed quickly.'],
+        ];
+    }
+
+    private function defaultPolicyRows(): array
+    {
+        $configuredRows = Setting::query()
+            ->where('group', 'storefront')
+            ->where('key', 'default_shipping_care_policy')
+            ->value('value');
+
+        if (! filled($configuredRows)) {
+            return [];
+        }
+
+        return collect(json_decode($configuredRows, true) ?: [])
+            ->map(fn ($row) => [
+                'label' => trim((string) ($row['label'] ?? $row['title'] ?? '')),
+                'value' => trim((string) ($row['value'] ?? $row['description'] ?? $row['copy'] ?? '')),
+            ])
+            ->filter(fn ($row) => filled($row['label']) || filled($row['value']))
+            ->values()
+            ->all();
+    }
+
+    private function faqsForProduct(Product $product)
+    {
+        $customFaqs = collect($product->product_faqs ?: [])
+            ->map(fn ($faq) => (object) [
+                'question' => trim((string) ($faq['question'] ?? $faq['title'] ?? '')),
+                'answer' => trim((string) ($faq['answer'] ?? $faq['description'] ?? '')),
+            ])
+            ->filter(fn ($faq) => filled($faq->question) || filled($faq->answer))
+            ->values();
+
+        if ($customFaqs->isNotEmpty()) {
+            return $customFaqs;
+        }
+
+        return Faq::query()
+            ->where('is_published', true)
+            ->orderBy('sort_order')
+            ->limit(6)
+            ->get();
     }
 
     public function previewImage(Product $product, MockupRenderService $mockupRenderService): BinaryFileResponse|RedirectResponse|Response

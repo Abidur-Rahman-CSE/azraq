@@ -2,22 +2,21 @@
 
 <article class="product-card-lux group">
     @php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
-    @php($cardImage = $product->storefront_preview_image_url)
+    @php($hasProductImage = filled($product->storefront_preview_image_url))
+    @php($cardImage = $hasProductImage ? $product->storefront_preview_image_url : asset('images/logo/Azraq.svg'))
     @php($cardAlt = $primaryImage?->label ?: $product->name)
     <a href="{{ route('products.show', $product) }}" class="block overflow-hidden rounded-t-[var(--radius-2xl)]" aria-label="View {{ $product->name }}">
-        @if ($cardImage)
-            <img
-                src="{{ $cardImage }}"
-                alt="{{ $cardAlt }}"
-                class="aspect-[4/5] sm:aspect-[4/3] w-full object-cover transition duration-500 ease-out group-hover:scale-105"
-                loading="lazy"
-                decoding="async"
-            >
-        @else
-            <div class="flex aspect-[4/5] sm:aspect-[4/3] items-center justify-center bg-[rgba(253,240,213,0.50)] text-xs text-[var(--text-muted)]">
-                Preview soon
-            </div>
-        @endif
+        <img
+            src="{{ $cardImage }}"
+            alt="{{ $cardAlt }}"
+            @class([
+                'aspect-[4/5] sm:aspect-[4/3] w-full transition duration-500 ease-out group-hover:scale-105',
+                'object-cover' => $hasProductImage,
+                'object-contain bg-[rgba(253,240,213,0.50)] p-12 sm:p-14' => ! $hasProductImage,
+            ])
+            loading="lazy"
+            decoding="async"
+        >
     </a>
 
     <div class="product-card-lux__body">

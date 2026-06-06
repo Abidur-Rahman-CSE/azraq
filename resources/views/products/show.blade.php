@@ -141,7 +141,7 @@
         ?: $product->featured_image_url
         ?: ($product->is_customizable ? ($templatePreviewArtworkUrl ?: $templateBaseArtworkUrl) : ($primaryImage?->image_url));
 
-    $deliveryRows = [
+    $deliveryRows = $policyRows ?? [
         ['label' => 'Production time', 'value' => ($product->lead_time_days ?: 4).' to '.(($product->lead_time_days ?: 4) + 2).' business days'],
         ['label' => 'Dispatch', 'value' => $product->is_customizable ? 'After proof approval' : 'Packed after order confirmation'],
         ['label' => 'Delivery estimate', 'value' => '2 to 5 business days after dispatch'],

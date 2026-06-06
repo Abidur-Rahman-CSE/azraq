@@ -49,6 +49,8 @@ class ProductRequest extends FormRequest
             'personalization_help_text' => ['nullable', 'string'],
             'personalization_fields_blueprint' => ['nullable', 'json'],
             'variant_media_links' => ['nullable', 'json'],
+            'shipping_care_policy' => ['nullable', 'json'],
+            'product_faqs' => ['nullable', 'json'],
             'combo_discount_type' => ['nullable', Rule::in(['percent', 'fixed'])],
             'combo_discount_value' => ['nullable', 'numeric', 'min:0'],
             'combo_rounding_rule' => ['nullable', Rule::in(['none', 'nearest_10', 'nearest_50', 'nearest_100'])],
