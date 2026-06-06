@@ -156,6 +156,27 @@
     animation: combo-suggestions-pulse 1.3s ease-in-out 2;
 }
 
+.combo-card--shake {
+    animation: combo-card-shake 780ms ease-in-out 2;
+}
+
+.cart-combo-link {
+    color: var(--accent-primary);
+    text-decoration-color: rgba(120, 0, 0, 0.32);
+    text-shadow: 0 0 0 rgba(193, 18, 31, 0);
+    animation: cart-combo-text-glow 2.8s ease-in-out infinite;
+    transition:
+        color 180ms ease,
+        text-decoration-color 180ms ease,
+        text-shadow 180ms ease;
+}
+
+.cart-combo-link:hover {
+    color: #c1121f;
+    text-decoration-color: rgba(193, 18, 31, 0.8);
+    text-shadow: 0 0 18px rgba(193, 18, 31, 0.42);
+}
+
 @keyframes combo-suggestions-pulse {
     0%,
     100% {
@@ -166,6 +187,50 @@
     45% {
         box-shadow: 0 20px 62px rgba(102, 155, 188, 0.28);
         border-color: rgba(102, 155, 188, 0.55);
+    }
+}
+
+@keyframes combo-card-shake {
+    0%,
+    100% {
+        transform: translateX(0);
+        box-shadow: 0 16px 36px rgba(15, 46, 60, 0.10);
+        border-color: rgba(0, 48, 73, 0.09);
+    }
+
+    18% {
+        transform: translateX(-5px) rotate(-0.35deg);
+    }
+
+    36% {
+        transform: translateX(5px) rotate(0.35deg);
+        border-color: rgba(102, 155, 188, 0.58);
+        box-shadow: 0 18px 48px rgba(102, 155, 188, 0.24);
+    }
+
+    54% {
+        transform: translateX(-3px) rotate(-0.2deg);
+    }
+
+    72% {
+        transform: translateX(3px) rotate(0.2deg);
+    }
+}
+
+@keyframes cart-combo-text-glow {
+    0%,
+    100% {
+        color: #780000;
+        text-decoration-color: rgba(120, 0, 0, 0.36);
+        text-shadow: 0 0 0 rgba(193, 18, 31, 0);
+    }
+
+    50% {
+        color: #c1121f;
+        text-decoration-color: rgba(193, 18, 31, 0.82);
+        text-shadow:
+            0 0 12px rgba(193, 18, 31, 0.34),
+            0 0 26px rgba(120, 0, 0, 0.16);
     }
 }
 
@@ -3970,6 +4035,7 @@
     .editorial-hero__img,
     .button-primary,
     .button-luxury,
+    .cart-combo-link,
     .scroll-fade-in {
         animation: none !important;
         transition: none !important;

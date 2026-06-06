@@ -126,19 +126,26 @@ syncBrowserCartCache();
 
 document.querySelectorAll('[data-combo-jump]').forEach((trigger) => {
     trigger.addEventListener('click', (event) => {
-        const target = document.getElementById('curated-combo-options');
+        const section = document.getElementById('curated-combo-options');
+        const comboId = trigger.dataset.comboId;
+        const target = comboId
+            ? document.querySelector(`[data-combo-card="${CSS.escape(comboId)}"]`)
+            : null;
+        const pulseTarget = target || section;
 
-        if (!target) {
+        if (!section || !pulseTarget) {
             return;
         }
 
         event.preventDefault();
-        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        target.classList.remove('combo-suggestions--pulse');
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        pulseTarget.classList.remove('combo-suggestions--pulse', 'combo-card--shake');
 
-        window.requestAnimationFrame(() => {
-            target.classList.add('combo-suggestions--pulse');
-        });
+        window.setTimeout(() => {
+            window.requestAnimationFrame(() => {
+                pulseTarget.classList.add(target ? 'combo-card--shake' : 'combo-suggestions--pulse');
+            });
+        }, 280);
     });
 });
 

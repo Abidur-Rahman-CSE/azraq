@@ -164,7 +164,7 @@
                                                 @endif
                                                 <span class="text-[var(--color-text-soft)]">with {{ $upsellCombo->name }}</span>
                                             </p>
-                                            <a href="#curated-combo-options" data-combo-jump class="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--accent-secondary)] underline decoration-[rgba(0,48,73,0.25)] underline-offset-4">See combo</a>
+                                            <a href="#curated-combo-options" data-combo-jump data-combo-id="{{ $upsellCombo->id }}" class="cart-combo-link text-xs font-semibold uppercase tracking-[0.12em] underline underline-offset-4">See combo</a>
                                         </div>
                                     @endif
                                 </div>
@@ -237,7 +237,7 @@
                 <div class="mt-4 grid gap-3 xl:grid-cols-3">
                     @foreach ($comboSuggestions as $combo)
                         @php($pricing = \App\Support\ComboPricing::summary($combo))
-                        <article class="grid gap-3 rounded-2xl border border-[rgba(0,48,73,0.09)] bg-[rgba(255,255,255,0.92)] p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,46,60,0.10)]">
+                        <article data-combo-card="{{ $combo->id }}" class="combo-card grid gap-3 rounded-2xl border border-[rgba(0,48,73,0.09)] bg-[rgba(255,255,255,0.92)] p-3 shadow-sm transition hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(15,46,60,0.10)]">
                             <div class="flex gap-3">
                                 <div class="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-[rgba(0,48,73,0.04)]">
                                     @if ($combo->storefront_preview_image_url)
