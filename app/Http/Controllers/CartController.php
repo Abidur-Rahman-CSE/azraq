@@ -25,6 +25,7 @@ class CartController extends Controller
             'coupon' => $coupon,
             'summary' => CartSession::summary($items, 'standard', $coupon),
             'comboSuggestions' => $this->comboSuggestions($items),
+            'comboUpsells' => $this->comboUpsells($items),
         ]);
     }
 
@@ -159,14 +160,75 @@ class CartController extends Controller
         return redirect()->route('cart.index')->with('status', 'Item removed from cart.');
     }
 
+    public function restore(Request $request)
+    {
+        $validated = $request->validate([
+            'items' => ['required', 'array', 'max:50'],
+        ]);
+
+        $items = CartSession::sanitizeItems($validated['items']);
+
+        if ($items === []) {
+            $request->session()->forget('cart.items');
+
+            return response()->json([
+                'count' => 0,
+                'items' => [],
+            ]);
+        }
+
+        $request->session()->put('cart.items', $items);
+
+        return response()->json([
+            'count' => collect($items)->sum(fn (array $item) => (int) $item['quantity']),
+            'items' => $items,
+        ]);
+    }
+
     private function comboSuggestions($items)
     {
+        $cartProductIds = $items
+            ->pluck('product.id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
         return $items
             ->reject(fn (array $item) => $item['product']->type?->value === 'bundle')
             ->flatMap(fn (array $item) => ComboPricing::suggestionsForProduct($item['product'], 2))
             ->filter(fn ($combo) => $combo->show_related_combos_in_cart)
+            ->reject(fn ($combo) => in_array((int) $combo->id, $cartProductIds, true))
             ->unique('id')
             ->take(3)
             ->values();
+    }
+
+    private function comboUpsells($items)
+    {
+        $cartProductIds = $items
+            ->pluck('product.id')
+            ->filter()
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        return $items
+            ->reject(fn (array $item) => $item['product']->type?->value === 'bundle')
+            ->mapWithKeys(function (array $item) use ($cartProductIds): array {
+                $combo = ComboPricing::suggestionsForProduct($item['product'], 2)
+                    ->filter(fn ($combo) => $combo->show_related_combos_in_cart)
+                    ->reject(fn ($combo) => in_array((int) $combo->id, $cartProductIds, true))
+                    ->map(function ($combo) {
+                        $pricing = ComboPricing::summary($combo);
+
+                        return [
+                            'combo' => $combo,
+                            'pricing' => $pricing,
+                        ];
+                    })
+                    ->sortByDesc(fn (array $upsell) => $upsell['pricing']['savings_amount'] ?? 0)
+                    ->first(fn (array $upsell) => ($upsell['pricing']['savings_amount'] ?? 0) > 0);
+
+                return $combo ? [$item['key'] => $combo] : [];
+            });
     }
 }

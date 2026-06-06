@@ -16,7 +16,7 @@
     :social-image="$socialImage"
 >
     <div class="section-shell">
-        <div class="container-shell max-w-6xl">
+        <div class="container-shell max-w-7xl">
             <div class="grid gap-8 lg:grid-cols-[1fr_360px]">
                 {{ $slot }}
             </div>

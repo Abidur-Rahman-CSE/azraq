@@ -12,9 +12,20 @@ use Illuminate\Support\Collection;
 
 class CartSession
 {
+    public static function rawItems(Request $request): Collection
+    {
+        return collect($request->session()->get('cart.items', []));
+    }
+
+    public static function count(Request $request): int
+    {
+        return self::rawItems($request)
+            ->sum(fn (array $item) => max(0, (int) ($item['quantity'] ?? 0)));
+    }
+
     public static function items(Request $request): Collection
     {
-        $cart = collect($request->session()->get('cart.items', []));
+        $cart = self::rawItems($request);
 
         $productIds = $cart->pluck('product_id')->filter()->all();
         $variantIds = $cart->pluck('variant_id')->filter()->all();
@@ -46,8 +57,11 @@ class CartSession
             $fontSelectionFonts = collect($item['font_selection'] ?? [])
                 ->mapWithKeys(fn ($fontId, $fieldKey) => [$fieldKey => $fonts->get($fontId)])
                 ->filter();
-            $unitPrice = $product?->type?->value === 'bundle'
-                ? ComboPricing::summary($product, $item['bundle_selections'] ?? [])['final_total']
+            $bundleSummary = $product?->type?->value === 'bundle'
+                ? ComboPricing::summary($product, $item['bundle_selections'] ?? [])
+                : null;
+            $unitPrice = $bundleSummary
+                ? $bundleSummary['final_total']
                 : (float) ($variant?->price ?: $product?->price ?: 0);
             $quantity = (int) $item['quantity'];
 
@@ -58,6 +72,7 @@ class CartSession
                 'font' => $font,
                 'font_selection_fonts' => $fontSelectionFonts,
                 'mockup' => $mockup,
+                'bundle_summary' => $bundleSummary,
                 'unit_price' => $unitPrice,
                 'subtotal' => $unitPrice * $quantity,
             ];
@@ -106,5 +121,66 @@ class CartSession
     public static function clear(Request $request): void
     {
         $request->session()->forget(['cart.items', 'cart.coupon_id']);
+    }
+
+    public static function sanitizeItems(array $items): array
+    {
+        return collect($items)
+            ->filter(fn ($item) => is_array($item))
+            ->map(function (array $item) {
+                $productId = filter_var($item['product_id'] ?? null, FILTER_VALIDATE_INT);
+
+                if (! $productId) {
+                    return null;
+                }
+
+                $variantId = filter_var($item['variant_id'] ?? null, FILTER_VALIDATE_INT) ?: null;
+                $fontId = filter_var($item['font_id'] ?? null, FILTER_VALIDATE_INT) ?: null;
+                $mockupId = filter_var($item['mockup_id'] ?? null, FILTER_VALIDATE_INT) ?: null;
+                $quantity = min(20, max(1, (int) ($item['quantity'] ?? 1)));
+                $personalization = collect($item['personalization'] ?? [])
+                    ->filter(fn ($value, $key) => is_string($key) && (is_string($value) || is_numeric($value)))
+                    ->map(fn ($value) => str((string) $value)->limit(500, '')->toString())
+                    ->all();
+                $fontSelection = collect($item['font_selection'] ?? [])
+                    ->filter(fn ($value, $key) => is_string($key) && filter_var($value, FILTER_VALIDATE_INT))
+                    ->map(fn ($value) => (int) $value)
+                    ->all();
+                $bundleSelections = collect($item['bundle_selections'] ?? [])
+                    ->filter(fn ($value) => filter_var($value, FILTER_VALIDATE_INT))
+                    ->map(fn ($value) => (int) $value)
+                    ->all();
+                $key = is_string($item['key'] ?? null) && filled($item['key'])
+                    ? str($item['key'])->limit(160, '')->toString()
+                    : implode(':', [
+                        $productId,
+                        $variantId ?: 'base',
+                        md5((string) ($item['custom_text'] ?? '')),
+                        md5(json_encode($personalization)),
+                        $fontId ?: 'no-font',
+                        md5(json_encode($fontSelection)),
+                        $mockupId ?: 'no-mockup',
+                        md5(json_encode($bundleSelections)),
+                    ]);
+
+                return [
+                    'key' => $key,
+                    'product_id' => (int) $productId,
+                    'variant_id' => $variantId,
+                    'quantity' => $quantity,
+                    'custom_text' => filled($item['custom_text'] ?? null) ? str((string) $item['custom_text'])->limit(500, '')->toString() : null,
+                    'font_id' => $fontId,
+                    'font_selection' => $fontSelection,
+                    'mockup_id' => $mockupId,
+                    'mockup_title' => filled($item['mockup_title'] ?? null) ? str((string) $item['mockup_title'])->limit(160, '')->toString() : null,
+                    'proof_note' => filled($item['proof_note'] ?? null) ? str((string) $item['proof_note'])->limit(1000, '')->toString() : null,
+                    'personalization' => $personalization,
+                    'bundle_selections' => $bundleSelections,
+                ];
+            })
+            ->filter()
+            ->take(50)
+            ->values()
+            ->all();
     }
 }

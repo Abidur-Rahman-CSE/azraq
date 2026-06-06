@@ -127,6 +127,21 @@ class CheckoutController extends Controller
                         'mockup' => $item['mockup']?->title,
                         'proof_note' => $item['proof_note'] ?? null,
                         'personalization' => $item['personalization'] ?? [],
+                        'bundle_selections' => $item['bundle_selections'] ?? [],
+                        'bundle_items' => collect(data_get($item, 'bundle_summary.items', []))
+                            ->map(fn (array $bundleItem) => [
+                                'bundle_item_id' => $bundleItem['id'] ?? null,
+                                'child_product_id' => $bundleItem['child_product_id'] ?? null,
+                                'product_name' => $bundleItem['product_name'] ?? $bundleItem['name'] ?? null,
+                                'quantity' => $bundleItem['quantity'] ?? 1,
+                                'variant_id' => $bundleItem['default_variant_id'] ?? null,
+                                'variant_name' => $bundleItem['default_variant_name'] ?? null,
+                                'selected_options' => $bundleItem['selected_options'] ?? [],
+                                'unit_price' => $bundleItem['discounted_unit_price'] ?? $bundleItem['standalone_unit_price'] ?? null,
+                                'line_total' => $bundleItem['discounted_line_total'] ?? $bundleItem['standalone_line_total'] ?? null,
+                            ])
+                            ->values()
+                            ->all(),
                         'category' => $product->category?->name,
                         'render_preview' => $renderPreview,
                     ],
@@ -170,6 +185,7 @@ class CheckoutController extends Controller
         });
 
         CartSession::clear($request);
+        $request->session()->flash('cart.cache_clear', true);
 
         $recentOrders = collect($request->session()->get('recent_order_ids', []))
             ->prepend($order->id)

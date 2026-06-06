@@ -52,6 +52,7 @@ Route::get('/products/{product:slug}/preview-image.png', [ProductDetailControlle
 Route::get('/products/{product:slug}', [ProductDetailController::class, 'show'])->name('products.show');
 
 Route::get('/cart', [CartController::class, 'index'])->name('cart.index');
+Route::post('/cart/restore', [CartController::class, 'restore'])->name('cart.restore');
 Route::post('/products/{product}/cart', [CartController::class, 'store'])->name('cart.store');
 Route::patch('/cart/{key}', [CartController::class, 'update'])->name('cart.update');
 Route::delete('/cart/{key}', [CartController::class, 'destroy'])->name('cart.destroy');

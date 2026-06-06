@@ -1,12 +1,15 @@
 @php
     use App\Models\Category;
     use App\Models\Collection;
+    use App\Support\CartSession;
     use Illuminate\Support\Facades\Cache;
 
     $navItems = collect(config('commerce.storefront.nav', []));
     $mobileGroups = collect(config('commerce.storefront.mobile_nav_groups', []));
     $accountHref = route('account.index');
     $logoSrc = asset('images/logo/Azraq.svg');
+    $cartCount = CartSession::count(request());
+    $cartItemsForBrowserCache = CartSession::rawItems(request())->values()->all();
     $mobileItemIcons = [
         'Home' => 'home',
         'All Products' => 'bag',
@@ -222,12 +225,13 @@
                     <path d="M12 20s-7-4.35-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.65-7 10-7 10Z"></path>
                 </svg>
             </a>
-            <a href="{{ route('cart.index') }}" class="header-icon-button" aria-label="Cart">
+            <a href="{{ route('cart.index') }}" class="header-icon-button header-cart-link" aria-label="Cart">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
                     <path d="M4 5h2l1.6 8.2a1 1 0 0 0 1 .8h7.9a1 1 0 0 0 1-.74L20 7H7.2"></path>
                     <circle cx="10" cy="19" r="1.2"></circle>
                     <circle cx="17" cy="19" r="1.2"></circle>
                 </svg>
+                <span class="header-cart-badge js-cart-count" data-cart-count="{{ $cartCount }}" @class(['is-empty' => $cartCount < 1])>{{ $cartCount > 99 ? '99+' : $cartCount }}</span>
             </a>
             <a href="{{ $accountHref }}" class="header-icon-button header-action-lg" aria-label="Account">
                 <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
@@ -400,6 +404,7 @@
                                 <span class="mobile-drawer-link__icon">{!! $renderDrawerIcon('bag') !!}</span>
                                 <span>Cart</span>
                             </span>
+                            <span class="mobile-drawer-count js-cart-count" data-cart-count="{{ $cartCount }}" @class(['is-empty' => $cartCount < 1])>{{ $cartCount > 99 ? '99+' : $cartCount }}</span>
                         </a>
                     </div>
                 </section>
@@ -425,4 +430,14 @@
 
         </div>
     </div>
+
+    <script type="application/json" id="azraq-cart-state">
+        {!! json_encode([
+            'items' => $cartItemsForBrowserCache,
+            'count' => $cartCount,
+            'restoreUrl' => route('cart.restore'),
+            'csrfToken' => csrf_token(),
+            'clearCache' => (bool) session('cart.cache_clear'),
+        ], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}
+    </script>
 </header>
