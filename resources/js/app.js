@@ -149,6 +149,18 @@ document.querySelectorAll('[data-combo-jump]').forEach((trigger) => {
     });
 });
 
+document.addEventListener('contextmenu', (event) => {
+    if (event.target?.closest?.('[data-protected-image]')) {
+        event.preventDefault();
+    }
+});
+
+document.addEventListener('dragstart', (event) => {
+    if (event.target?.closest?.('[data-protected-image]')) {
+        event.preventDefault();
+    }
+});
+
 registerNikahPreview(Alpine);
 Alpine.start();
 

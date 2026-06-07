@@ -1,7 +1,11 @@
 class ImageZoom {
-    constructor(container, canvas) {
+    constructor(container, canvas, options = {}) {
         this.container = container;
         this.canvas = canvas;
+        this.options = {
+            lightbox: true,
+            ...options,
+        };
         this.boundZoom = () => this.zoom();
         this.boundPan = (event) => this.pan(event);
         this.boundUnzoom = () => this.unzoom();
@@ -15,7 +19,10 @@ class ImageZoom {
         this.container.addEventListener('mouseenter', this.boundZoom);
         this.container.addEventListener('mousemove', this.boundPan);
         this.container.addEventListener('mouseleave', this.boundUnzoom);
-        this.container.addEventListener('click', this.boundOpenLightbox);
+
+        if (this.options.lightbox) {
+            this.container.addEventListener('click', this.boundOpenLightbox);
+        }
     }
 
     zoom() {
@@ -79,7 +86,7 @@ class ImageZoom {
     }
 }
 
-export function initPdpZoom(container, canvas) {
+export function initPdpZoom(container, canvas, options = {}) {
     if (!container || !canvas) {
         return null;
     }
@@ -88,7 +95,7 @@ export function initPdpZoom(container, canvas) {
         return container.__pdpZoomInstance;
     }
 
-    container.__pdpZoomInstance = new ImageZoom(container, canvas);
+    container.__pdpZoomInstance = new ImageZoom(container, canvas, options);
 
     return container.__pdpZoomInstance;
 }

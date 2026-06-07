@@ -1560,11 +1560,19 @@ export function registerNikahPreview(Alpine) {
             }
         },
         initZoom() {
-            if (!this.isCustomizable || !this.$refs.previewStage || !this.$refs.previewCanvas || !window.initPdpZoom) {
+            if (!this.$refs.previewStage || !window.initPdpZoom) {
                 return;
             }
 
-            this.zoomInstance = window.initPdpZoom(this.$refs.previewStage, this.$refs.previewCanvas);
+            const zoomTarget = this.isCustomizable
+                ? this.$refs.previewCanvas
+                : this.$refs.generalPreviewImage;
+
+            if (!zoomTarget) {
+                return;
+            }
+
+            this.zoomInstance = window.initPdpZoom(this.$refs.previewStage, zoomTarget, { lightbox: false });
         },
         observeStickyBar() {
             if (!this.$refs.ctaAnchor) {
@@ -1625,6 +1633,7 @@ export function registerNikahPreview(Alpine) {
                 } else {
                     this.preloadPreviewMedia();
                     this.syncPreviewFromActiveVariant();
+                    this.initZoom();
                 }
             });
 

@@ -25,12 +25,6 @@
             x-ref="previewStage"
             class="group relative overflow-hidden rounded-xl border border-[var(--border-soft)] bg-[var(--bg-section-soft)]"
         >
-            <div class="absolute left-3 top-3 z-10" x-cloak x-show="hasInput" x-transition.opacity.duration.200ms>
-                <span class="inline-flex items-center rounded-full border border-[var(--border-soft)] bg-white/95 px-3 py-1 text-[11px] font-medium text-[var(--accent-primary)] shadow-sm">
-                    Live preview
-                </span>
-            </div>
-
             <div class="absolute right-3 top-3 z-10 hidden rounded-full bg-white/90 px-3 py-1 text-[11px] text-[var(--text-muted)] shadow-sm lg:block">
                 ⊕ Hover to zoom
             </div>
@@ -44,7 +38,9 @@
                         :src="activePreviewFillerUrl"
                         alt=""
                         aria-hidden="true"
-                        class="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
+                        class="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
+                        draggable="false"
+                        data-protected-image
                         x-show="activePreviewFillerUrl"
                     >
                     <div class="absolute inset-0 bg-[rgba(255,250,242,0.22)]" aria-hidden="true"></div>
@@ -53,19 +49,25 @@
                         x-ref="previewCanvas"
                         aria-label="Certificate preview"
                         class="relative z-10 block h-full w-full origin-center object-contain transform-gpu transition-transform duration-300 ease-out"
+                        data-protected-image
                     ></canvas>
                 @else
                     <img
                         :src="activeGeneralImage?.url || @js($generalImages->first()['url'] ?? $product->featured_image_url)"
                         alt=""
                         aria-hidden="true"
-                        class="absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl"
+                        class="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-60 blur-2xl"
+                        draggable="false"
+                        data-protected-image
                     >
                     <div class="absolute inset-0 bg-[rgba(255,250,242,0.28)]" aria-hidden="true"></div>
                     <img
+                        x-ref="generalPreviewImage"
                         :src="activeGeneralImage?.url || @js($generalImages->first()['url'] ?? $product->featured_image_url)"
                         :alt="activeGeneralImage?.alt || @js($generalImages->first()['alt'] ?? $product->name)"
                         class="relative block h-full w-full object-contain transition duration-200 ease-out"
+                        draggable="false"
+                        data-protected-image
                     >
                 @endif
             </div>

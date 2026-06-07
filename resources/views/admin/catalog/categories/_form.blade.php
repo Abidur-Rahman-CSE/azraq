@@ -35,10 +35,10 @@
         @method('PUT')
     @endif
 
-    <section class="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <div class="space-y-6">
-            <div class="surface-card grid gap-6 p-6 md:grid-cols-2">
-                <div class="md:col-span-2">
+    <section class="admin-category-editor">
+        <div class="admin-category-editor__form space-y-6">
+            <div class="surface-card admin-category-card-grid p-6">
+                <div class="admin-category-card-grid__full">
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">1. Category information</p>
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Core structure</h3>
                 </div>
@@ -70,13 +70,13 @@
                     <input type="number" min="0" name="sort_order" value="{{ old('sort_order', $category->sort_order ?? 0) }}" class="field-input">
                 </label>
 
-                <label class="field-shell md:col-span-2">
+                <label class="field-shell admin-category-card-grid__full">
                     <span class="text-sm font-medium text-[var(--color-secondary-900)]">Short description</span>
                     <textarea name="description" rows="5" class="field-textarea" x-model="shortDescription">{{ old('description', $category->description) }}</textarea>
                     @error('description') <span class="text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
                 </label>
 
-                <label class="field-shell md:col-span-2">
+                <label class="field-shell admin-category-card-grid__full">
                     <span class="text-sm font-medium text-[var(--color-secondary-900)]">Storefront excerpt</span>
                     <textarea name="storefront_excerpt" rows="3" class="field-textarea" x-model="storefrontExcerpt" placeholder="Short browse-page summary used on cards, collection strips, and category promos.">{{ old('storefront_excerpt', $category->storefront_excerpt) }}</textarea>
                     @error('storefront_excerpt') <span class="text-xs text-[var(--color-danger)]">{{ $message }}</span> @enderror
@@ -90,7 +90,7 @@
                     <p class="mt-3 text-sm leading-7 text-[var(--color-text-soft)]">Upload a category image, a full banner, optional mobile banner, optional icon, and a dedicated SEO image. These assets feed both browse pages and homepage sections.</p>
                 </div>
 
-                <div class="mt-6 grid gap-5 md:grid-cols-2">
+                <div class="admin-category-media-grid mt-6">
                     @foreach ([
                         ['label' => 'Category image', 'name' => 'image_upload', 'current' => old('image_url', $category->image_url), 'hint' => 'Recommended for cards and category tiles.'],
                         ['label' => 'Banner image', 'name' => 'banner_upload', 'current' => old('banner_image_url', $category->banner_image_url), 'hint' => 'Recommended for category landing hero sections.'],
@@ -98,7 +98,7 @@
                         ['label' => 'Icon image', 'name' => 'icon_upload', 'current' => old('icon_image_url', $category->icon_image_url), 'hint' => 'Optional small icon for compact category navigation.'],
                         ['label' => 'SEO image', 'name' => 'seo_image_upload', 'current' => old('seo_image_url', $category->seo_image_url), 'hint' => 'Recommended for social cards and SEO previews.'],
                     ] as $asset)
-                        <div class="surface-card-soft p-5 {{ $loop->last ? 'md:col-span-2' : '' }}">
+                        <div class="surface-card-soft p-5 {{ $loop->last ? 'admin-category-media-grid__wide' : '' }}">
                             <p class="text-sm font-semibold text-[var(--color-secondary-900)]">{{ $asset['label'] }}</p>
                             <div class="mt-4 overflow-hidden rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white">
                                 <template x-if="{{ match($asset['name']) {
@@ -149,8 +149,8 @@
                 </label>
             </div>
 
-            <div class="surface-card grid gap-6 p-6 md:grid-cols-2">
-                <div class="md:col-span-2">
+            <div class="surface-card admin-category-card-grid p-6">
+                <div class="admin-category-card-grid__full">
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">3. Homepage and related categories</p>
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Merchandising controls</h3>
                 </div>
@@ -167,13 +167,13 @@
                     Featured category
                 </label>
 
-                <label class="inline-flex items-center gap-3 rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)] md:col-span-2">
+                <label class="admin-category-card-grid__full inline-flex items-center gap-3 rounded-[var(--radius-xl)] border border-[var(--color-border-soft)] bg-white/80 px-4 py-3 text-sm font-medium text-[var(--color-secondary-900)]">
                     <input type="hidden" name="show_on_homepage" value="0">
                     <input type="checkbox" name="show_on_homepage" value="1" @checked(old('show_on_homepage', $category->show_on_homepage)) class="h-4 w-4 rounded border-[var(--color-border-soft)]">
                     Show this category on homepage and curated storefront sections
                 </label>
 
-                <label class="field-shell md:col-span-2">
+                <label class="field-shell admin-category-card-grid__full">
                     <span class="text-sm font-medium text-[var(--color-secondary-900)]">Related categories</span>
                     <select name="related_category_ids[]" multiple class="field-select min-h-40">
                         @foreach ($relatedCategories as $relatedCategory)
@@ -183,8 +183,8 @@
                 </label>
             </div>
 
-            <div class="surface-card grid gap-6 p-6 md:grid-cols-2">
-                <div class="md:col-span-2">
+            <div class="surface-card admin-category-card-grid p-6">
+                <div class="admin-category-card-grid__full">
                     <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">4. SEO metadata</p>
                     <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Search and sharing</h3>
                 </div>
@@ -201,7 +201,7 @@
             </div>
         </div>
 
-        <div class="space-y-6">
+        <div class="admin-category-editor__preview space-y-6">
             <div class="surface-card p-6">
                 <p class="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-primary-900)]">Readiness snapshot</p>
                 <h3 class="mt-2 text-2xl font-semibold text-[var(--color-secondary-900)]">Storefront health</h3>

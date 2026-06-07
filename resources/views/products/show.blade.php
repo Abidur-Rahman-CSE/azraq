@@ -1,13 +1,19 @@
 @php
     use Illuminate\Support\Str;
+    use Illuminate\Support\Facades\URL;
+
+    $watermarkedImageUrl = fn (?string $url) => filled($url)
+        ? URL::signedRoute('media.watermarked', ['src' => $url])
+        : $url;
 
     $primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first();
     $galleryImages = $product->images
         ->take(8)
         ->map(fn ($image) => [
             'id' => $image->id,
-            'url' => $image->image_url,
-            'thumb' => $image->image_url,
+            'url' => $watermarkedImageUrl($image->image_url),
+            'thumb' => $watermarkedImageUrl($image->image_url),
+            'raw_url' => $image->image_url,
             'alt' => $image->alt_text ?: $image->label ?: $product->name,
             'label' => $image->label ?: $product->name,
         ])
@@ -15,14 +21,15 @@
     $featuredGeneralImage = $product->featured_image_url
         ? collect([[
             'id' => 'featured',
-            'url' => $product->featured_image_url,
-            'thumb' => $product->featured_image_url,
+            'url' => $watermarkedImageUrl($product->featured_image_url),
+            'thumb' => $watermarkedImageUrl($product->featured_image_url),
+            'raw_url' => $product->featured_image_url,
             'alt' => $product->name,
             'label' => 'Featured image',
         ]])
         : collect();
     $generalImages = $featuredGeneralImage
-        ->merge($galleryImages->reject(fn ($image) => $product->featured_image_url && $image['url'] === $product->featured_image_url))
+        ->merge($galleryImages->reject(fn ($image) => $product->featured_image_url && $image['raw_url'] === $product->featured_image_url))
         ->values();
 
     $activeFonts = $fonts instanceof \Illuminate\Support\Collection ? $fonts : collect($fonts ?? []);
