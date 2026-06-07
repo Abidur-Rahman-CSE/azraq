@@ -1025,6 +1025,31 @@ export function registerNikahPreview(Alpine) {
 
             return config.mockups?.[this.activeMockup]?.name ?? 'Selected mockup preview';
         },
+        get activePreviewFillerUrl() {
+            if (!this.isCustomizable) {
+                return this.activeGeneralImage?.url ?? null;
+            }
+
+            if (this.hasFlatPreview && this.activeThumb === 0) {
+                return this.previewThumbs.flat
+                    || config.template?.rendered_preview_url
+                    || config.template?.preview_image_url
+                    || config.template?.base_template_url
+                    || null;
+            }
+
+            const mockup = config.mockups?.[this.activeMockup] ?? {};
+
+            return this.previewThumbs[`mockup-${this.activeMockup}`]
+                || mockup.thumbnail_url
+                || mockup.thumb_image_url
+                || mockup.image_url
+                || mockup.base_image_url
+                || config.template?.rendered_preview_url
+                || config.template?.preview_image_url
+                || config.template?.base_template_url
+                || null;
+        },
         get activePreviewAspect() {
             if (!this.isCustomizable) {
                 return '4 / 5';

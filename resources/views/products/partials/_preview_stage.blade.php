@@ -40,11 +40,19 @@
                 style="aspect-ratio: 4 / 5;"
             >
                 @if ($product->is_customizable)
+                    <img
+                        :src="activePreviewFillerUrl"
+                        alt=""
+                        aria-hidden="true"
+                        class="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
+                        x-show="activePreviewFillerUrl"
+                    >
+                    <div class="absolute inset-0 bg-[rgba(255,250,242,0.22)]" aria-hidden="true"></div>
                     <canvas
                         id="nikah-preview-canvas"
                         x-ref="previewCanvas"
                         aria-label="Certificate preview"
-                        class="block h-full w-full origin-center object-contain transform-gpu transition-transform duration-300 ease-out"
+                        class="relative z-10 block h-full w-full origin-center object-contain transform-gpu transition-transform duration-300 ease-out"
                     ></canvas>
                 @else
                     <img
