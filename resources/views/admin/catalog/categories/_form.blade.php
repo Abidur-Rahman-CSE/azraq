@@ -92,11 +92,11 @@
 
                 <div class="admin-category-media-grid mt-6">
                     @foreach ([
-                        ['label' => 'Category image', 'name' => 'image_upload', 'current' => old('image_url', $category->image_url), 'hint' => 'Recommended for cards and category tiles.'],
-                        ['label' => 'Banner image', 'name' => 'banner_upload', 'current' => old('banner_image_url', $category->banner_image_url), 'hint' => 'Recommended for category landing hero sections.'],
-                        ['label' => 'Mobile banner', 'name' => 'mobile_banner_upload', 'current' => old('mobile_banner_image_url', $category->mobile_banner_image_url), 'hint' => 'Optional mobile-specific banner crop.'],
-                        ['label' => 'Icon image', 'name' => 'icon_upload', 'current' => old('icon_image_url', $category->icon_image_url), 'hint' => 'Optional small icon for compact category navigation.'],
-                        ['label' => 'SEO image', 'name' => 'seo_image_upload', 'current' => old('seo_image_url', $category->seo_image_url), 'hint' => 'Recommended for social cards and SEO previews.'],
+                        ['label' => 'Category image', 'name' => 'image_upload', 'current' => old('image_url', $category->image_url), 'hint' => 'Use 4:3 ratio, recommended 1200 x 900 px for cards and category tiles.'],
+                        ['label' => 'Banner image', 'name' => 'banner_upload', 'current' => old('banner_image_url', $category->banner_image_url), 'hint' => 'Use 16:7 ratio, recommended 1920 x 840 px for category hero banners.'],
+                        ['label' => 'Mobile banner', 'name' => 'mobile_banner_upload', 'current' => old('mobile_banner_image_url', $category->mobile_banner_image_url), 'hint' => 'Use 4:5 ratio, recommended 1080 x 1350 px for phone hero banners.'],
+                        ['label' => 'Icon image', 'name' => 'icon_upload', 'current' => old('icon_image_url', $category->icon_image_url), 'hint' => 'Use 1:1 square ratio, recommended 512 x 512 px for compact category navigation.'],
+                        ['label' => 'SEO image', 'name' => 'seo_image_upload', 'current' => old('seo_image_url', $category->seo_image_url), 'hint' => 'Use 1.91:1 ratio, recommended 1200 x 630 px for social cards and SEO previews.'],
                     ] as $asset)
                         <div class="surface-card-soft p-5 {{ $loop->last ? 'admin-category-media-grid__wide' : '' }}">
                             <p class="text-sm font-semibold text-[var(--color-secondary-900)]">{{ $asset['label'] }}</p>
