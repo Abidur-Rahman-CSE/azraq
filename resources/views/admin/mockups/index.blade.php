@@ -166,6 +166,17 @@
                             @if ($mockup->template)
                                 <a href="{{ route('admin.personalization.templates.edit', $mockup->template) }}" class="button-ghost">Open template</a>
                             @endif
+                            <form
+                                method="POST"
+                                action="{{ route('admin.mockups.destroy', $mockup) }}"
+                                onsubmit="return confirm('Delete this mockup? This removes its mapping and product assignments too.');"
+                            >
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="button-ghost !border-[rgba(120,0,0,0.18)] !text-[var(--accent-primary)]" aria-label="Delete {{ $mockup->title }}">
+                                    Delete
+                                </button>
+                            </form>
                         </div>
                     </div>
                 </article>

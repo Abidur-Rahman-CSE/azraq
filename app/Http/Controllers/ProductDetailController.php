@@ -407,6 +407,16 @@ class ProductDetailController extends Controller
         $flatHref = $this->svgImageHref($flatUrl);
         $escapedBaseUrl = $this->escapeSvgAttribute($baseHref);
         $escapedFlatUrl = $this->escapeSvgAttribute($flatHref);
+        $fitMode = (string) ($mockup->map?->fit_mode ?? 'stretch');
+        $anchorX = (float) ($mockup->map?->object_position_x ?? 0.5);
+        $anchorY = (float) ($mockup->map?->object_position_y ?? 0.5);
+        $alignX = $anchorX <= 0.33 ? 'Min' : ($anchorX >= 0.67 ? 'Max' : 'Mid');
+        $alignY = $anchorY <= 0.33 ? 'Min' : ($anchorY >= 0.67 ? 'Max' : 'Mid');
+        $flatPreserveAspectRatio = match ($fitMode) {
+            'contain' => 'x'.$alignX.'Y'.$alignY.' meet',
+            'cover' => 'x'.$alignX.'Y'.$alignY.' slice',
+            default => 'none',
+        };
 
         return <<<SVG
 <svg xmlns="http://www.w3.org/2000/svg" width="{$width}" height="{$height}" viewBox="0 0 {$width} {$height}">
@@ -416,7 +426,7 @@ class ProductDetailController extends Controller
         </clipPath>
     </defs>
     <image href="{$escapedBaseUrl}" x="0" y="0" width="{$width}" height="{$height}" preserveAspectRatio="xMidYMid slice" />
-    <image href="{$escapedFlatUrl}" x="{$left}" y="{$top}" width="{$zoneWidth}" height="{$zoneHeight}" preserveAspectRatio="xMidYMid meet" clip-path="url(#certificate-zone)" opacity="0.98" />
+    <image href="{$escapedFlatUrl}" x="{$left}" y="{$top}" width="{$zoneWidth}" height="{$zoneHeight}" preserveAspectRatio="{$flatPreserveAspectRatio}" clip-path="url(#certificate-zone)" opacity="0.98" />
 </svg>
 SVG;
     }

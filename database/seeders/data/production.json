@@ -2675,7 +2675,7 @@
             "bottom_left_x": 0.3384,
             "bottom_left_y": 0.6199,
             "normalized_coordinates": 1,
-            "fit_mode": "contain",
+            "fit_mode": "stretch",
             "object_position_x": 0.5,
             "object_position_y": 0.5,
             "manual_rotation": 0,

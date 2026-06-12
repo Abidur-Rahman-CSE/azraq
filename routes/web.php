@@ -255,6 +255,7 @@ Route::prefix('admin')->name('admin.')->middleware(['auth', 'admin'])->group(fun
     Route::get('/mockups/{mockup}/edit', [MockupController::class, 'edit'])->name('mockups.edit');
     Route::put('/mockups/{mockup}', [MockupController::class, 'update'])->name('mockups.update');
     Route::post('/mockups/{mockup}/duplicate', [MockupController::class, 'duplicate'])->name('mockups.duplicate');
+    Route::delete('/mockups/{mockup}', [MockupController::class, 'destroy'])->name('mockups.destroy');
 
     Route::prefix('catalog')->name('catalog.')->group(function (): void {
         Route::resource('categories', CategoryController::class)->except('show');

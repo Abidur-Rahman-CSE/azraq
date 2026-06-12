@@ -91,13 +91,16 @@ class NikahRenderPreview
         $normalizedMap = $mockup?->map
             ? MockupZoneNormalizer::toImageSpace($mockup, $mockup->map)
             : null;
+        $flatArtworkUrl = $template->thumbnailArtworkUrl()
+            ?: $template->previewArtworkUrl()
+            ?: $template->baseArtworkUrl();
 
         return [
             'template' => [
                 'id' => $template->id,
                 'name' => $template->name,
                 'base_image_url' => $template->base_template_url,
-                'preview_image_url' => $template->preview_image_url ?: $template->base_template_url,
+                'preview_image_url' => $flatArtworkUrl,
                 'ratio_width' => (int) ($template->export_ratio_width ?: 9),
                 'ratio_height' => (int) ($template->export_ratio_height ?: 13),
                 'safe_zone_notes' => $template->safe_zone_notes,
@@ -117,7 +120,7 @@ class NikahRenderPreview
                 ->filter()
                 ->all(),
             'flat' => [
-                'image_url' => $template->base_template_url ?: $template->preview_image_url,
+                'image_url' => $flatArtworkUrl,
                 'text_layers' => $textLayers,
             ],
             'mockup' => $mockup ? [

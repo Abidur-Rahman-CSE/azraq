@@ -110,7 +110,7 @@ class CartController extends Controller
     public function update(Request $request, string $key)
     {
         $request->validate([
-            'quantity' => ['required', 'integer', 'min:1', 'max:20'],
+            'quantity' => ['required', 'integer', 'min:0', 'max:20'],
         ]);
 
         $items = collect($request->session()->get('cart.items', []));
@@ -127,6 +127,21 @@ class CartController extends Controller
             ? ProductVariant::query()->find($target['variant_id'])
             : null;
         $requestedQuantity = (int) $request->integer('quantity');
+
+        if ($requestedQuantity < 1) {
+            $items = $items
+                ->reject(fn (array $item) => $item['key'] === $key)
+                ->values();
+
+            if ($items->isEmpty()) {
+                $request->session()->forget(['cart.items', 'cart.coupon_id']);
+                $request->session()->flash('cart.cache_clear', true);
+            } else {
+                $request->session()->put('cart.items', $items->all());
+            }
+
+            return redirect()->route('cart.index')->with('status', 'Item removed from cart.');
+        }
 
         if ($product && ! CartSession::hasSufficientStock($product, $variant, $requestedQuantity)) {
             $available = CartSession::availableStock($product, $variant);
@@ -155,7 +170,12 @@ class CartController extends Controller
             ->reject(fn (array $item) => $item['key'] === $key)
             ->values();
 
-        $request->session()->put('cart.items', $items->all());
+        if ($items->isEmpty()) {
+            $request->session()->forget(['cart.items', 'cart.coupon_id']);
+            $request->session()->flash('cart.cache_clear', true);
+        } else {
+            $request->session()->put('cart.items', $items->all());
+        }
 
         return redirect()->route('cart.index')->with('status', 'Item removed from cart.');
     }

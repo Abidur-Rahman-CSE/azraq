@@ -301,7 +301,7 @@
             fonts: @js($fontsPayload->values()->all()),
             mockups: @js(($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []))->values()->all()),
             defaultMockupId: @js($defaultMockupId ?? null),
-            showFlatPreviewFirst: true,
+            showFlatPreviewFirst: @js($product->is_customizable && ($mockups instanceof \Illuminate\Support\Collection ? $mockups : collect($mockups ?? []))->isEmpty()),
             galleryDefaultSource: @js($product->gallery_default_source),
             fields: @js($fieldDefaults),
             fieldFonts: @js($fieldFontDefaults),

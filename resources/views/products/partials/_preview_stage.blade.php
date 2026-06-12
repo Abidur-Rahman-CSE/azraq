@@ -2,7 +2,7 @@
     $mockupItems = $mockups instanceof \Illuminate\Support\Collection ? $mockups->values() : collect($mockups ?? [])->values();
     $generalImages = $generalImages instanceof \Illuminate\Support\Collection ? $generalImages->values() : collect($generalImages ?? [])->values();
     $flatThumb = $template?->thumbnailArtworkUrl() ?: $template?->previewArtworkUrl() ?: $template?->baseArtworkUrl() ?: $product->featured_image_url;
-    $showFlatPreview = $product->is_customizable;
+    $showFlatPreview = $product->is_customizable && $mockupItems->isEmpty();
 @endphp
 
 <section class="min-w-0 lg:sticky lg:top-[88px] lg:self-start">

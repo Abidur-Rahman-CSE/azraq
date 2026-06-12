@@ -385,7 +385,7 @@ class CatalogSeeder extends Seeder
                 'image_height' => 1600,
                 'map' => [
                     'map_type' => 'quad',
-                    'fit_mode' => 'contain',
+                    'fit_mode' => 'stretch',
                     'top_left_x' => 0.3384,
                     'top_left_y' => 0.2322,
                     'top_right_x' => 0.6280,

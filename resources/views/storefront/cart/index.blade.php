@@ -180,8 +180,8 @@
                                     <form method="POST" action="{{ route('cart.update', $item['key']) }}">
                                         @csrf
                                         @method('PATCH')
-                                        <input type="hidden" name="quantity" value="{{ max(1, $quantity - 1) }}">
-                                        <button type="submit" class="grid h-10 w-10 place-items-center rounded-full border border-[var(--color-border-soft)] bg-white text-xl font-semibold text-[var(--color-secondary-900)] transition hover:border-[var(--accent-primary)] disabled:cursor-not-allowed disabled:opacity-35" aria-label="Decrease quantity" @disabled($quantity <= 1)>-</button>
+                                        <input type="hidden" name="quantity" value="{{ max(0, $quantity - 1) }}">
+                                        <button type="submit" class="grid h-10 w-10 place-items-center rounded-full border border-[var(--color-border-soft)] bg-white text-xl font-semibold text-[var(--color-secondary-900)] transition hover:border-[var(--accent-primary)]" aria-label="{{ $quantity <= 1 ? 'Remove item' : 'Decrease quantity' }}">-</button>
                                     </form>
 
                                     <span class="grid h-10 min-w-12 place-items-center rounded-full border border-[var(--color-border-soft)] bg-white px-4 text-sm font-semibold text-[var(--color-secondary-900)]">{{ $quantity }}</span>

@@ -182,6 +182,7 @@ class Product extends Model
     public function storefrontPreviewVersion(): string
     {
         $versionParts = [
+            'preview-fit-v3',
             (string) optional($this->updated_at)->timestamp,
         ];
 
@@ -197,6 +198,14 @@ class Product extends Model
 
         if ($defaultMockup) {
             $versionParts[] = (string) optional($defaultMockup->updated_at)->timestamp;
+
+            $mockupMap = $defaultMockup->relationLoaded('map')
+                ? $defaultMockup->map
+                : $defaultMockup->map()->first(['id', 'updated_at']);
+
+            if ($mockupMap) {
+                $versionParts[] = (string) optional($mockupMap->updated_at)->timestamp;
+            }
         }
 
         return substr(sha1(implode('|', array_filter($versionParts, fn ($part) => $part !== ''))), 0, 16);

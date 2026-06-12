@@ -156,6 +156,26 @@ class MockupController extends Controller
         return redirect()->route('admin.mockups.edit', $duplicate)->with('status', 'Mockup duplicated.');
     }
 
+    public function destroy(PersonalizationMockup $mockup)
+    {
+        DB::transaction(function () use ($mockup): void {
+            $assetUrls = [
+                $mockup->base_image_url,
+                $mockup->mask_image_url,
+                $mockup->overlay_image_url,
+                $mockup->thumb_image_url,
+            ];
+
+            $mockup->delete();
+
+            foreach ($assetUrls as $assetUrl) {
+                $this->deleteManagedAsset($assetUrl);
+            }
+        });
+
+        return redirect()->route('admin.mockups.index')->with('status', 'Mockup deleted.');
+    }
+
     private function formData(PersonalizationMockup $mockup): array
     {
         $mockup->setRelation('map', $mockup->map ?? $mockup->map()->make([
