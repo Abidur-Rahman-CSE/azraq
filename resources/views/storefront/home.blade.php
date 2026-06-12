@@ -1,5 +1,6 @@
 @php
     use App\Models\Product;
+    use App\Support\MockupZoneNormalizer;
 
     // Detect dev/engineering placeholder strings so admin-leftover copy never reaches the storefront.
     $isDevCopy = function (?string $value): bool {
@@ -11,6 +12,33 @@
         return false;
     };
     $copy = fn ($value, $fallback) => $isDevCopy($value) ? $fallback : $value;
+    $mockupLayerFor = function (?Product $product): ?array {
+        if (! $product?->is_customizable) {
+            return null;
+        }
+
+        $defaultMockup = $product->defaultPersonalizationMockup();
+        $template = $product->relationLoaded('personalizationTemplate')
+            ? $product->personalizationTemplate
+            : $product->personalizationTemplate()->first();
+        $map = $defaultMockup?->map
+            ? MockupZoneNormalizer::toImageSpace($defaultMockup, $defaultMockup->map)
+            : null;
+        $flatArtwork = $template?->thumbnailArtworkUrl()
+            ?: $template?->previewArtworkUrl()
+            ?: $template?->baseArtworkUrl();
+
+        if (! $defaultMockup?->base_image_url || ! $flatArtwork || ! is_array($map)) {
+            return null;
+        }
+
+        return [
+            'mockup' => $defaultMockup,
+            'template' => $template,
+            'map' => $map,
+            'flatArtwork' => $flatArtwork,
+        ];
+    };
 
     // ── Sections (admin-driven, all enabled-only)
     $heroSection      = $homepageSections->get('hero');
@@ -271,8 +299,33 @@
                 <div class="glass-card-brand grid gap-6 p-5 sm:p-7 lg:grid-cols-[0.95fr_1.05fr] lg:gap-10 lg:p-10">
                     <div class="mx-auto aspect-[4/5] w-full max-w-[320px] overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)] sm:aspect-[5/4] sm:max-w-none lg:aspect-auto lg:min-h-[440px]">
                         @php($nikahImageProduct = $latestNikahNama ?? $signatureNikah)
-                        @php($nikahImage = data_get($spotlightSection, 'settings.image_url') ?: $nikahImageProduct?->storefront_preview_image_url ?: $signatureNikah->storefront_preview_image_url)
-                        @if ($nikahImage)
+                        @php($customNikahImage = data_get($spotlightSection, 'settings.image_url'))
+                        @php($nikahLayer = $customNikahImage ? null : $mockupLayerFor($nikahImageProduct ?: $signatureNikah))
+                        @php($nikahImage = $customNikahImage ?: ($nikahLayer ? null : ($nikahImageProduct?->storefront_preview_image_url ?: $signatureNikah->storefront_preview_image_url)))
+                        @if ($nikahLayer)
+                            <div
+                                class="relative h-full w-full overflow-hidden"
+                                data-card-mockup-stage
+                                data-map='@json($nikahLayer['map'])'
+                                data-image-width="{{ $nikahLayer['mockup']->image_width ?: 1600 }}"
+                                data-image-height="{{ $nikahLayer['mockup']->image_height ?: 1200 }}"
+                            >
+                                <img
+                                    src="{{ $nikahLayer['mockup']->base_image_url }}"
+                                    alt="{{ $nikahImageProduct?->name ?? $signatureNikah->name }}"
+                                    class="product-card-lux__mockup-base absolute inset-0 h-full w-full object-cover"
+                                    loading="lazy"
+                                >
+                                <img
+                                    src="{{ $nikahLayer['flatArtwork'] }}"
+                                    alt=""
+                                    aria-hidden="true"
+                                    class="product-card-lux__mockup-template absolute left-0 top-0 h-full w-full object-fill"
+                                    data-card-mockup-template
+                                    loading="lazy"
+                                >
+                            </div>
+                        @elseif ($nikahImage)
                             <img src="{{ $nikahImage }}" alt="{{ $nikahImageProduct?->name ?? $signatureNikah->name }}" class="h-full w-full object-cover">
                         @endif
                     </div>
