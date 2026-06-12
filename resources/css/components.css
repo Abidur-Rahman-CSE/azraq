@@ -3370,6 +3370,28 @@
     transform: scale(1.04);
 }
 
+.product-card-lux__mockup-stage {
+    transform-origin: center;
+}
+
+.product-card-lux .product-card-lux__mockup-base,
+.product-card-lux:hover .product-card-lux__mockup-base,
+.product-card-lux .product-card-lux__mockup-template,
+.product-card-lux:hover .product-card-lux__mockup-template {
+    transform: none;
+}
+
+.product-card-lux__mockup-template {
+    transform-origin: 0 0;
+    will-change: transform;
+    pointer-events: none;
+    opacity: 0;
+}
+
+.product-card-lux__mockup-template.is-ready {
+    opacity: 1;
+}
+
 /* ── Collection card — image overlay with glass footer ─────── */
 .collection-card-lux {
     overflow: hidden;

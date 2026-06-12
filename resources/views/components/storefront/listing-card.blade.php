@@ -1,22 +1,63 @@
 @props(['product'])
 
 <article class="product-card-lux group">
-    @php($primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first())
-    @php($hasProductImage = filled($product->storefront_preview_image_url))
-    @php($cardImage = $hasProductImage ? $product->storefront_preview_image_url : asset('images/logo/Azraq.svg'))
-    @php($cardAlt = $primaryImage?->label ?: $product->name)
+    @php
+        use App\Support\MockupZoneNormalizer;
+
+        $primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first();
+        $defaultMockup = $product->is_customizable ? $product->defaultPersonalizationMockup() : null;
+        $template = $product->is_customizable
+            ? ($product->relationLoaded('personalizationTemplate') ? $product->personalizationTemplate : $product->personalizationTemplate()->first())
+            : null;
+        $mockupMap = $defaultMockup?->map ? MockupZoneNormalizer::toImageSpace($defaultMockup, $defaultMockup->map) : null;
+        $flatArtwork = $template?->thumbnailArtworkUrl() ?: $template?->previewArtworkUrl() ?: $template?->baseArtworkUrl();
+        $canLayerMockup = $product->is_customizable
+            && filled($defaultMockup?->base_image_url)
+            && filled($flatArtwork)
+            && is_array($mockupMap);
+        $hasProductImage = filled($product->storefront_preview_image_url);
+        $cardImage = $hasProductImage ? $product->storefront_preview_image_url : asset('images/logo/Azraq.svg');
+        $cardAlt = $primaryImage?->label ?: $product->name;
+    @endphp
     <a href="{{ route('products.show', $product) }}" class="block overflow-hidden rounded-t-[var(--radius-2xl)]" aria-label="View {{ $product->name }}">
-        <img
-            src="{{ $cardImage }}"
-            alt="{{ $cardAlt }}"
-            @class([
-                'aspect-[4/5] sm:aspect-[4/3] w-full transition duration-500 ease-out group-hover:scale-105',
-                'object-cover' => $hasProductImage,
-                'object-contain bg-[rgba(253,240,213,0.50)] p-12 sm:p-14' => ! $hasProductImage,
-            ])
-            loading="lazy"
-            decoding="async"
-        >
+        @if ($canLayerMockup)
+            <div
+                class="product-card-lux__mockup-stage relative aspect-[4/5] w-full overflow-hidden bg-[rgba(253,240,213,0.50)] transition duration-500 ease-out group-hover:scale-105 sm:aspect-[4/3]"
+                data-card-mockup-stage
+                data-map='@json($mockupMap)'
+                data-image-width="{{ (int) ($defaultMockup->image_width ?: 1600) }}"
+                data-image-height="{{ (int) ($defaultMockup->image_height ?: 1600) }}"
+            >
+                <img
+                    src="{{ $defaultMockup->base_image_url }}"
+                    alt="{{ $cardAlt }}"
+                    class="product-card-lux__mockup-base absolute inset-0 h-full w-full object-cover"
+                    loading="lazy"
+                    decoding="async"
+                >
+                <img
+                    src="{{ $flatArtwork }}"
+                    alt=""
+                    class="product-card-lux__mockup-template absolute left-0 top-0 h-full w-full object-fill"
+                    loading="lazy"
+                    decoding="async"
+                    aria-hidden="true"
+                    data-card-mockup-template
+                >
+            </div>
+        @else
+            <img
+                src="{{ $cardImage }}"
+                alt="{{ $cardAlt }}"
+                @class([
+                    'aspect-[4/5] sm:aspect-[4/3] w-full transition duration-500 ease-out group-hover:scale-105',
+                    'object-cover' => $hasProductImage,
+                    'object-contain bg-[rgba(253,240,213,0.50)] p-12 sm:p-14' => ! $hasProductImage,
+                ])
+                loading="lazy"
+                decoding="async"
+            >
+        @endif
     </a>
 
     <div class="product-card-lux__body">
