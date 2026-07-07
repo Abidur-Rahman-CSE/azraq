@@ -35,6 +35,7 @@
         [
             'label' => 'Content',
             'items' => [
+                ['label' => 'Media', 'route' => 'admin.content.media.index', 'match' => ['admin.content.media.*']],
                 ['label' => 'Homepage', 'route' => 'admin.content.homepage-sections.index', 'match' => ['admin.content.homepage-sections.*']],
                 ['label' => 'FAQs', 'route' => 'admin.content.faqs.index', 'match' => ['admin.content.faqs.*']],
                 ['label' => 'Shipping & Policy', 'route' => 'admin.settings.edit', 'hash' => 'shipping-care-policy-settings', 'match' => ['admin.settings.*']],
