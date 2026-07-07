@@ -147,9 +147,9 @@
     $storyVisual = $product->is_customizable
         ? ($product->storefront_preview_image_url
             ?: data_get($product, 'story_image')
+            ?: ($product->defaultPersonalizationMockup()?->base_image_url ?: $product->defaultPersonalizationMockup()?->thumb_image_url)
             ?: $product->featured_image_url
             ?: ($generalImages->first()['url'] ?? null)
-            ?: ($product->defaultPersonalizationMockup()?->base_image_url ?: $product->defaultPersonalizationMockup()?->thumb_image_url)
             ?: ($templateStorefrontArtworkUrl ?: $templatePreviewArtworkUrl ?: $templateBaseArtworkUrl))
         : (data_get($product, 'story_image')
             ?: $product->featured_image_url
