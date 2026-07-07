@@ -506,6 +506,7 @@ class ComposerStaticInitc57754c93ae34ac3b9b716a0fd2f2149
         'App\\Http\\Controllers\\ProductDetailController' => __DIR__ . '/../..' . '/app/Http/Controllers/ProductDetailController.php',
         'App\\Http\\Controllers\\SeoController' => __DIR__ . '/../..' . '/app/Http/Controllers/SeoController.php',
         'App\\Http\\Controllers\\StorefrontController' => __DIR__ . '/../..' . '/app/Http/Controllers/StorefrontController.php',
+        'App\\Http\\Controllers\\WatermarkedImageController' => __DIR__ . '/../..' . '/app/Http/Controllers/WatermarkedImageController.php',
         'App\\Http\\Controllers\\WishlistController' => __DIR__ . '/../..' . '/app/Http/Controllers/WishlistController.php',
         'App\\Http\\Middleware\\EnsureUserIsAdmin' => __DIR__ . '/../..' . '/app/Http/Middleware/EnsureUserIsAdmin.php',
         'App\\Http\\Requests\\AddToCartRequest' => __DIR__ . '/../..' . '/app/Http/Requests/AddToCartRequest.php',

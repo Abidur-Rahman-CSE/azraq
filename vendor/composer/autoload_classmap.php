@@ -36,6 +36,7 @@ return array(
     'App\\Http\\Controllers\\ProductDetailController' => $baseDir . '/app/Http/Controllers/ProductDetailController.php',
     'App\\Http\\Controllers\\SeoController' => $baseDir . '/app/Http/Controllers/SeoController.php',
     'App\\Http\\Controllers\\StorefrontController' => $baseDir . '/app/Http/Controllers/StorefrontController.php',
+    'App\\Http\\Controllers\\WatermarkedImageController' => $baseDir . '/app/Http/Controllers/WatermarkedImageController.php',
     'App\\Http\\Controllers\\WishlistController' => $baseDir . '/app/Http/Controllers/WishlistController.php',
     'App\\Http\\Middleware\\EnsureUserIsAdmin' => $baseDir . '/app/Http/Middleware/EnsureUserIsAdmin.php',
     'App\\Http\\Requests\\AddToCartRequest' => $baseDir . '/app/Http/Requests/AddToCartRequest.php',

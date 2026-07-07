@@ -63,6 +63,10 @@ function whenIdle(callback) {
     window.setTimeout(callback, 80);
 }
 
+function whenIdleDelayed(callback, delay = 0) {
+    window.setTimeout(() => whenIdle(callback), delay);
+}
+
 function nextFrame() {
     return new Promise((resolve) => window.requestAnimationFrame(resolve));
 }
@@ -681,7 +685,7 @@ const NikahPreview = {
         const stage = visibleCanvas.parentElement;
         const displayWidth = Math.max(1, Math.round(stage?.clientWidth || visibleCanvas.clientWidth || 1));
         const displayHeight = Math.max(1, Math.round(stage?.clientHeight || visibleCanvas.clientHeight || 1));
-        const renderScale = Math.min(3, Math.max(2, window.devicePixelRatio || 1));
+        const renderScale = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
         const width = Math.round(displayWidth * renderScale);
         const height = Math.round(displayHeight * renderScale);
 
@@ -961,6 +965,8 @@ export function registerNikahPreview(Alpine) {
         recentlyViewedItems: [],
         previewThumbs: {},
         thumbnailRenderToken: 0,
+        resizeRenderTimer: null,
+        previewInputTimer: null,
         onResize: null,
         formatMoney(value) {
             const amount = Number(value ?? 0);
@@ -1479,13 +1485,32 @@ export function registerNikahPreview(Alpine) {
                 return;
             }
 
-            (config.mockups ?? []).forEach((scene) => {
-                preloadMockupAssets(scene).catch(() => {});
+            const scenes = config.mockups ?? [];
+            const activeScene = scenes[this.activeMockup];
+
+            preloadMockupAssets(activeScene).catch(() => {});
+
+            scenes.forEach((scene, index) => {
+                if (index === this.activeMockup) {
+                    return;
+                }
+
+                whenIdleDelayed(() => preloadMockupAssets(scene).catch(() => {}), 180 * (index + 1));
             });
 
             if ((config.mockups ?? []).some((scene) => scene.map || scene.zone_points)) {
-                loadPerspective().catch(() => {});
+                whenIdle(() => loadPerspective().catch(() => {}));
             }
+        },
+        schedulePreviewRender(options = {}, delay = 650) {
+            if (!this.isCustomizable) {
+                return;
+            }
+
+            window.clearTimeout(this.previewInputTimer);
+            this.previewInputTimer = window.setTimeout(() => {
+                this.renderPreview(options);
+            }, delay);
         },
         async renderPreview(options = {}) {
             if (!this.isCustomizable) {
@@ -1493,6 +1518,7 @@ export function registerNikahPreview(Alpine) {
             }
 
             const { refreshThumbs = true } = options;
+            window.clearTimeout(this.previewInputTimer);
             const token = Date.now() + Math.random();
             this.previewRenderToken = token;
             this.previewReady = false;
@@ -1525,21 +1551,45 @@ export function registerNikahPreview(Alpine) {
                 return;
             }
 
-            const token = Date.now();
+            const token = Date.now() + Math.random();
             this.thumbnailRenderToken = token;
-            const nextThumbs = {};
+            const renderOne = async (key, mockupIndex, mode) => {
+                const image = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, mockupIndex, mode, this.fieldFonts, 128).catch(() => null);
 
-            if (this.hasFlatPreview) {
-                nextThumbs.flat = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, 0, 'flat', this.fieldFonts, 160).catch(() => null);
+                if (this.thumbnailRenderToken === token && image) {
+                    this.previewThumbs = { ...this.previewThumbs, [key]: image };
+                }
+            };
+
+            if (this.hasFlatPreview && this.mode === 'flat') {
+                await renderOne('flat', 0, 'flat');
+            }
+
+            if (this.mode === 'mockup') {
+                await renderOne(`mockup-${this.activeMockup}`, this.activeMockup, 'mockup');
+            }
+
+            const jobs = [];
+
+            if (this.hasFlatPreview && this.mode !== 'flat') {
+                jobs.push(() => renderOne('flat', 0, 'flat'));
             }
 
             for (let index = 0; index < (config.mockups?.length ?? 0); index += 1) {
-                nextThumbs[`mockup-${index}`] = await window.NikahPreview.renderThumbnail(this.fields, this.activeFont, index, 'mockup', this.fieldFonts, 160).catch(() => null);
+                if (this.mode === 'mockup' && index === this.activeMockup) {
+                    continue;
+                }
+
+                jobs.push(() => renderOne(`mockup-${index}`, index, 'mockup'));
             }
 
-            if (this.thumbnailRenderToken === token) {
-                this.previewThumbs = nextThumbs;
-            }
+            jobs.forEach((job, index) => {
+                whenIdleDelayed(() => {
+                    if (this.thumbnailRenderToken === token) {
+                        job();
+                    }
+                }, 140 * (index + 1));
+            });
         },
         syncRecentlyViewed() {
             const key = 'recently_viewed_products';
@@ -1606,7 +1656,6 @@ export function registerNikahPreview(Alpine) {
                         fonts: config.fonts ?? [],
                     });
 
-                    this.preloadPreviewMedia();
                     this.activeFont = this.primaryFontId() || config.activeFont || null;
                     const defaultMockupIndex = (config.mockups ?? []).findIndex((mockup) => `${mockup.id}` === `${config.defaultMockupId}`);
 
@@ -1623,6 +1672,7 @@ export function registerNikahPreview(Alpine) {
                     }
 
                     const syncedVariantPreview = this.syncPreviewFromActiveVariant();
+                    this.preloadPreviewMedia();
                     this.initZoom();
 
                     if (syncedVariantPreview) {
@@ -1641,7 +1691,10 @@ export function registerNikahPreview(Alpine) {
                 this.observeStickyBar();
 
                 if (this.isCustomizable) {
-                    this.renderPreview();
+                    window.clearTimeout(this.resizeRenderTimer);
+                    this.resizeRenderTimer = window.setTimeout(() => {
+                        this.renderPreview({ refreshThumbs: false });
+                    }, 160);
                 }
             };
 
@@ -1654,6 +1707,9 @@ export function registerNikahPreview(Alpine) {
             if (this.onResize) {
                 window.removeEventListener('resize', this.onResize);
             }
+
+            window.clearTimeout(this.resizeRenderTimer);
+            window.clearTimeout(this.previewInputTimer);
         },
     }));
 }

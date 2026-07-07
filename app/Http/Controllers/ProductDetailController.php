@@ -22,29 +22,41 @@ class ProductDetailController extends Controller
 {
     public function show(Request $request, Product $product)
     {
-        $product->load([
+        $commonRelations = [
             'category',
             'tags',
             'images',
             'variants',
-            'bundleItems.childProduct.category',
-            'bundleItems.childProduct.tags',
-            'bundleItems.childProduct.images',
-            'bundleItems.childProduct.variants',
-            'bundleItems.defaultVariant',
-            'serviceMeta',
-            'personalizationTemplate.fields',
-            'personalizationTemplate.fonts',
-            'personalizationMockups.map',
-            'personalizationMockups.template',
             'reviews' => fn ($query) => $query->where('is_approved', true)->latest()->limit(4),
             'relatedProducts.category',
             'relatedProducts.tags',
             'relatedProducts.images',
             'relatedProducts.personalizationTemplate',
-            'relatedProducts.personalizationMockups',
+            'relatedProducts.personalizationMockups.map',
             'relatedCategories',
-        ]);
+        ];
+
+        $typeRelations = match ($product->type) {
+            ProductType::AdvancedPersonalized => [
+                'personalizationTemplate.fields',
+                'personalizationTemplate.fonts',
+                'personalizationMockups.map',
+                'personalizationMockups.template',
+            ],
+            ProductType::Bundle => [
+                'bundleItems.childProduct.category',
+                'bundleItems.childProduct.tags',
+                'bundleItems.childProduct.images',
+                'bundleItems.childProduct.variants',
+                'bundleItems.defaultVariant',
+            ],
+            ProductType::Service => [
+                'serviceMeta',
+            ],
+            default => [],
+        };
+
+        $product->load([...$commonRelations, ...$typeRelations]);
 
         $recentlyViewed = collect($request->session()->get('recently_viewed_products', []))
             ->reject(fn (int $id) => $id === $product->id)

@@ -109,7 +109,7 @@
                                     <button
                                         type="button"
                                         class="button-pill !px-3 !py-1.5 !text-xs"
-                                        @click.prevent="fields['{{ $fieldKey }}'] = @js($presetValue); renderPreview()"
+                                        @click.prevent="fields['{{ $fieldKey }}'] = @js($presetValue); schedulePreviewRender({ refreshThumbs: false }, 120)"
                                     >
                                         {{ $presetValue }}
                                     </button>
@@ -127,7 +127,7 @@
                                     id="field-{{ $fieldKey }}"
                                     type="date"
                                     value="{{ old($fieldName, $field->default_value ?? '') }}"
-                                    @change="fields['{{ $fieldKey }}']=$event.target.value; computeAutoDates('{{ $fieldKey }}',@js($field->settings??[])); renderPreview();"
+                                    @change="fields['{{ $fieldKey }}']=$event.target.value; computeAutoDates('{{ $fieldKey }}',@js($field->settings??[])); schedulePreviewRender({ refreshThumbs: false }, 120);"
                                     class="field-input @if($prefix||$postfix) min-w-0 flex-1 @endif !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
                                 >
                                 @if ($postfix)
@@ -147,7 +147,8 @@
                                     name="personalization[{{ $fieldKey }}]"
                                     value="{{ old($fieldName, $field->default_value ?? $field->preview_sample_value ?? '') }}"
                                     x-model="fields['{{ $fieldKey }}']"
-                                    @input.debounce.150ms="renderPreview()"
+                                    @input="schedulePreviewRender({ refreshThumbs: false })"
+                                    @blur="renderPreview({ refreshThumbs: false })"
                                     placeholder="{{ $field->placeholder }}"
                                     maxlength="{{ $fieldMax }}"
                                     class="field-input @if($prefix||$postfix) min-w-0 flex-1 @endif !rounded-[var(--radius-md)] !bg-[var(--bg-section-soft)] !px-3 !py-2.5 !text-sm"
