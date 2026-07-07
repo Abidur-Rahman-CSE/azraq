@@ -300,9 +300,11 @@
                     <div class="mx-auto aspect-[4/5] w-full max-w-[320px] overflow-hidden rounded-[var(--radius-3xl)] bg-[var(--bg-section-soft)] sm:aspect-[5/4] sm:max-w-none lg:aspect-auto lg:min-h-[440px]">
                         @php($nikahImageProduct = $latestNikahNama ?? $signatureNikah)
                         @php($customNikahImage = data_get($spotlightSection, 'settings.image_url'))
-                        @php($nikahLayer = $customNikahImage ? null : $mockupLayerFor($nikahImageProduct ?: $signatureNikah))
-                        @php($nikahImage = $customNikahImage ?: ($nikahLayer ? null : ($nikahImageProduct?->storefront_preview_image_url ?: $signatureNikah->storefront_preview_image_url)))
-                        @if ($nikahLayer)
+                        @php($nikahImage = $customNikahImage ?: ($nikahImageProduct?->storefront_preview_image_url ?: $signatureNikah->storefront_preview_image_url))
+                        @php($nikahLayer = $nikahImage ? null : $mockupLayerFor($nikahImageProduct ?: $signatureNikah))
+                        @if ($nikahImage)
+                            <img src="{{ $nikahImage }}" alt="{{ $nikahImageProduct?->name ?? $signatureNikah->name }}" class="h-full w-full object-cover">
+                        @elseif ($nikahLayer)
                             <div
                                 class="relative h-full w-full overflow-hidden"
                                 data-card-mockup-stage
@@ -325,8 +327,6 @@
                                     loading="lazy"
                                 >
                             </div>
-                        @elseif ($nikahImage)
-                            <img src="{{ $nikahImage }}" alt="{{ $nikahImageProduct?->name ?? $signatureNikah->name }}" class="h-full w-full object-cover">
                         @endif
                     </div>
                     <div class="flex min-w-0 flex-col items-center justify-center text-center lg:items-start lg:text-left">

@@ -2,14 +2,12 @@
 
 <article class="product-card-lux group">
     @php
-        use App\Support\MockupZoneNormalizer;
-
         $primaryImage = $product->images->firstWhere('is_primary', true) ?: $product->images->first();
         $defaultMockup = $product->is_customizable ? $product->defaultPersonalizationMockup() : null;
         $template = $product->is_customizable
             ? ($product->relationLoaded('personalizationTemplate') ? $product->personalizationTemplate : $product->personalizationTemplate()->first())
             : null;
-        $mockupMap = $defaultMockup?->map ? MockupZoneNormalizer::toImageSpace($defaultMockup, $defaultMockup->map) : null;
+        $mockupMap = $defaultMockup?->map ? \App\Support\MockupZoneNormalizer::toImageSpace($defaultMockup, $defaultMockup->map) : null;
         $flatArtwork = $template?->previewArtworkUrl() ?: $template?->baseArtworkUrl() ?: $template?->thumbnailArtworkUrl();
         $canLayerMockup = $product->is_customizable
             && filled($defaultMockup?->base_image_url)
@@ -20,7 +18,15 @@
         $cardAlt = $primaryImage?->label ?: $product->name;
     @endphp
     <a href="{{ route('products.show', $product) }}" class="block overflow-hidden rounded-t-[var(--radius-2xl)]" aria-label="View {{ $product->name }}">
-        @if ($canLayerMockup)
+        @if ($hasProductImage)
+            <img
+                src="{{ $cardImage }}"
+                alt="{{ $cardAlt }}"
+                class="aspect-[4/5] sm:aspect-[4/3] w-full object-cover transition duration-500 ease-out group-hover:scale-105"
+                loading="lazy"
+                decoding="async"
+            >
+        @elseif ($canLayerMockup)
             <div
                 class="product-card-lux__mockup-stage relative aspect-[4/5] w-full overflow-hidden bg-[rgba(253,240,213,0.50)] transition duration-500 ease-out group-hover:scale-105 sm:aspect-[4/3]"
                 data-card-mockup-stage
@@ -51,8 +57,7 @@
                 alt="{{ $cardAlt }}"
                 @class([
                     'aspect-[4/5] sm:aspect-[4/3] w-full transition duration-500 ease-out group-hover:scale-105',
-                    'object-cover' => $hasProductImage,
-                    'object-contain bg-[rgba(253,240,213,0.50)] p-12 sm:p-14' => ! $hasProductImage,
+                    'object-contain bg-[rgba(253,240,213,0.50)] p-12 sm:p-14',
                 ])
                 loading="lazy"
                 decoding="async"
