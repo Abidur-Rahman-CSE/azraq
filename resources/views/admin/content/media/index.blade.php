@@ -12,6 +12,32 @@
         class="space-y-6"
         x-data="{
             copied: '',
+            fallbackCopy(value) {
+                const input = document.createElement('textarea');
+                input.value = value;
+                input.setAttribute('readonly', '');
+                input.style.position = 'fixed';
+                input.style.top = '0';
+                input.style.left = '-9999px';
+                document.body.appendChild(input);
+                input.focus();
+                input.select();
+                input.setSelectionRange(0, input.value.length);
+
+                let copied = false;
+
+                try {
+                    copied = document.execCommand('copy');
+                } catch (error) {
+                    copied = false;
+                }
+
+                document.body.removeChild(input);
+
+                if (!copied) {
+                    window.prompt('Copy this value:', value);
+                }
+            },
             copyText(value, label) {
                 const done = () => {
                     this.copied = label;
@@ -19,19 +45,16 @@
                 };
 
                 if (navigator.clipboard && window.isSecureContext) {
-                    navigator.clipboard.writeText(value).then(done);
+                    navigator.clipboard.writeText(value)
+                        .then(done)
+                        .catch(() => {
+                            this.fallbackCopy(value);
+                            done();
+                        });
                     return;
                 }
 
-                const input = document.createElement('textarea');
-                input.value = value;
-                input.setAttribute('readonly', '');
-                input.style.position = 'absolute';
-                input.style.left = '-9999px';
-                document.body.appendChild(input);
-                input.select();
-                document.execCommand('copy');
-                document.body.removeChild(input);
+                this.fallbackCopy(value);
                 done();
             }
         }"

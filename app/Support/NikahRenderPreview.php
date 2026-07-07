@@ -51,8 +51,22 @@ class NikahRenderPreview
             ?? $template->mockups->where('is_active', true)->first()
             ?? $template->mockups->first();
 
-        $textLayers = $template->fields->map(function ($field) use ($personalization, $fieldFonts, $font) {
-            $value = $personalization[$field->field_key] ?? $field->default_value ?? $field->preview_sample_value ?? $field->placeholder;
+        $previewPresets = is_array($template->preview_data_presets) ? $template->preview_data_presets : [];
+
+        $textLayers = $template->fields->map(function ($field) use ($personalization, $fieldFonts, $font, $previewPresets) {
+            $value = '';
+
+            if (array_key_exists($field->field_key, $personalization)) {
+                $value = (string) ($personalization[$field->field_key] ?? '');
+            } else {
+                $value = self::firstNonBlankValue(
+                    $field->default_value,
+                    $field->preview_sample_value,
+                    $previewPresets[$field->field_key] ?? null,
+                    $field->placeholder,
+                );
+            }
+
             $selectedFieldFont = $fieldFonts[$field->field_key] ?? null;
             $isNameFontField = str($field->field_key)->contains(['bride', 'groom']);
             $resolvedFont = $selectedFieldFont instanceof PersonalizationFont
@@ -195,5 +209,20 @@ class NikahRenderPreview
             $template,
             $mockup,
         );
+    }
+
+    private static function firstNonBlankValue(mixed ...$values): string
+    {
+        foreach ($values as $value) {
+            if (is_numeric($value)) {
+                return (string) $value;
+            }
+
+            if (is_string($value) && trim($value) !== '') {
+                return $value;
+            }
+        }
+
+        return '';
     }
 }
