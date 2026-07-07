@@ -329,6 +329,7 @@ class ProductDetailController extends Controller
                     'item' => (object) ['product_name' => $product->name],
                     'renderPreview' => $renderPreview,
                     'mode' => 'flat',
+                    'resolutionPreset' => 'storefront',
                 ])->render();
 
                 if (data_get($renderPreview, 'mockup')) {
@@ -367,9 +368,9 @@ class ProductDetailController extends Controller
         $mockup = $product->defaultPersonalizationMockup()
             ?: $template?->mockups()->where('is_active', true)->orderBy('sort_order')->first();
         $map = $mockup?->map ? MockupZoneNormalizer::toImageSpace($mockup, $mockup->map) : null;
-        $flatUrl = $template?->thumbnailArtworkUrl()
-            ?: $template?->previewArtworkUrl()
-            ?: $template?->baseArtworkUrl();
+        $flatUrl = $template?->previewArtworkUrl()
+            ?: $template?->baseArtworkUrl()
+            ?: $template?->thumbnailArtworkUrl();
 
         if ($mockup?->base_image_url && $flatUrl && is_array($map)) {
             return response($this->fallbackCompositeSvg($mockup, $map, $flatUrl), 200, [

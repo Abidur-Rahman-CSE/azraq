@@ -9,10 +9,77 @@ class HomepageSectionsSeeder extends Seeder
 {
     public function run(): void
     {
-        // Existing keys are seeded by CatalogSeeder. This seeder upserts the 6 new
-        // section_keys introduced in the v3 home page redesign so they appear in
-        // /admin/homepage-sections and become editable.
+        // Seed the complete homepage section registry, but only backfill missing
+        // rows so existing admin-edited content never gets overwritten.
         $sections = [
+            [
+                'section_key' => 'hero',
+                'title' => 'A premium bridal storefront with configurable homepage sections.',
+                'subtitle' => 'Homepage hero',
+                'content' => 'Drive the top-of-funnel narrative from admin instead of hardcoding campaign copy in templates.',
+                'cta_label' => 'Browse the shop',
+                'cta_href' => '/shop',
+                'sort_order' => 0,
+                'is_enabled' => true,
+                'settings' => [
+                    'desktop_image_url' => null,
+                    'mobile_image_url' => null,
+                    'secondary_cta_label' => null,
+                    'secondary_cta_href' => null,
+                    'featured_product_id' => null,
+                    'slides' => [],
+                ],
+            ],
+            [
+                'section_key' => 'featured_categories',
+                'title' => 'Featured categories',
+                'subtitle' => 'Catalog discovery',
+                'content' => 'Highlight the primary Azraq catalog groups with clean editorial spacing.',
+                'cta_label' => 'View all categories',
+                'cta_href' => '/shop',
+                'sort_order' => 10,
+                'is_enabled' => true,
+                'settings' => [
+                    'selected_category_ids' => [],
+                ],
+            ],
+            [
+                'section_key' => 'featured_products',
+                'title' => 'Featured products',
+                'subtitle' => 'Merchandising',
+                'content' => 'Put bestselling, premium, or campaign-led products into a shared homepage block.',
+                'cta_label' => 'See featured products',
+                'cta_href' => '/shop',
+                'sort_order' => 20,
+                'is_enabled' => true,
+                'settings' => [
+                    'selected_product_ids' => [],
+                ],
+            ],
+            [
+                'section_key' => 'featured_collections',
+                'title' => 'Featured collections',
+                'subtitle' => 'Collection spotlight',
+                'content' => 'Promote best sellers, signature Nikah, and gift edits as reusable landing collections.',
+                'cta_label' => 'Open collections',
+                'cta_href' => '/shop',
+                'sort_order' => 30,
+                'is_enabled' => true,
+                'settings' => [
+                    'selected_collection_ids' => [],
+                ],
+            ],
+            [
+                'section_key' => 'faq_preview',
+                'title' => 'Frequently asked questions',
+                'subtitle' => 'Trust and support',
+                'content' => 'Bring delivery, personalization, and proof expectations into the homepage for better conversion clarity.',
+                'cta_label' => 'Read all FAQs',
+                'cta_href' => '/faq',
+                'sort_order' => 40,
+                'is_enabled' => true,
+                'settings' => [],
+            ],
             [
                 'section_key' => 'stats_strip',
                 'title' => 'Built on craft, trusted by hundreds.',
@@ -114,7 +181,7 @@ class HomepageSectionsSeeder extends Seeder
         ];
 
         foreach ($sections as $section) {
-            HomepageSection::updateOrCreate(
+            HomepageSection::firstOrCreate(
                 ['section_key' => $section['section_key']],
                 $section
             );

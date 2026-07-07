@@ -182,7 +182,7 @@ class Product extends Model
     public function storefrontPreviewVersion(): string
     {
         $versionParts = [
-            'preview-fit-v3',
+            'preview-quality-v4',
             (string) optional($this->updated_at)->timestamp,
         ];
 

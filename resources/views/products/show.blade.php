@@ -54,8 +54,8 @@
     $templateBaseArtworkUrl = $template?->baseArtworkUrl();
     $templatePreviewArtworkUrl = $template?->previewArtworkUrl();
     $templateThumbnailArtworkUrl = $template?->thumbnailArtworkUrl();
-    $templateRenderedPreviewUrl = $templateThumbnailArtworkUrl
-        ? $templateThumbnailArtworkUrl.'?v='.urlencode((string) optional($template?->updated_at)->timestamp)
+    $templateRenderedPreviewUrl = ($templatePreviewArtworkUrl ?: $templateBaseArtworkUrl ?: $templateThumbnailArtworkUrl)
+        ? ($templatePreviewArtworkUrl ?: $templateBaseArtworkUrl ?: $templateThumbnailArtworkUrl).'?v='.urlencode((string) optional($template?->updated_at)->timestamp)
         : null;
 
     $templatePayload = $product->is_customizable && $template

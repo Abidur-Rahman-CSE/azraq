@@ -33,6 +33,7 @@ class DatabaseSeeder extends Seeder
 
         if (class_exists(Category::class)) {
             $this->call(CatalogSeeder::class);
+            $this->call(HomepageSectionsSeeder::class);
         }
     }
 }

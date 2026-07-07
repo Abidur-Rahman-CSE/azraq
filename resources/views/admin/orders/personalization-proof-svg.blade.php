@@ -8,7 +8,7 @@
     $fontFamily = data_get($renderPreview, 'font.css_font_family', 'Poppins, sans-serif');
 
     if ($mode === 'flat') {
-        $width = 900;
+        $width = ($resolutionPreset ?? null) === 'storefront' ? 1080 : 900;
         $height = (int) round($width * (max(1, (int) data_get($template, 'ratio_height', 13)) / max(1, (int) data_get($template, 'ratio_width', 9))));
     } else {
         $width = 1600;
