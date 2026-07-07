@@ -24,8 +24,8 @@
         $map = $defaultMockup?->map
             ? MockupZoneNormalizer::toImageSpace($defaultMockup, $defaultMockup->map)
             : null;
-        $flatArtwork = $template?->previewArtworkUrl()
-            ?: $template?->baseArtworkUrl()
+        $flatArtwork = $template?->storefrontArtworkUrl()
+            ?: $template?->previewArtworkUrl()
             ?: $template?->thumbnailArtworkUrl();
 
         if (! $defaultMockup?->base_image_url || ! $flatArtwork || ! is_array($map)) {

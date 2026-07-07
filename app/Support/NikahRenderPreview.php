@@ -91,8 +91,8 @@ class NikahRenderPreview
         $normalizedMap = $mockup?->map
             ? MockupZoneNormalizer::toImageSpace($mockup, $mockup->map)
             : null;
-        $flatArtworkUrl = $template->previewArtworkUrl()
-            ?: $template->baseArtworkUrl()
+        $flatArtworkUrl = $template->storefrontArtworkUrl()
+            ?: $template->previewArtworkUrl()
             ?: $template->thumbnailArtworkUrl();
 
         return [

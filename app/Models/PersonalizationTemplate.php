@@ -133,4 +133,13 @@ class PersonalizationTemplate extends Model
             $this->base_template_url,
         );
     }
+
+    public function storefrontArtworkUrl(): ?string
+    {
+        return $this->firstExistingImageUrl(
+            $this->base_template_url,
+            $this->preview_image_url,
+            $this->thumbnail_image_url,
+        );
+    }
 }

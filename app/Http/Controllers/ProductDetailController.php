@@ -368,8 +368,8 @@ class ProductDetailController extends Controller
         $mockup = $product->defaultPersonalizationMockup()
             ?: $template?->mockups()->where('is_active', true)->orderBy('sort_order')->first();
         $map = $mockup?->map ? MockupZoneNormalizer::toImageSpace($mockup, $mockup->map) : null;
-        $flatUrl = $template?->previewArtworkUrl()
-            ?: $template?->baseArtworkUrl()
+        $flatUrl = $template?->storefrontArtworkUrl()
+            ?: $template?->previewArtworkUrl()
             ?: $template?->thumbnailArtworkUrl();
 
         if ($mockup?->base_image_url && $flatUrl && is_array($map)) {
