@@ -120,8 +120,8 @@ class PersonalizationTemplate extends Model
     {
         return $this->firstExistingImageUrl(
             $this->preview_image_url,
-            $this->base_template_url,
             $this->thumbnail_image_url,
+            $this->base_template_url,
         );
     }
 
@@ -138,8 +138,8 @@ class PersonalizationTemplate extends Model
     {
         return $this->firstExistingImageUrl(
             $this->preview_image_url,
-            $this->base_template_url,
             $this->thumbnail_image_url,
+            $this->base_template_url,
         );
     }
 
@@ -147,8 +147,8 @@ class PersonalizationTemplate extends Model
     {
         return $this->firstExistingImageUrl(
             $this->preview_image_url,
-            $this->base_template_url,
             $this->thumbnail_image_url,
+            $this->base_template_url,
         );
     }
 }

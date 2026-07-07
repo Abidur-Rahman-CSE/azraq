@@ -1,7 +1,11 @@
 @php
     $mockupItems = $mockups instanceof \Illuminate\Support\Collection ? $mockups->values() : collect($mockups ?? [])->values();
     $generalImages = $generalImages instanceof \Illuminate\Support\Collection ? $generalImages->values() : collect($generalImages ?? [])->values();
-    $flatThumb = $template?->storefrontArtworkUrl() ?: $template?->previewArtworkUrl() ?: $template?->thumbnailArtworkUrl() ?: $product->featured_image_url;
+    $flatThumb = $template?->storefrontPreviewArtworkUrl()
+        ?: $template?->storefrontArtworkUrl()
+        ?: $template?->previewArtworkUrl()
+        ?: $template?->thumbnailArtworkUrl()
+        ?: $product->featured_image_url;
     $showFlatPreview = $product->is_customizable && $mockupItems->isEmpty();
 @endphp
 

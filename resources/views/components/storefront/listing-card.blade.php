@@ -8,7 +8,10 @@
             ? ($product->relationLoaded('personalizationTemplate') ? $product->personalizationTemplate : $product->personalizationTemplate()->first())
             : null;
         $mockupMap = $defaultMockup?->map ? \App\Support\MockupZoneNormalizer::toImageSpace($defaultMockup, $defaultMockup->map) : null;
-        $flatArtwork = $template?->storefrontArtworkUrl() ?: $template?->previewArtworkUrl() ?: $template?->thumbnailArtworkUrl();
+        $flatArtwork = $template?->storefrontPreviewArtworkUrl()
+            ?: $template?->storefrontArtworkUrl()
+            ?: $template?->previewArtworkUrl()
+            ?: $template?->thumbnailArtworkUrl();
         $canLayerMockup = $product->is_customizable
             && filled($defaultMockup?->base_image_url)
             && filled($flatArtwork)

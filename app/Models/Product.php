@@ -182,7 +182,7 @@ class Product extends Model
     public function storefrontPreviewVersion(): string
     {
         $versionParts = [
-            'preview-art-v8',
+            'preview-art-v9',
             (string) optional($this->updated_at)->timestamp,
         ];
 
@@ -219,7 +219,8 @@ class Product extends Model
                 : $this->personalizationTemplate()->first();
 
             if ($template) {
-                $snapshotUrl = $template->storefrontArtworkUrl()
+                $snapshotUrl = $template->storefrontPreviewArtworkUrl()
+                    ?: $template->storefrontArtworkUrl()
                     ?: $template->thumbnailArtworkUrl();
                 $defaultMockup = $this->defaultPersonalizationMockup()
                     ?: $template->mockups()->where('is_active', true)->orderBy('sort_order')->first();
