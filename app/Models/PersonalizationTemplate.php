@@ -137,8 +137,17 @@ class PersonalizationTemplate extends Model
     public function storefrontArtworkUrl(): ?string
     {
         return $this->firstExistingImageUrl(
-            $this->base_template_url,
             $this->preview_image_url,
+            $this->base_template_url,
+            $this->thumbnail_image_url,
+        );
+    }
+
+    public function storefrontPreviewArtworkUrl(): ?string
+    {
+        return $this->firstExistingImageUrl(
+            $this->preview_image_url,
+            $this->base_template_url,
             $this->thumbnail_image_url,
         );
     }
