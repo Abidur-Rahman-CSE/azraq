@@ -145,9 +145,11 @@
         ?: Str::limit(strip_tags($product->description), 150);
 
     $storyVisual = data_get($product, 'story_image')
-        ?: $product->storefront_preview_image_url
         ?: $product->featured_image_url
-        ?: ($product->is_customizable ? ($templatePreviewArtworkUrl ?: $templateBaseArtworkUrl) : ($primaryImage?->image_url));
+        ?: $generalImages->first()['url'] ?? null
+        ?: ($product->is_customizable ? ($product->defaultPersonalizationMockup()?->base_image_url ?: $product->defaultPersonalizationMockup()?->thumb_image_url) : null)
+        ?: $product->storefront_preview_image_url
+        ?: ($product->is_customizable ? ($templateStorefrontArtworkUrl ?: $templatePreviewArtworkUrl ?: $templateBaseArtworkUrl) : ($primaryImage?->image_url));
 
     $deliveryRows = $policyRows ?? [
         ['label' => 'Production time', 'value' => ($product->lead_time_days ?: 4).' to '.(($product->lead_time_days ?: 4) + 2).' business days'],
